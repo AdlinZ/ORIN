@@ -1,27 +1,36 @@
 <template>
   <div class="workflow-editor">
-    <PageHeader
+    <OrinPageShell
       :title="isEdit ? '编辑工作流' : '创建工作流'"
       description="配置工作流基本信息与步骤编排"
       icon="Operation"
-    />
-    <div class="header">
-      <el-page-header @back="goBack">
-        <template #content>
-          <span class="text-large font-600 mr-3">
-            {{ isEdit ? '编辑工作流' : '创建工作流' }}
-          </span>
-        </template>
-        <template #extra>
+      domain="工作流管理"
+      maturity="available"
+    >
+      <template #actions>
+        <div class="editor-actions">
           <el-button @click="goBack">
             取消
           </el-button>
           <el-button type="primary" :loading="submitting" @click="handleSubmit">
             保存
           </el-button>
-        </template>
-      </el-page-header>
-    </div>
+        </div>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag effect="plain">
+            {{ isEdit ? '编辑模式' : '新建模式' }}
+          </el-tag>
+          <el-tag effect="plain">
+            {{ form.steps.length }} 个步骤
+          </el-tag>
+          <el-tag effect="plain">
+            超时 {{ form.timeoutSeconds }} 秒
+          </el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
 
     <div class="content">
       <el-form
@@ -163,7 +172,8 @@ import { ROUTES } from '@/router/routes';
 // Assuming we have a generic agent API. If not, I'll need to double check the path. 
 // Based on file list, src/api/agent.js exists.
 import { getAgentList } from '@/api/agent'; 
-import PageHeader from '@/components/PageHeader.vue';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -276,7 +286,6 @@ const handleSubmit = async () => {
       try {
         // 1. Validate Legality & Serialize to JSON (DSL)
         const { graphDefinition, steps } = serializeWorkflow(form);
-        console.log('Generated workflow graph:', graphDefinition);
 
         // 2. Save to Procedural Knowledge Base
         const payload = {
@@ -389,13 +398,19 @@ const goBack = () => {
 
 <style scoped>
 .workflow-editor {
-  padding: 20px;
-  background: #fff;
-  min-height: 100vh;
+  min-height: 100%;
+  padding: 24px;
+  background: var(--page-bg, #f8fafc);
 }
 
-.header {
-  margin-bottom: 24px;
+.editor-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.content {
+  margin-top: 16px;
 }
 
 .card-header {

@@ -1,13 +1,12 @@
 <template>
   <div class="data-assets-page page-container fade-in">
     <section class="data-assets-shell">
-      <header class="data-assets-header">
-        <div>
-          <span class="header-eyebrow">系统设置</span>
-          <h1>数据资产</h1>
-          <p>统一管理多模态文件资产、端侧数据同步和外部平台同步入口。</p>
-        </div>
-      </header>
+      <OrinPageShell
+        domain="系统控制"
+        title="数据资产"
+        description="统一管理多模态文件资产、端侧数据同步和外部平台同步入口。"
+        icon="Folder"
+      />
 
       <el-tabs v-model="activeWorkspace" class="workspace-tabs" @tab-change="handleWorkspaceChange">
         <el-tab-pane label="文件资产" name="files">
@@ -24,6 +23,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import FileManagement from '@/views/System/FileManagement.vue'
 import ClientSync from '@/views/System/ClientSync.vue'
 

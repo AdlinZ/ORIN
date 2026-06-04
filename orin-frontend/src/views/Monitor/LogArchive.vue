@@ -1,15 +1,16 @@
 <template>
   <div class="page-container">
-    <PageHeader
+    <OrinPageShell
       title="日志归档"
       description="系统运行日志查询、归档与管理"
       icon="Document"
+      domain="运行监控"
     >
       <template #actions>
         <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
-        <el-button :icon="Download" @click="handleExport">导出日志</el-button>
+        <el-button :icon="Download" :disabled="logs.length === 0" @click="handleExport">导出日志</el-button>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
     <!-- 筛选条件 -->
     <el-card shadow="never" class="filter-card">
@@ -44,6 +45,11 @@
 
     <!-- 日志列表 -->
     <el-card shadow="never" class="table-card">
+      <OrinAsyncState
+        :status="loading ? 'loading' : (logs.length ? 'success' : 'empty')"
+        empty-text="当前筛选条件下暂无日志"
+      >
+      <OrinDataTable compact>
       <el-table
         v-loading="loading"
         :data="logs"
@@ -72,6 +78,8 @@
           </template>
         </el-table-column>
       </el-table>
+      </OrinDataTable>
+      </OrinAsyncState>
 
       <!-- 分页 -->
       <div class="pagination-container">
@@ -111,10 +119,15 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, Refresh, Download, Document } from '@element-plus/icons-vue'
+import { Search, Refresh, Download } from '@element-plus/icons-vue'
+import { getGatewayAuditLogs } from '@/api/audit'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const loading = ref(false)
 const logs = ref([])
+const selectedLogs = ref([])
 const detailDialogVisible = ref(false)
 const currentLog = ref(null)
 
@@ -146,19 +159,75 @@ const getLevelType = (level) => {
   return typeMap[level] || ''
 }
 
+const unwrapRows = (response) => {
+  if (Array.isArray(response)) return { rows: response, total: response.length }
+  const rows = response?.content || response?.records || response?.data || []
+  const total = response?.totalElements ?? response?.total ?? rows.length
+  return { rows: Array.isArray(rows) ? rows : [], total }
+}
+
+const toLogLevel = (row = {}) => {
+  const statusCode = Number(row.statusCode)
+  if (row.success === false || statusCode >= 500) return 'ERROR'
+  if (statusCode >= 400) return 'WARN'
+  return 'INFO'
+}
+
+const toLogRow = (row = {}) => {
+  const method = row.method || '-'
+  const endpoint = row.endpoint || row.path || '-'
+  const source = row.providerType || row.providerId || row.userId || 'Audit'
+  return {
+    id: row.id,
+    timestamp: row.createdAt || row.timestamp || row.time,
+    level: toLogLevel(row),
+    source,
+    message: row.errorMessage || `${method} ${endpoint}`,
+    stackTrace: row.errorMessage || '',
+    traceId: row.traceId || row.conversationId || '',
+    statusCode: row.statusCode,
+    method,
+    endpoint
+  }
+}
+
+const applyLocalFilters = (rows) => {
+  const keyword = filterForm.keyword.trim().toLowerCase()
+  const [start, end] = filterForm.dateRange || []
+  const startTime = start ? new Date(start).getTime() : null
+  const endTime = end ? new Date(end).getTime() + 24 * 60 * 60 * 1000 - 1 : null
+
+  return rows.filter((row) => {
+    if (filterForm.level && row.level !== filterForm.level) return false
+    if (keyword) {
+      const text = [row.source, row.message, row.traceId, row.endpoint, row.method].join(' ').toLowerCase()
+      if (!text.includes(keyword)) return false
+    }
+    if (startTime || endTime) {
+      const timestamp = row.timestamp ? new Date(row.timestamp).getTime() : 0
+      if (startTime && timestamp < startTime) return false
+      if (endTime && timestamp > endTime) return false
+    }
+    return true
+  })
+}
+
 const fetchLogs = async () => {
   loading.value = true
   try {
-    // 模拟数据，实际应调用 API
-    logs.value = [
-      { timestamp: '2026-03-31 10:23:45', level: 'INFO', source: 'RuntimeService', message: 'System started successfully' },
-      { timestamp: '2026-03-31 10:24:12', level: 'INFO', source: 'AgentManager', message: 'Agent session initialized for user 1001' },
-      { timestamp: '2026-03-31 10:25:33', level: 'WARN', source: 'TokenCounter', message: 'Token usage approaching rate limit: 8500/10000' },
-      { timestamp: '2026-03-31 10:26:01', level: 'ERROR', source: 'KnowledgeService', message: 'Failed to sync knowledge base: connection timeout', stackTrace: 'java.net.SocketTimeoutException: connection timeout\n\tat com.adlin.orin.knowledge.sync' },
-      { timestamp: '2026-03-31 10:27:15', level: 'DEBUG', source: 'CacheManager', message: 'Cache hit for key: user_profile_1001' }
-    ]
-    pagination.total = logs.value.length
+    const response = await getGatewayAuditLogs({
+      page: Math.max(0, pagination.page - 1),
+      size: pagination.pageSize,
+      sortBy: 'createdAt',
+      direction: 'desc'
+    })
+    const { rows, total } = unwrapRows(response)
+    const normalizedRows = rows.map(toLogRow)
+    logs.value = applyLocalFilters(normalizedRows)
+    pagination.total = filterForm.level || filterForm.keyword || filterForm.dateRange ? logs.value.length : total
   } catch (error) {
+    logs.value = []
+    pagination.total = 0
     ElMessage.error('获取日志失败')
   } finally {
     loading.value = false
@@ -179,15 +248,36 @@ const handleReset = () => {
 
 const handleRefresh = () => {
   fetchLogs()
-  ElMessage.success('刷新成功')
 }
 
 const handleExport = () => {
-  ElMessage.info('导出功能开发中')
+  const rows = selectedLogs.value.length ? selectedLogs.value : logs.value
+  if (rows.length === 0) {
+    ElMessage.warning('暂无可导出的日志')
+    return
+  }
+  const header = ['时间', '级别', '来源', '方法', '端点', 'Trace ID', '日志内容']
+  const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  const body = rows.map((row) => [
+    formatDateTime(row.timestamp),
+    row.level,
+    row.source,
+    row.method,
+    row.endpoint,
+    row.traceId,
+    row.message
+  ].map(escapeCsv).join(','))
+  const blob = new Blob([[header.map(escapeCsv).join(','), ...body].join('\n')], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `orin-logs-${Date.now()}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 const handleSelectionChange = (selection) => {
-  console.log('selection:', selection)
+  selectedLogs.value = selection
 }
 
 const handlePageSizeChange = () => {

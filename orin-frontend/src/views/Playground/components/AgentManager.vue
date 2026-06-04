@@ -19,7 +19,7 @@ import {
   Zap,
 } from "lucide-vue-next";
 import { computed, inject, reactive, ref } from "vue";
-import { installSkill as installSkillPackage } from "../api";
+import { installSkill as installSkillPackage } from "@/api/playground";
 import { I18N_KEY } from "../i18n";
 
 const props = defineProps({

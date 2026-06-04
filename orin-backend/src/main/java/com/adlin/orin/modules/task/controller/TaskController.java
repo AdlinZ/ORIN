@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.task.controller;
 
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
@@ -31,6 +32,7 @@ import java.util.Map;
 public class TaskController {
 
     private final TaskService taskService;
+    private final AuditHelper auditHelper;
 
     /**
      * 查询任务状态
@@ -92,24 +94,34 @@ public class TaskController {
      */
     @Operation(summary = "手动重放任务", description = "重新执行失败或死信任务")
     @PostMapping("/{taskId}/replay")
-    public ResponseEntity<Map<String, Object>> replayTask(@PathVariable String taskId) {
+    public ResponseEntity<Map<String, Object>> replayTask(
+            @PathVariable String taskId,
+            @RequestHeader(value = "X-User-Id", defaultValue = "SYSTEM") String userId) {
         try {
             TaskEntity newTask = taskService.replayTask(taskId);
             Map<String, Object> result = new HashMap<>();
+            result.put("taskId", newTask.getTaskId());
             result.put("originalTaskId", taskId);
             result.put("newTaskId", newTask.getTaskId());
             result.put("status", "REPLAYED");
             result.put("message", "Task has been requeued for execution");
+            auditTaskOperation(userId, taskId, "REPLAY", newTask.getStatus().name(), newTask.getTaskId(), true, null);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             Map<String, Object> error = new HashMap<>();
+            error.put("taskId", taskId);
+            error.put("status", "NOT_FOUND");
             error.put("error", "Task not found");
             error.put("message", e.getMessage());
-            return ResponseEntity.notFound().build();
+            auditTaskOperation(userId, taskId, "REPLAY", "NOT_FOUND", null, false, "NOT_FOUND");
+            return ResponseEntity.status(404).body(error);
         } catch (IllegalStateException e) {
             Map<String, Object> error = new HashMap<>();
+            error.put("taskId", taskId);
+            error.put("status", "REJECTED");
             error.put("error", "Invalid task status");
             error.put("message", e.getMessage());
+            auditTaskOperation(userId, taskId, "REPLAY", "REJECTED", null, false, "INVALID_STATUS");
             return ResponseEntity.badRequest().body(error);
         }
     }
@@ -120,18 +132,30 @@ public class TaskController {
      */
     @Operation(summary = "取消任务", description = "取消排队中的任务")
     @PostMapping("/{taskId}/cancel")
-    public ResponseEntity<Map<String, Object>> cancelTask(@PathVariable String taskId) {
-        boolean success = taskService.cancelTask(taskId);
-        Map<String, Object> result = new HashMap<>();
-        if (success) {
+    public ResponseEntity<Map<String, Object>> cancelTask(
+            @PathVariable String taskId,
+            @RequestHeader(value = "X-User-Id", defaultValue = "SYSTEM") String userId) {
+        try {
+            TaskEntity task = taskService.cancelTask(taskId);
+            Map<String, Object> result = new HashMap<>();
             result.put("taskId", taskId);
-            result.put("status", "CANCELLED");
+            result.put("status", task.getStatus());
             result.put("message", "Task cancelled successfully");
+            auditTaskOperation(userId, taskId, "CANCEL", task.getStatus().name(), null, true, null);
             return ResponseEntity.ok(result);
-        } else {
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> result = new HashMap<>();
             result.put("taskId", taskId);
-            result.put("status", "FAILED");
-            result.put("message", "Task cannot be cancelled (not in QUEUED status or not found)");
+            result.put("status", "NOT_FOUND");
+            result.put("message", e.getMessage());
+            auditTaskOperation(userId, taskId, "CANCEL", "NOT_FOUND", null, false, "NOT_FOUND");
+            return ResponseEntity.status(404).body(result);
+        } catch (IllegalStateException e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("taskId", taskId);
+            result.put("status", "REJECTED");
+            result.put("message", e.getMessage());
+            auditTaskOperation(userId, taskId, "CANCEL", "REJECTED", null, false, "INVALID_STATUS");
             return ResponseEntity.badRequest().body(result);
         }
     }
@@ -229,6 +253,22 @@ public class TaskController {
     }
 
     /**
+     * 查询已取消任务
+     * GET /v1/tasks/cancelled
+     */
+    @Operation(summary = "查询已取消任务", description = "查询已取消的任务")
+    @GetMapping("/cancelled")
+    public ResponseEntity<Map<String, Object>> getCancelledTasks(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TaskEntity> tasks = taskService.getCancelledTasks(pageable);
+
+        return ResponseEntity.ok(buildPageResult(tasks));
+    }
+
+    /**
      * 获取任务统计信息
      * GET /v1/tasks/statistics
      */
@@ -243,6 +283,16 @@ public class TaskController {
         result.put("pendingPriorityStatistics", priorityStats);
 
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 获取待处理任务优先级统计
+     * GET /v1/tasks/priority-statistics
+     */
+    @Operation(summary = "待处理任务优先级统计", description = "获取排队、运行和重试任务的优先级分布")
+    @GetMapping("/priority-statistics")
+    public ResponseEntity<Map<String, Long>> getPriorityStatistics() {
+        return ResponseEntity.ok(taskService.getPendingPriorityStatistics());
     }
 
     /**
@@ -292,10 +342,25 @@ public class TaskController {
         summary.put("priority", task.getPriority());
         summary.put("status", task.getStatus());
         summary.put("retryCount", task.getRetryCount());
+        summary.put("maxRetries", task.getMaxRetries());
+        summary.put("deadLetterReason", task.getDeadLetterReason());
         summary.put("errorMessage", task.getErrorMessage());
+        summary.put("queuedAt", task.getQueuedAt());
+        summary.put("startedAt", task.getStartedAt());
+        summary.put("completedAt", task.getCompletedAt());
+        summary.put("durationMs", task.getDurationMs());
         summary.put("createdAt", task.getCreatedAt());
         summary.put("updatedAt", task.getUpdatedAt());
         return summary;
+    }
+
+    private void auditTaskOperation(String userId, String taskId, String action, String status,
+                                    String newTaskId, boolean success, String errorCode) {
+        String detail = "userId=%s, taskId=%s, action=%s, status=%s, newTaskId=%s, success=%s"
+                .formatted(userId, taskId, action, status, newTaskId, success);
+        auditHelper.log(userId, "WORKFLOW_TASK_" + action,
+                "/api/v1/workflow-tasks/" + taskId + "/" + action.toLowerCase(),
+                detail, success, errorCode);
     }
 
     /**

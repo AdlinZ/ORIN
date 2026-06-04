@@ -16,10 +16,6 @@ export const getAgentMetrics = (agentId, start, end, config = {}) => {
     });
 };
 
-export const triggerMockData = () => {
-    return request.post('/monitor/mock/trigger');
-};
-
 export const testDifyConnection = (endpointUrl, apiKey) => {
     return request.post('/monitor/dify/test-connection', null, {
         params: { endpointUrl, apiKey }
@@ -287,6 +283,10 @@ export const testMilvusConnection = (host = '192.168.1.164', port = 19530, token
 
 export const getStorageHealthSnapshot = (config = {}) => {
     return request.get('/storage/health', config);
+};
+
+export const testMinioConnection = (data) => {
+    return request.post('/storage/health/minio/test', data);
 };
 
 export const getSystemMaintenanceHealth = (config = {}) => {

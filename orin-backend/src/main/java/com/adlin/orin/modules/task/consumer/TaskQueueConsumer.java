@@ -57,8 +57,9 @@ public class TaskQueueConsumer {
         TaskEntity task = taskOpt.get();
 
         // 检查任务状态，避免重复执行
-        if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.DEAD) {
-            log.info("Task already completed or dead: {}", taskMessage.getTaskId());
+        if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.DEAD
+                || task.getStatus() == TaskStatus.CANCELLED) {
+            log.info("Task already terminal: taskId={}, status={}", taskMessage.getTaskId(), task.getStatus());
             return;
         }
 
@@ -130,6 +131,20 @@ public class TaskQueueConsumer {
         task.setErrorMessage(e.getMessage());
         task.setErrorStack(getStackTrace(e));
         task.setRetryCount(currentRetry);
+
+        if (maxRetry <= 0) {
+            LocalDateTime completedAt = LocalDateTime.now();
+            task.setStatus(TaskStatus.FAILED);
+            task.setCompletedAt(completedAt);
+            task.setNextRetryAt(null);
+            task.setDeadLetterReason(null);
+            if (task.getStartedAt() != null) {
+                task.setDurationMs(java.time.Duration.between(task.getStartedAt(), completedAt).toMillis());
+            }
+            taskRepository.save(task);
+            log.warn("Task failed without retry: taskId={}", taskMessage.getTaskId());
+            return;
+        }
 
         if (currentRetry < maxRetry) {
             // 计算下一次重试时间（指数退避）

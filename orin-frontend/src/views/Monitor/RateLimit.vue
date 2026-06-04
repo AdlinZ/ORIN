@@ -1,11 +1,16 @@
 <template>
   <div class="rate-limit-page">
-    <PageHeader title="限流配置" icon="Lightning">
+    <OrinPageShell
+      title="限流配置"
+      description="配置运行时用户、API Key 与 Agent 维度的请求限流策略"
+      icon="Lightning"
+      domain="运行监控"
+    >
       <template #actions>
         <el-button :icon="Refresh" @click="fetchConfig" :loading="loading">刷新</el-button>
         <el-button type="primary" :icon="Check" @click="saveConfig" :loading="saving">保存配置</el-button>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
     <el-row :gutter="20">
       <!-- 基本设置 -->
@@ -164,11 +169,13 @@
       </template>
       
       <p>限流启用后，符合条件的请求将获得以下响应头：</p>
+      <OrinDataTable compact>
       <el-table :data="responseHeaders" border stripe>
         <el-table-column prop="header" label="响应头" width="200" />
         <el-table-column prop="desc" label="说明" />
         <el-table-column prop="example" label="示例" width="150" />
       </el-table>
+      </OrinDataTable>
     </el-card>
   </div>
 </template>
@@ -177,7 +184,8 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Check } from '@element-plus/icons-vue'
-import PageHeader from '@/components/PageHeader.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import { getRateLimitConfig, updateRateLimitConfig } from '@/api/monitor'
 
 const loading = ref(false)

@@ -215,8 +215,9 @@
           <p class="lead">先用 cURL 跑通，再接入你的业务代码。</p>
           <section class="section">
             <h2>示例 cURL</h2>
-            <pre class="code-block">curl -X POST http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+            <pre class="code-block">ORIN_API_KEY=&lt;CLIENT_ACCESS_KEY&gt;
+curl -X POST http://localhost:8080/v1/chat/completions \
+  --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "Qwen/Qwen2.5-7B-Instruct",
@@ -689,13 +690,12 @@ data: [DONE]</pre>
 </template>
 
 <script setup>
-import axios from 'axios'
-import request from '@/utils/request'
 import { computed, ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Search, View } from '@element-plus/icons-vue'
 import { marked } from 'marked'
 import UnifiedGatewayPlaygroundTab from './components/gateway/UnifiedGatewayPlaygroundTab.vue'
+import { invokeUnifiedApiEndpoint } from '@/api/apiEndpoint'
 import {
   getHelpArticles,
   getHelpArticle,
@@ -948,13 +948,13 @@ const runTryRequest = async () => {
     if (apiKey.value.trim()) {
       headers.Authorization = `Bearer ${apiKey.value.trim()}`
     }
-    const config = {
+    const res = await invokeUnifiedApiEndpoint({
+      method: isGet ? 'get' : 'post',
+      url: selectedEndpoint.value,
+      data: payload,
       headers,
       timeout: 120000
-    }
-    const res = isGet
-      ? await request.get(selectedEndpoint.value, config)
-      : await request.post(selectedEndpoint.value, payload, config)
+    })
     responseStatus.value = res.status
     responseText.value = JSON.stringify(res.data, null, 2)
     ElMessage.success('请求成功')

@@ -27,7 +27,9 @@ npm run preview      # 本地预览构建产物
 ## 测试
 
 ```bash
-npm run test:unit    # Vitest 单元测试
+npm run test         # Vitest 单元测试
+npm run test:coverage
+npm run test:e2e     # Playwright E2E
 ```
 
 ## 目录结构
@@ -40,7 +42,7 @@ src/
 ├── router/           # 路由
 │   ├── routes.js          # 路由常量
 │   ├── index.js           # 实际挂载
-│   └── topMenuConfig.js   # 顶部菜单与状态标记
+│   └── topMenuConfig.js   # 顶部菜单、角色过滤与可见性开关
 ├── stores/           # Pinia
 ├── utils/
 └── styles/

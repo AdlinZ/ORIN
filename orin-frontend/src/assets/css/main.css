@@ -9,6 +9,7 @@
   --domain-knowledge: #7a5af8;
   --domain-monitor: #f79009;
   --domain-system: #344054;
+  --domain-portal: #155eef;
 
   /* ==================== Density / Grid ==================== */
   --orin-page-gap: 18px;
@@ -16,6 +17,11 @@
   --orin-block-gap: 10px;
   --orin-card-padding: 16px;
   --orin-table-row-height: 42px;
+  --orin-table-row-height-compact: 36px;
+  --orin-page-max-width: none;
+  --orin-page-shell-min-height: 0;
+  --orin-control-height: 32px;
+  --orin-focus-ring: 0 0 0 3px rgba(13, 148, 136, 0.16);
 
   /* ==================== Async State Colors ==================== */
   --status-available-bg: #ecfdf3;

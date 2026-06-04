@@ -97,6 +97,7 @@ secrets/
 # ============================================
 # Application Specific
 # ============================================
+backups/
 application-local.properties
 application-*.local.properties
 .orin.pids

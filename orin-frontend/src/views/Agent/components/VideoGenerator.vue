@@ -172,7 +172,8 @@ import {
 } from '@element-plus/icons-vue';
 import { useAgentInteraction } from '../composables/useAgentInteraction';
 import { ElMessage } from 'element-plus';
-import request from '@/utils/request';
+import { uploadMultimodalFile } from '@/api/multimodal';
+import { fetchMediaBlob } from '@/utils/mediaFetch';
 
 const props = defineProps({
   agentId: { type: String, required: true },
@@ -194,10 +195,8 @@ const savedFileId = ref('');
 
 // 监听视频生成结果，自动保存到本地服务器
 watch(result, async (newResult) => {
-    console.log('Video result changed:', newResult, 'isProcessing:', isProcessing.value);
     if (newResult && !isProcessing.value && !savedFileId.value) {
         const videoUrl = newResult.url || newResult.video_url || newResult.video_url || '';
-        console.log('Video URL:', videoUrl);
         if (videoUrl && videoUrl.startsWith('http') && !videoUrl.includes('/api/v1/multimodal/files/')) {
             // 只有外部 OSS URL 才需要下载保存
             await autoSaveVideo(videoUrl);
@@ -211,20 +210,12 @@ const autoSaveVideo = async (videoUrl) => {
     isSavingVideo.value = true;
     try {
         ElMessage.info('正在保存视频到本地服务器...');
-        // 使用 fetch 下载视频
-        const response = await fetch(videoUrl);
-        const blob = await response.blob();
+        const blob = await fetchMediaBlob(videoUrl);
 
-        const formData = new FormData();
-        formData.append('file', blob, `genvideo_${Date.now()}.mp4`);
-        formData.append('fileType', 'VIDEO');
-        formData.append('uploadedBy', 'system');
-
-        // 使用 request 上传（带认证）- 后端接口是 /upload
-        const uploadRes = await request.post('/multimodal/upload', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
+        const uploadRes = await uploadMultimodalFile(blob, {
+            fileName: `genvideo_${Date.now()}.mp4`,
+            fileType: 'VIDEO',
+            uploadedBy: 'system'
         });
 
         if (uploadRes.id) {

@@ -179,7 +179,8 @@ public class TaskEntity {
         RETRYING("重试中"),
         COMPLETED("已完成"),
         FAILED("失败"),
-        DEAD("死信");
+        DEAD("死信"),
+        CANCELLED("已取消");
 
         private final String description;
 

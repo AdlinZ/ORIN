@@ -59,6 +59,22 @@ public class TraceController {
         return ResponseEntity.ok(stats);
     }
 
+    @GetMapping("/{traceId}/summary")
+    @Operation(summary = "获取追踪关联对象脱敏摘要")
+    public ResponseEntity<Map<String, Object>> getTraceSummary(@PathVariable String traceId) {
+        log.info("REST request to get trace summary: {}", traceId);
+        Map<String, Object> summary = traceService.getTraceSummary(traceId);
+        Map<String, Object> langfuse = new HashMap<>();
+        if (langfuseService.isEnabled()) {
+            langfuse.put("available", true);
+            langfuse.put("link", langfuseService.getDashboardUrl() + "/project/traces?filter=trace_id:" + traceId);
+        } else {
+            langfuse.put("available", false);
+        }
+        summary.put("langfuse", langfuse);
+        return ResponseEntity.ok(summary);
+    }
+
     @GetMapping("/search")
     @Operation(summary = "按 traceId 搜索追踪记录")
     public ResponseEntity<Map<String, Object>> searchByTraceId(

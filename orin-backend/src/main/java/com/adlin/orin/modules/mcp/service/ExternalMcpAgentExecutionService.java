@@ -31,7 +31,7 @@ public class ExternalMcpAgentExecutionService {
     private final CollaborationRedisService redisService;
     private final ObjectMapper objectMapper;
 
-    public String execute(AgentMetadata agent, String message, String context, Integer maxTokens, String userId) {
+    public ExecutionResult execute(AgentMetadata agent, String message, String context, Integer maxTokens, String userId) {
         String packageId = "mcp_" + UUID.randomUUID().toString().replace("-", "");
         String traceId = UUID.randomUUID().toString();
         String path = orchestrationMode.isMqEnabled("SEQUENTIAL") ? "mq" : "fallback";
@@ -88,10 +88,32 @@ public class ExternalMcpAgentExecutionService {
                 }
             });
             log.info("External MCP agent call completed: packageId={}, source={}, path={}", packageId, SOURCE, path);
-            return result;
+            return new ExecutionResult(result, traceId, packageId);
         } catch (Exception e) {
             log.warn("External MCP agent call failed: packageId={}, source={}, path={}", packageId, SOURCE, path, e);
-            throw new IllegalStateException("Agent execution failed: " + e.getMessage(), e);
+            throw new ExecutionFailedException("Agent execution failed: " + e.getMessage(), traceId, packageId, e);
+        }
+    }
+
+    public record ExecutionResult(String text, String traceId, String packageId) {
+    }
+
+    public static class ExecutionFailedException extends IllegalStateException {
+        private final String traceId;
+        private final String packageId;
+
+        public ExecutionFailedException(String message, String traceId, String packageId, Throwable cause) {
+            super(message, cause);
+            this.traceId = traceId;
+            this.packageId = packageId;
+        }
+
+        public String getTraceId() {
+            return traceId;
+        }
+
+        public String getPackageId() {
+            return packageId;
         }
     }
 }

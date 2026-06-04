@@ -1,4 +1,29 @@
 <template>
+  <div class="retrieval-workbench-page">
+    <OrinPageShell
+      title="知识库检索"
+      description="验证召回质量、来源覆盖和片段可用性"
+      icon="Search"
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #actions>
+        <el-button :icon="Plus" type="primary" @click="newRetrieval">
+          新建检索
+        </el-button>
+        <el-button :icon="Setting" @click="expandParams">
+          参数
+        </el-button>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag effect="plain">{{ activeKbName }}</el-tag>
+          <el-tag type="success" effect="plain">Top {{ config.topK }}</el-tag>
+          <el-tag effect="plain">{{ rerankStatus }}</el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
+
   <div class="retrieval-workbench">
     <aside class="retrieval-sidebar" :class="{ 'is-collapsed': sidebarCollapsed }">
       <button class="sidebar-toggle" type="button" @click="toggleSidebar">
@@ -417,6 +442,7 @@
       </div>
     </el-drawer>
   </div>
+  </div>
 </template>
 
 <script setup>
@@ -433,9 +459,12 @@ import {
   WarningFilled,
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import request from '@/utils/request';
 import { getAgentList, updateAgent } from '@/api/agent';
 import { getAgentToolBinding, saveAgentToolBinding } from '@/api/agent-chat';
+import { getModelList } from '@/api/model';
+import { getKnowledgeList, getKnowledgeVectorStatus, testRetrieval } from '@/api/knowledge';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 const HISTORY_KEY = 'orin-retrieval-history';
 const MAX_HISTORY = 50;
@@ -604,9 +633,9 @@ const loadInitialData = async () => {
   initialDataLoading.value = true;
   try {
     const [modelsRes, kbRes, vectorRes, agentsRes] = await Promise.allSettled([
-      request.get('/models'),
-      request.get('/knowledge/list'),
-      request.get('/knowledge/vector/status'),
+      getModelList(),
+      getKnowledgeList(),
+      getKnowledgeVectorStatus(),
       getAgentList(),
     ]);
 
@@ -694,7 +723,7 @@ const loadKnowledgeBases = async ({ silent = false } = {}) => {
 
   knowledgeLoading.value = true;
   try {
-    const response = await request.get('/knowledge/list');
+    const response = await getKnowledgeList();
     applyKnowledgeBases(response);
   } catch (error) {
     console.error('Failed to load knowledge bases', error);
@@ -740,7 +769,7 @@ const handleSearch = async () => {
   const startedAt = Date.now();
 
   try {
-    const response = await request.post('/knowledge/retrieve/test', {
+    const response = await testRetrieval({
       query: query.value.trim(),
       kbId: selectedKbId.value,
       topK: config.topK,
@@ -1035,9 +1064,7 @@ const matchLabel = (type) => {
   padding: 14px;
   border: 1px solid rgba(15, 159, 149, 0.18);
   border-radius: 14px;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(15, 159, 149, 0.16), transparent 34%),
-    linear-gradient(135deg, rgba(230, 247, 245, 0.96), rgba(255, 255, 255, 0.92) 58%);
+  background: #ffffff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
@@ -1662,17 +1689,26 @@ const matchLabel = (type) => {
 
 .gauge-ring {
   --score: 0;
+  position: relative;
   width: 84px;
   height: 84px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at center, #fff 0 57%, transparent 58%),
-    conic-gradient(var(--primary) calc(var(--score) * 1%), #dbe5ea 0);
+  background: conic-gradient(var(--primary) calc(var(--score) * 1%), #dbe5ea 0);
+}
+
+.gauge-ring::after {
+  position: absolute;
+  inset: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  content: "";
 }
 
 .gauge-ring span {
+  position: relative;
+  z-index: 1;
   color: var(--strong);
   font-size: 18px;
   font-weight: 900;
@@ -1815,9 +1851,7 @@ html.dark .gauge-ring {
 }
 
 html.dark .sidebar-hero {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(20, 184, 166, 0.18), transparent 34%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.78) 62%);
+  background: #0f172a;
   border-color: rgba(45, 212, 191, 0.22);
   box-shadow: none;
 }
