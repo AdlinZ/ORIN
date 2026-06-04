@@ -624,10 +624,7 @@ onMounted(loadWorkflows)
 <style scoped>
 .workflow-page {
   padding: 24px;
-  background:
-    radial-gradient(circle at 92% 0%, rgba(14, 165, 233, 0.1), transparent 28%),
-    radial-gradient(circle at 0% 4%, rgba(20, 184, 166, 0.12), transparent 24%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.62), rgba(255, 255, 255, 0) 280px);
+  background: transparent;
 }
 
 .search-input {
@@ -658,9 +655,7 @@ onMounted(loadWorkflows)
   overflow: hidden;
   border: 1px solid var(--tone-border);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76)),
-    linear-gradient(135deg, var(--tone-panel), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
@@ -669,7 +664,7 @@ onMounted(loadWorkflows)
   inset: auto 0 0 0;
   height: 3px;
   content: "";
-  background: linear-gradient(90deg, var(--tone-color), transparent);
+  background: var(--tone-color);
 }
 
 .metric-icon {
@@ -784,9 +779,7 @@ onMounted(loadWorkflows)
 .workflow-insight-card {
   border: 1px solid var(--tone-border, rgba(148, 163, 184, 0.22));
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82)),
-    linear-gradient(135deg, var(--tone-panel, rgba(248, 250, 252, 0.9)), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
 }
 
@@ -802,7 +795,7 @@ onMounted(loadWorkflows)
   inset: 0 0 auto 0;
   height: 4px;
   content: "";
-  background: linear-gradient(90deg, var(--tone-color), transparent);
+  background: var(--tone-color);
 }
 
 .spotlight-eyebrow {
@@ -1185,19 +1178,19 @@ onMounted(loadWorkflows)
 }
 
 .workflow-page :deep(.workflow-row.tone-emerald td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.035), transparent 46%) !important;
+  background: rgba(16, 185, 129, 0.035) !important;
 }
 
 .workflow-page :deep(.workflow-row.tone-blue td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.035), transparent 46%) !important;
+  background: rgba(59, 130, 246, 0.035) !important;
 }
 
 .workflow-page :deep(.workflow-row.tone-amber td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.035), transparent 46%) !important;
+  background: rgba(245, 158, 11, 0.035) !important;
 }
 
 .workflow-page :deep(.workflow-row.tone-rose td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(244, 63, 94, 0.035), transparent 46%) !important;
+  background: rgba(244, 63, 94, 0.035) !important;
 }
 
 .workflow-page :deep(.el-table__row:hover td.el-table__cell) {

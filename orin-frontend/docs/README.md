@@ -8,11 +8,11 @@
 |------|------|
 | `src/router/routes.js` | 所有路由常量（含历史兼容路径） |
 | `src/router/index.js` | 实际路由实例与守卫 |
-| `src/router/topMenuConfig.js` | 顶部菜单暴露策略与状态标记 |
+| `src/router/topMenuConfig.js` | 顶部菜单暴露策略、角色过滤与可见性开关 |
 
 ### 路由原则
 
-- 路由常量存在 ≠ 能力交付，部分路径仅作历史兼容；当前主入口以 `routes.js` 的侧边栏二级分组为准
+- 路由常量存在 ≠ 能力交付，部分路径仅作历史兼容；当前主入口以 `topMenuConfig.js` 的角色可见菜单为准
 - `topMenuConfig.js` 负责顶部菜单的角色过滤和可见性开关，当前不使用占位状态字段标记发布状态
 - 同一能力存在多个路径别名时，必须在 `topMenuConfig.js` 标注主入口，避免误判"多个独立能力"
 
@@ -50,7 +50,8 @@ rg "开发中|未启用|待实现|ElMessage\.(info|warning)" src
 npm run dev
 
 # 单元测试
-npm run test:unit
+npm run test
+npm run test:e2e
 
 # 构建产物本地预览
 npm run build && npm run preview
@@ -66,9 +67,10 @@ npm run build && npm run preview
 发布前自检：
 
 - [ ] `npm run build` 通过，无 TypeScript / 类型告警
-- [ ] `npm run test:unit` 通过
+- [ ] `npm run test` 通过
+- [ ] 涉及浏览器交互时 `npm run test:e2e` 通过或记录未运行原因
 - [ ] 关键路径手工烟测：登录 / 智能体列表 / 工作流可视化首屏 / 监控大屏
-- [ ] 新增页面已在 `topMenuConfig.js` 注册并标注状态
+- [ ] 新增页面已在 `topMenuConfig.js` 注册角色和可见性口径
 - [ ] 历史路由别名未误删（参见 `src/router/routes.js` 中重定向项）
 
 ## 五、后端约定

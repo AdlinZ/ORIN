@@ -162,20 +162,30 @@ describe('unified frontend 1.0 guardrails', () => {
   })
 
   it('keeps Wave 2 application pages on Orin shell and table primitives', () => {
-    const wave2Pages = [
+    const wave2ShellPages = [
       'src/views/revamp/agents/AgentListV2.vue',
-      'src/views/Agent/ChatLogs.vue',
       'src/views/ModelConfig/ModelList.vue',
-      'src/views/Agent/AgentExtensions.vue',
       'src/views/Skill/SkillManagement.vue',
       'src/views/revamp/collaboration/CollaborationDashboardV2.vue',
-      'src/views/Playground/PlaygroundContainer.vue',
       'src/views/Playground/PlaygroundOverview.vue'
     ]
 
-    for (const file of wave2Pages) {
+    for (const file of wave2ShellPages) {
       const source = read(file)
       expect(source, `${file} should use OrinPageShell`).toContain('OrinPageShell')
+      expect(source, `${file} should not use legacy PageHeader`).not.toContain("from '@/components/PageHeader.vue'")
+    }
+
+    const wave2NativeHeaders = {
+      'src/views/Agent/ChatLogs.vue': 'class="conversation-command-panel"',
+      'src/views/Agent/AgentExtensions.vue': 'class="extensions-console"',
+      'src/views/Playground/PlaygroundContainer.vue': 'class="playground-scope app-frame"',
+      'src/views/Playground/components/WorkflowManager.vue': 'class="workflow-admin-header"'
+    }
+
+    for (const [file, marker] of Object.entries(wave2NativeHeaders)) {
+      const source = read(file)
+      expect(source, `${file} should use its native application workspace header`).toContain(marker)
       expect(source, `${file} should not use legacy PageHeader`).not.toContain("from '@/components/PageHeader.vue'")
     }
 
@@ -225,8 +235,7 @@ describe('unified frontend 1.0 guardrails', () => {
     const wave3Pages = [
       'src/views/Workflow/WorkflowList.vue',
       'src/views/Workflow/WorkflowExecution.vue',
-      'src/views/Workflow/WorkflowEditor.vue',
-      'src/views/Workflow/VisualWorkflowEditor.vue'
+      'src/views/Workflow/WorkflowEditor.vue'
     ]
 
     for (const file of wave3Pages) {
@@ -240,6 +249,11 @@ describe('unified frontend 1.0 guardrails', () => {
       expect(source, `${file} should wrap workflow tables with OrinDataTable`).toContain('OrinDataTable')
       expect(source, `${file} should expose workflow async states`).toContain('OrinAsyncState')
     }
+
+    const visualWorkflowEditor = read('src/views/Workflow/VisualWorkflowEditor.vue')
+    expect(visualWorkflowEditor).toContain('class="dify-sub-header"')
+    expect(visualWorkflowEditor).not.toContain('OrinPageShell')
+    expect(visualWorkflowEditor).not.toContain("from '@/components/PageHeader.vue'")
   })
 
   it('routes workflow domain pages through standard viewmodel adapters', () => {
@@ -347,16 +361,10 @@ describe('unified frontend 1.0 guardrails', () => {
   })
 
   it('keeps Wave 5 runtime monitor pages on Orin shell and state primitives', () => {
-    const wave5Pages = [
-      'src/views/Home/HomeDashboard.vue',
+    const wave5ShellPages = [
       'src/views/Trace/TraceViewer.vue',
       'src/views/Monitor/TaskQueue.vue',
-      'src/views/Monitor/ServerMonitor.vue',
-      'src/views/Monitor/ServerNodeDetail.vue',
-      'src/views/Monitor/TokenStats.vue',
-      'src/views/Monitor/LatencyStats.vue',
       'src/views/Monitor/ErrorStats.vue',
-      'src/views/Monitor/AlertsLogsCenter.vue',
       'src/views/Monitor/CostStats.vue',
       'src/views/System/AlertManagement.vue',
       'src/views/Monitor/LogArchive.vue',
@@ -364,9 +372,24 @@ describe('unified frontend 1.0 guardrails', () => {
       'src/views/Monitor/RateLimit.vue'
     ]
 
-    for (const file of wave5Pages) {
+    for (const file of wave5ShellPages) {
       const source = read(file)
       expect(source, `${file} should use OrinPageShell`).toContain('OrinPageShell')
+      expect(source, `${file} should not use legacy PageHeader`).not.toContain("from '@/components/PageHeader.vue'")
+    }
+
+    const wave5FullPageHeaders = {
+      'src/views/Home/HomeDashboard.vue': 'class="page-header cc-header-glass"',
+      'src/views/Monitor/ServerMonitor.vue': 'class="runtime-command-panel"',
+      'src/views/Monitor/ServerNodeDetail.vue': 'class="chat-header"',
+      'src/views/Monitor/TokenStats.vue': 'class="runtime-command-panel metrics-command-panel"',
+      'src/views/Monitor/LatencyStats.vue': 'class="runtime-command-panel"',
+      'src/views/Monitor/AlertsLogsCenter.vue': 'class="alerts-hero"'
+    }
+
+    for (const [file, marker] of Object.entries(wave5FullPageHeaders)) {
+      const source = read(file)
+      expect(source, `${file} should use its native full-page header`).toContain(marker)
       expect(source, `${file} should not use legacy PageHeader`).not.toContain("from '@/components/PageHeader.vue'")
     }
 
@@ -410,7 +433,7 @@ describe('unified frontend 1.0 guardrails', () => {
   })
 
   it('keeps Wave 6 system control pages on Orin shell and table primitives', () => {
-    const wave6Pages = [
+    const wave6ShellPages = [
       'src/views/System/UserManagement.vue',
       'src/views/System/DepartmentManagement.vue',
       'src/views/System/RoleManagement.vue',
@@ -418,7 +441,6 @@ describe('unified frontend 1.0 guardrails', () => {
       'src/views/System/DataAssets.vue',
       'src/views/System/FileManagement.vue',
       'src/views/System/MonitorSettings.vue',
-      'src/views/System/UnifiedGateway.vue',
       'src/views/System/McpService.vue',
       'src/views/System/PricingConfig.vue',
       'src/views/System/Statistics.vue',
@@ -428,12 +450,17 @@ describe('unified frontend 1.0 guardrails', () => {
       'src/views/revamp/system/AuditCenterV2.vue'
     ]
 
-    for (const file of wave6Pages) {
+    for (const file of wave6ShellPages) {
       const source = read(file)
       expect(source, `${file} should use OrinPageShell`).toContain('OrinPageShell')
       expect(source, `${file} should not use legacy PageHeader`).not.toContain("from '@/components/PageHeader.vue'")
       expect(source, `${file} should not use legacy entity header`).not.toContain('OrinEntityHeader')
     }
+
+    const unifiedGateway = read('src/views/System/UnifiedGateway.vue')
+    expect(unifiedGateway, 'UnifiedGateway should use its native gateway hero').toContain('class="gateway-hero"')
+    expect(unifiedGateway, 'UnifiedGateway should not use legacy PageHeader').not.toContain("from '@/components/PageHeader.vue'")
+    expect(unifiedGateway, 'UnifiedGateway should not use legacy entity header').not.toContain('OrinEntityHeader')
 
     const tablePages = [
       'src/views/System/UserManagement.vue',
@@ -528,7 +555,8 @@ describe('unified frontend 1.0 guardrails', () => {
     expect(playgroundRun).not.toContain("from '@/components/PageHeader.vue'")
 
     const visualEditor = read('src/views/Workflow/VisualWorkflowEditor.vue')
-    expect(visualEditor).toContain('OrinPageShell')
+    expect(visualEditor).toContain('class="dify-sub-header"')
+    expect(visualEditor).not.toContain('OrinPageShell')
     expect(visualEditor).not.toContain("from '@/components/PageHeader.vue'")
   })
 })

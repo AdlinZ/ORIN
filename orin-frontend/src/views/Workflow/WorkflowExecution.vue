@@ -1334,10 +1334,7 @@ onUnmounted(() => {
 
 <style scoped>
 .execution-page {
-  background:
-    radial-gradient(circle at 92% 0%, rgba(14, 165, 233, 0.1), transparent 28%),
-    radial-gradient(circle at 0% 4%, rgba(20, 184, 166, 0.12), transparent 24%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.62), rgba(255, 255, 255, 0) 280px);
+  background: transparent;
 }
 
 .execution-metric-grid {
@@ -1356,9 +1353,7 @@ onUnmounted(() => {
   overflow: hidden;
   border: 1px solid var(--tone-border);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76)),
-    linear-gradient(135deg, var(--tone-panel), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
@@ -1367,7 +1362,7 @@ onUnmounted(() => {
   inset: auto 0 0 0;
   height: 3px;
   content: "";
-  background: linear-gradient(90deg, var(--tone-color), transparent);
+  background: var(--tone-color);
 }
 
 .metric-icon,
@@ -1496,7 +1491,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.82);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.82));
+  background: #ffffff;
 }
 
 .workbench-card-header strong {
@@ -1540,9 +1535,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 16px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.82);
-  background:
-    radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.08), transparent 30%),
-    rgba(248, 250, 252, 0.72);
+  background: rgba(248, 250, 252, 0.72);
 }
 
 .run-input-card,
@@ -1681,9 +1674,7 @@ onUnmounted(() => {
 .execution-record-card:hover,
 .execution-record-card.active {
   border-color: var(--tone-border);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.74)),
-    var(--tone-panel);
+  background: var(--tone-panel);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
 }
 
@@ -1769,9 +1760,7 @@ onUnmounted(() => {
   border: 1px solid var(--tone-border, rgba(148, 163, 184, 0.22));
   border-radius: 8px;
   padding: 16px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82)),
-    linear-gradient(135deg, var(--tone-panel, rgba(248, 250, 252, 0.9)), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 
@@ -1914,9 +1903,7 @@ onUnmounted(() => {
 .workflow-item.active {
   transform: none;
   border-color: rgba(13, 148, 136, 0.28);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.72)),
-    rgba(240, 253, 250, 0.9);
+  background: rgba(240, 253, 250, 0.9);
   box-shadow: inset 3px 0 0 #0d9488;
 }
 
@@ -1964,8 +1951,7 @@ onUnmounted(() => {
 }
 
 .execution-console :deep(.el-card__body) {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.82));
+  background: #ffffff;
 }
 
 .runner-actions {
@@ -2289,9 +2275,7 @@ html.dark .execution-record-card {
 
 html.dark .execution-record-card:hover,
 html.dark .execution-record-card.active {
-  background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.72)),
-    var(--tone-panel);
+  background: var(--tone-panel);
 }
 
 html.dark .record-action-link {

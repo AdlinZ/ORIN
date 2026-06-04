@@ -1,10 +1,13 @@
 package com.adlin.orin.modules.dashboard.service;
 
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.alert.repository.AlertHistoryRepository;
+import com.adlin.orin.modules.apikey.repository.ApiKeyRepository;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.adlin.orin.modules.system.repository.SysUserRepository;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
 import com.adlin.orin.modules.task.repository.TaskRepository;
 import com.adlin.orin.modules.trace.repository.WorkflowTraceRepository;
@@ -40,6 +43,9 @@ class DashboardSummaryServiceTest {
     private TaskRepository taskRepository;
     private WorkflowTraceRepository workflowTraceRepository;
     private AuditLogRepository auditLogRepository;
+    private SysUserRepository sysUserRepository;
+    private ApiKeyRepository apiKeyRepository;
+    private AlertHistoryRepository alertHistoryRepository;
     private RestTemplate restTemplate;
     private DashboardSummaryService service;
 
@@ -52,6 +58,9 @@ class DashboardSummaryServiceTest {
         taskRepository = mock(TaskRepository.class);
         workflowTraceRepository = mock(WorkflowTraceRepository.class);
         auditLogRepository = mock(AuditLogRepository.class);
+        sysUserRepository = mock(SysUserRepository.class);
+        apiKeyRepository = mock(ApiKeyRepository.class);
+        alertHistoryRepository = mock(AlertHistoryRepository.class);
         restTemplate = mock(RestTemplate.class);
 
         service = new DashboardSummaryService(
@@ -62,6 +71,9 @@ class DashboardSummaryServiceTest {
                 taskRepository,
                 workflowTraceRepository,
                 auditLogRepository,
+                sysUserRepository,
+                apiKeyRepository,
+                alertHistoryRepository,
                 restTemplate
         );
         ReflectionTestUtils.setField(service, "aiEngineUrl", "http://ai-engine.local");
@@ -82,6 +94,10 @@ class DashboardSummaryServiceTest {
         when(restTemplate.getForEntity(eq("http://ai-engine.local/health"), eq(Map.class)))
                 .thenReturn(ResponseEntity.ok(Map.of("status", "ok", "service", "orin-ai-engine")));
         when(auditLogRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(auditLog())));
+        when(sysUserRepository.count()).thenReturn(12L);
+        when(apiKeyRepository.count()).thenReturn(5L);
+        when(alertHistoryRepository.countByStatus("TRIGGERED")).thenReturn(2L);
+        when(alertHistoryRepository.countByStatus("RESOLVED")).thenReturn(8L);
 
         Map<String, Object> summary = service.getSummary(new UsernamePasswordAuthenticationToken(
                 "11",
@@ -96,6 +112,15 @@ class DashboardSummaryServiceTest {
         assertThat(metrics.get("agents")).isEqualTo(3L);
         assertThat(metrics.get("openTasks")).isEqualTo(3L);
         assertThat(metrics.get("failedTasks")).isEqualTo(3L);
+
+        Map<?, ?> adminStats = (Map<?, ?>) summary.get("adminStats");
+        assertThat(adminStats.get("totalUsers")).isEqualTo(12L);
+        assertThat(adminStats.get("totalApiKeys")).isEqualTo(5L);
+        assertThat(adminStats.get("activeAlerts")).isEqualTo(2L);
+        assertThat(adminStats.get("resolvedAlerts")).isEqualTo(8L);
+
+        List<?> topAlerts = (List<?>) summary.get("topAlertEvents");
+        assertThat(topAlerts).isNotNull();
 
         Map<?, ?> systemHealth = (Map<?, ?>) summary.get("systemHealth");
         Map<?, ?> aiEngine = (Map<?, ?>) systemHealth.get("aiEngine");

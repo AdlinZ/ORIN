@@ -1,25 +1,5 @@
 <template>
   <div class="visual-workflow-editor">
-    <OrinPageShell
-      class="visual-shell-header"
-      :title="workflowName || (isEdit ? '编辑可视化工作流' : '创建可视化工作流')"
-      description="全屏工作流画布外壳，保留节点拖拽、连线与配置面板交互"
-      icon="Connection"
-      domain="工作流管理"
-      maturity="beta"
-    >
-      <template #actions>
-        <el-button :icon="Right" @click="goToWorkflowList">
-          返回列表
-        </el-button>
-        <el-button :icon="VideoPlay" @click="handlePreview">
-          调试
-        </el-button>
-        <el-button type="primary" :loading="saving" @click="handleSave()">
-          保存
-        </el-button>
-      </template>
-    </OrinPageShell>
     <el-alert
       v-if="visualLoadError"
       class="visual-shell-alert"
@@ -85,6 +65,13 @@
 
           <!-- Main Actions (Preview, etc) -->
           <div class="dify-action-bar">
+            <div class="dify-bar-item return-btn" @click="goToWorkflowList">
+              <el-icon>
+                <Right />
+              </el-icon>
+              <span>返回列表</span>
+            </div>
+
             <div class="dify-bar-item save-btn" :class="{ disabled: saving }" @click="!saving && handleSave()">
               <svg
                 viewBox="0 0 24 24"
@@ -1370,7 +1357,6 @@ import { getModelList } from '@/api/model';
 import { getKnowledgeList } from '@/api/knowledge';
 import WorkflowApiAccess from './WorkflowApiAccess.vue';
 import JsonViewer from '@/components/JsonViewer.vue';
-import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import { dump } from 'js-yaml';
 import { marked } from 'marked';
 import { useDark } from '@vueuse/core';
@@ -3033,11 +3019,6 @@ const runWorkflow = async () => {
   color: #334155;
   font-family: 'Inter', -apple-system, sans-serif;
   overflow: hidden;
-}
-
-.visual-shell-header {
-  flex: 0 0 auto;
-  margin: 12px 16px 0;
 }
 
 .visual-shell-alert {

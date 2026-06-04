@@ -373,11 +373,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   min-height: 100vh;
   color: var(--home-ink);
-  background:
-    radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(0, 191, 165, 0.16), transparent 18rem),
-    radial-gradient(circle at 50% 0%, rgba(0, 191, 165, 0.14), transparent 34%),
-    radial-gradient(circle at 84% 24%, rgba(37, 99, 235, 0.06), transparent 28%),
-    linear-gradient(180deg, #f7fffd 0%, #ffffff 44%, #f8fafc 100%);
+  background: #ffffff;
   background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
   animation: ambientGlow 16s ease-in-out infinite alternate;
 }
@@ -667,7 +663,7 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 190px 1fr;
   padding: 20px;
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: #ffffff;
 }
 
 .preview-sidebar {
@@ -784,7 +780,7 @@ onBeforeUnmount(() => {
   padding: 26px;
   border: 1px solid rgba(0, 191, 165, 0.12);
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(236, 253, 245, 0.86), rgba(255, 255, 255, 0.9));
+  background: rgba(236, 253, 245, 0.86);
   animation-delay: 0.16s;
 }
 
@@ -801,7 +797,7 @@ onBeforeUnmount(() => {
   height: 14px;
   margin: 14px 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(0, 191, 165, 0.2), rgba(37, 99, 235, 0.1));
+  background: rgba(0, 191, 165, 0.2);
 }
 
 .panel-lines i:nth-child(1) {

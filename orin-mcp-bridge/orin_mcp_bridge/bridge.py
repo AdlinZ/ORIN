@@ -49,10 +49,17 @@ def derive_origin(base_url: str) -> str:
 
 
 def build_headers(config: BridgeConfig) -> dict[str, str]:
-    return {
+    headers = {
         "Authorization": f"Bearer {config.api_key}",
         "Origin": config.origin,
     }
+    # Propagate W3C traceparent from ORIN backend for distributed tracing.
+    # ORIN Backend sets ORIN_TRACEPARENT in the environment when calling the AI Engine;
+    # the bridge echoes it in the MCP callback headers so ORIN can correlate the full链路.
+    tp = os.environ.get("ORIN_TRACEPARENT") or os.environ.get("TRACEPARENT")
+    if tp:
+        headers["traceparent"] = tp
+    return headers
 
 
 async def list_remote_tools(config: BridgeConfig) -> list[types.Tool]:

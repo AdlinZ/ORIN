@@ -3,9 +3,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap");
 .playground-scope {
   color: #0f172a;
-  background:
-    radial-gradient(circle at top left, rgba(191, 219, 254, 0.35), transparent 28%),
-    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f8fafc;
   font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -453,14 +451,7 @@
 }
 
 .playground-scope .hero-orb {
-  position: absolute;
-  right: -80px;
-  bottom: -120px;
-  width: 320px;
-  height: 320px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(191, 219, 254, 0.72), rgba(191, 219, 254, 0));
-  filter: blur(20px);
+  display: none;
 }
 
 .playground-scope .stat-stack {
@@ -484,15 +475,15 @@
 }
 
 .playground-scope .stat-icon-blue {
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  background: #dbeafe;
 }
 
 .playground-scope .stat-icon-violet {
-  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  background: #ede9fe;
 }
 
 .playground-scope .stat-icon-green {
-  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  background: #dcfce7;
 }
 
 .playground-scope .stat-label {
@@ -663,27 +654,27 @@
 }
 
 .playground-scope .agent-theme-blue {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: #2563eb;
 }
 
 .playground-scope .agent-theme-violet {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: #7c3aed;
 }
 
 .playground-scope .agent-theme-green {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: #16a34a;
 }
 
 .playground-scope .agent-theme-orange {
-  background: linear-gradient(135deg, #fb923c, #ea580c);
+  background: #ea580c;
 }
 
 .playground-scope .agent-theme-rose {
-  background: linear-gradient(135deg, #fb7185, #e11d48);
+  background: #e11d48;
 }
 
 .playground-scope .agent-theme-indigo {
-  background: linear-gradient(135deg, #6366f1, #4338ca);
+  background: #4338ca;
 }
 
 .playground-scope .icon-button {
@@ -2088,8 +2079,6 @@
   border-radius: 18px;
   background: rgba(248, 250, 252, 0.9);
   border: 1px solid #e2e8f0;
-  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 
 .playground-scope .graph-runtime-placeholder {
@@ -2152,15 +2141,7 @@
   border-style: solid;
   border-width: 1.5px;
   border-color: rgba(59, 130, 246, 0.2);
-  background:
-    linear-gradient(180deg, rgba(239, 246, 255, 0.92), rgba(248, 250, 252, 0.95)),
-    repeating-linear-gradient(
-      -45deg,
-      rgba(59, 130, 246, 0.05),
-      rgba(59, 130, 246, 0.05) 10px,
-      transparent 10px,
-      transparent 20px
-    );
+  background: #eff6ff;
   color: #0f172a;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
   display: flex;
@@ -2246,15 +2227,7 @@
 }
 
 .playground-scope .graph-node.kind-group.active {
-  background:
-    linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(248, 250, 252, 0.98)),
-    repeating-linear-gradient(
-      -45deg,
-      rgba(59, 130, 246, 0.06),
-      rgba(59, 130, 246, 0.06) 10px,
-      transparent 10px,
-      transparent 20px
-    );
+  background: #eff6ff;
   color: #0f172a;
   transform: none;
 }
@@ -2894,7 +2867,7 @@
   overflow: hidden;
   border: 1px solid #dbe4f0;
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: #ffffff;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
 }
 
@@ -3124,7 +3097,7 @@
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid #cbd5e1;
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: #ffffff;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
@@ -3535,7 +3508,7 @@
 }
 
 .playground-scope .settings-profile-row.editing {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), #ffffff);
+  background: #f8fafc;
 }
 
 .playground-scope .settings-profile-row-main {
@@ -3557,7 +3530,7 @@
   width: 58px;
   height: 58px;
   border-radius: 18px;
-  background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
   color: #6366f1;
   display: inline-flex;
@@ -4798,14 +4771,31 @@
 }
 
 .playground-scope[data-theme="system"] .workflow-admin-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) auto;
+  align-items: start;
   gap: 16px;
-  padding: 18px 20px;
-  border: 1px solid var(--el-border-color, #e2e8f0);
+  padding: 20px 24px;
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
   border-radius: 8px;
   background: #fff;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.08));
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.playground-scope[data-theme="system"] .workflow-admin-filters {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(150px, 0.32fr) minmax(170px, 0.36fr);
+  align-items: center;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--orin-border, #e2e8f0);
 }
 
 .playground-scope[data-theme="system"] .workflow-admin-title {

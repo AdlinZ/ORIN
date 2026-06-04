@@ -40,6 +40,7 @@ public class TraceService {
     private final TaskRepository taskRepository;
     private final CollaborationPackageRepository collaborationPackageRepository;
     private final AuditLogRepository auditLogRepository;
+    private final org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 500);
     private final OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
 
     /**
@@ -205,6 +206,31 @@ public class TraceService {
             summaries.add(buildTraceSummary(entry.getKey(), entry.getValue()));
         }
 
+        return summaries;
+    }
+
+    /**
+     * 查询当前用户最近调用链路摘要（仅返回当前用户发起的 trace）。
+     * 用于开发者工作台等需要对当前用户可见的范围。
+     */
+    public List<Map<String, Object>> getRecentTraceSummariesByUserId(Long userId, int size) {
+        if (userId == null) {
+            return List.of();
+        }
+        int limit = Math.max(1, Math.min(size, 100));
+        List<String> traceIds = traceRepository.findDistinctTraceIdsByUserIdOrderByStartedAtDesc(
+                userId, org.springframework.data.domain.PageRequest.of(0, limit));
+
+        List<Map<String, Object>> summaries = new ArrayList<>();
+        for (String traceId : traceIds) {
+            if (summaries.size() >= limit) {
+                break;
+            }
+            List<WorkflowTraceEntity> traces = traceRepository.findByTraceIdOrderByStartedAtAsc(traceId);
+            if (!traces.isEmpty()) {
+                summaries.add(buildTraceSummary(traceId, traces));
+            }
+        }
         return summaries;
     }
 

@@ -63,11 +63,11 @@ const props = withDefaults(defineProps<Props>(), {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: #f1f5f9;
 }
 
 html.dark .empty-state.is-circle .empty-icon {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: #1e293b;
 }
 
 html.dark .empty-icon {

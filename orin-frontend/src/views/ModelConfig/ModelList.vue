@@ -1555,7 +1555,7 @@ onUnmounted(() => {
 
 .summary-card.primary {
   border-color: var(--el-color-primary-light-7);
-  background: linear-gradient(180deg, var(--el-color-primary-light-9), var(--el-bg-color));
+  background: var(--el-color-primary-light-9);
 }
 
 .summary-card span {
