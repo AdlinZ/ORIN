@@ -94,7 +94,7 @@ ORIN/
 
 | 文档 | 用途 |
 |------|------|
-| [docs/架构设计.md](./docs/架构设计.md) | 系统架构、模块边界、协作执行约束 |
+| [docs/架构设计.md](./docs/架构图.md) | 系统架构、模块边界、协作执行约束 |
 | [docs/部署指南.md](./docs/部署指南.md) | 环境变量、本地/生产部署、检查清单 |
 | [docs/使用指南.md](./docs/使用指南.md) | 前端导航与功能入口 |
 | [docs/API文档.md](./docs/API文档.md) | 接口分组、统一网关示例 |
@@ -103,6 +103,9 @@ ORIN/
 | [docs/角色矩阵.md](./docs/角色矩阵.md) | 管理台角色入口、菜单可见性与权限收口口径 |
 | [docs/open-demo-checklist.md](./docs/open-demo-checklist.md) | MCP API smoke、Codex 客户端验收与外部客户端展示清单 |
 | [docs/开发规范.md](./docs/开发规范.md) | 协作约束、提交规范、联调要点 |
+| [docs/手册-管理员.md](./docs/手册-管理员.md) | 管理员操作手册（SOP / 备份恢复 / 告警处理）|
+| [docs/手册-开发者.md](./docs/手册-开发者.md) | 开发者手册（本地调试 / API 接入 / MCP 集成）|
+| [docs/手册-用户.md](./docs/手册-用户.md) | 普通用户手册（智能体对话 / 工作流使用 / 知识库检索）|
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献流程、分支与 PR 规范 |
 | [SUPPORT.md](./SUPPORT.md) | 获取帮助、提 issue 前的信息清单 |
 | [SECURITY.md](./SECURITY.md) | 漏洞披露流程与依赖维护口径 |
@@ -110,7 +113,7 @@ ORIN/
 
 ## 当前状态
 
-骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。本机进程模式优先通过 health checks 与 `bash scripts/smoke-test.sh` 验证；Docker quickstart 已在干净 volume 下通过 `docker compose --env-file .env.example up --build -d` 与运行态 HTTP smoke；核心业务链路可通过 `bash scripts/business-smoke.sh` 做 API 级验收，并已覆盖 Workflow / Collaboration trace summary 聚合断言以及可选 Agent Chat 强校验。Phase 1D 已补 Trace 聚合摘要、任务失败恢复确认/高亮、协作包 runtime/diagnostics、人工干预入口，以及显式 `workflowId` 协作子任务经 MQ/AI Engine `TaskRuntime` 执行的路径；Phase 1E/1F 已补 API Key 轮换/禁用审计、调用摘要/最近历史、前端 MCP 配置复制与 smoke 级生命周期验收；Phase 1.5 已建立首版角色矩阵、前端菜单/路由同源过滤、用户/部门/角色管理接口权限收口和 `/portal/api-keys` 自助密钥边界。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
+骨架完整，主链路（智能体对话、知识检索、工作流编排）可演示；多智能体协作与多模态等高级能力仍在收敛。CI 已启用非 Docker 必过 checks，并上传三端 coverage artifacts / Step Summary；当前不设置覆盖率红线。本机进程模式优先通过 health checks 与 `bash scripts/smoke-test.sh` 验证；Docker quickstart 已在干净 volume 下通过 `docker compose --env-file .env.example up --build -d` 与运行态 HTTP smoke；核心业务链路可通过 `bash scripts/business-smoke.sh` 做 API 级验收，并已覆盖 Workflow / Collaboration trace summary 聚合断言以及可选 Agent Chat 强校验。Phase 1D 已补 Trace 聚合摘要、任务失败恢复确认/高亮、协作包 runtime/diagnostics、人工干预入口，以及显式 `workflowId` 协作子任务经 MQ/AI Engine `TaskRuntime` 执行的路径；Phase 1E/1F 已补 API Key 轮换/禁用审计、调用摘要/最近历史、前端 MCP 配置复制与 smoke 级生命周期验收；Phase 1.5 已建立首版角色矩阵、前端菜单/路由同源过滤、用户/部门/角色管理接口权限收口和 `/portal/api-keys` 自助密钥边界。文档入口与命令口径已在 2026-06-04 同步到当前路由配置。详见 [docs/功能完成度.md](./docs/功能完成度.md)。
 
 ## License
 

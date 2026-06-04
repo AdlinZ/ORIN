@@ -274,8 +274,19 @@ public class GlobalExceptionHandler {
      */
     private HttpStatus determineHttpStatus(ErrorCode errorCode) {
         String code = errorCode.getCode();
-        if (code.startsWith("2"))
+        if (code.startsWith("2")) {
+            // 20002 RESOURCE_ALREADY_EXISTS → 409 Conflict
+            // 20003 RESOURCE_CONFLICT       → 409 Conflict
+            // 20001 RESOURCE_NOT_FOUND      → 404 Not Found
+            // 20004 RESOURCE_LOCKED         → 423 Locked
+            if (code.equals("20002") || code.equals("20003")) {
+                return HttpStatus.CONFLICT;
+            }
+            if (code.equals("20004")) {
+                return HttpStatus.LOCKED;
+            }
             return HttpStatus.NOT_FOUND;
+        }
         if (code.startsWith("7")) {
             if (code.equals("70004"))
                 return HttpStatus.FORBIDDEN;
