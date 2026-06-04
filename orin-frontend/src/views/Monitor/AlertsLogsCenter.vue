@@ -1,12 +1,5 @@
 <template>
   <div class="alerts-logs-center">
-    <OrinPageShell
-      title="告警与日志"
-      description="把告警规则、告警历史与审计日志放在一个工作台里"
-      icon="Bell"
-      domain="运行监控"
-    />
-
     <section class="alerts-hero">
       <div class="hero-copy">
         <span class="hero-kicker">Runtime Operations</span>
@@ -57,7 +50,6 @@
 import { ref } from 'vue'
 import AlertManagement from '@/views/System/AlertManagement.vue'
 import AuditCenterV2 from '@/views/revamp/system/AuditCenterV2.vue'
-import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 
 const activeTab = ref('rules')
 
@@ -75,9 +67,7 @@ const tabs = [
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
+  background: transparent;
 }
 
 .alerts-hero {
@@ -88,9 +78,7 @@ const tabs = [
   padding: 18px;
   border-radius: 16px;
   border: 1px solid rgba(203, 213, 225, 0.78);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.88)),
-    linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(59, 130, 246, 0.06));
+  background: #ffffff;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
 }
 
@@ -185,16 +173,12 @@ const tabs = [
 }
 
 html.dark .alerts-logs-center {
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.1), transparent 32%),
-    #0f172a;
+  background: #0f172a;
 }
 
 html.dark .alerts-hero {
   border-color: rgba(100, 116, 139, 0.46);
-  background:
-    linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.88)),
-    linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(59, 130, 246, 0.08));
+  background: #0f172a;
   box-shadow: 0 14px 32px rgba(2, 6, 23, 0.32);
 }
 

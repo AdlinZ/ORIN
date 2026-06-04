@@ -2589,7 +2589,7 @@ const handleGoToDocument = () => {
 .success-icon-wrap {
    width: 56px;
    height: 56px;
-   background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+   background: #10b981;
    border-radius: 16px;
    display: flex;
    align-items: center;

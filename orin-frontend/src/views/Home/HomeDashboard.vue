@@ -1,12 +1,5 @@
 <template>
   <div class="dashboard-home command-center-root">
-    <OrinPageShell
-      title="监控总览"
-      description="服务健康、调用趋势、节点状态与待处理异常"
-      icon="DataAnalysis"
-      domain="运行监控"
-    />
-
     <header class="page-header cc-header-glass">
       <!-- 1. 品牌区 -->
       <div class="header-brand">
@@ -454,7 +447,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
-import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import { getAgentList } from '@/api/agent'
 import { getDashboardSummary } from '@/api/dashboard'
 import {
@@ -1341,9 +1333,7 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 20px;
   min-height: calc(100vh - 76px);
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.08), transparent 34%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.56), transparent 260px);
+  background: transparent;
 }
 
 .cc-header-glass {
@@ -1353,9 +1343,7 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 16px 18px;
   border-radius: var(--monitor-radius);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9)),
-    linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(59, 130, 246, 0.06));
+  background: #ffffff;
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(203, 213, 225, 0.72);
@@ -2316,15 +2304,11 @@ onBeforeUnmount(() => {
 
 /* Dark mode */
 html.dark .command-center-root {
-  background:
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.1), transparent 32%),
-    #0f172a;
+  background: #0f172a;
 }
 
 html.dark .cc-header-glass {
-  background:
-    linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.88)),
-    linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(59, 130, 246, 0.08));
+  background: #0f172a;
   border-color: rgba(100, 116, 139, 0.46);
   box-shadow: 0 14px 32px rgba(2, 6, 23, 0.32);
 }

@@ -33,7 +33,7 @@ cd orin-ai-engine && venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 cd orin-frontend && npm install && npm run dev
 ```
 
-Docker quickstart 当前依赖 `docker/mysql/init/01-orin-schema.sql` 作为 schema snapshot baseline。该快照覆盖到 `V83`，后端启动后由 Flyway 补跑 `V84..V87`；后续新增 schema 迁移从 `V88` 开始。不要改写已发布历史迁移来修 quickstart。
+Docker quickstart 当前依赖 `docker/mysql/init/01-orin-schema.sql` 作为 schema snapshot baseline。该快照覆盖到 `V87`，后端启动后由 Flyway 补跑 `V88..V90`；后续新增 schema 迁移从 `V91` 开始。不要改写已发布历史迁移来修 quickstart。
 
 ## 分支与提交
 
@@ -51,7 +51,7 @@ Docker quickstart 当前依赖 `docker/mysql/init/01-orin-schema.sql` 作为 sch
 
 - 业务持久化只能在 Java 后端；AI Engine 不直连业务数据库。
 - 前端 API 请求统一走 `src/api/*`，不要在组件里直调 `axios`。
-- 新接口必须归入已有前缀：`/v1/*`、`/api/v1/*` 或 `/api/workflows/*`。
+- 新接口必须归入已有前缀：`/v1/*`、`/api/v1/*`、`/api/workflows/*`、`/api/traces/*` 或 `/api/system/*`。
 - 协作执行链保持为 `collaboration_langgraph` -> `mq_worker` -> `TaskRuntime`。
 - 不提交 `.env`、密钥、密码、私钥或任何凭据。
 
@@ -87,4 +87,4 @@ PR 描述应包含：
 - 测试与校验：实际运行过的命令和结果
 - 文档同步：涉及环境变量、接口、架构或运行方式时必须更新 docs
 
-涉及数据库 schema 时，只能新增下一版本迁移文件。当前下一次真实 schema 变更从 `V88` 起。
+涉及数据库 schema 时，只能新增下一版本迁移文件。当前下一次真实 schema 变更从 `V91` 起。

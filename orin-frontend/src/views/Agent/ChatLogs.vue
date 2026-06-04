@@ -1,103 +1,104 @@
 <template>
   <div class="page-container">
-    <OrinPageShell
-      title="会话记录" 
-      description="审计并追溯所有智能体的历史交互记录"
-      icon="ChatLineRound"
-      domain="应用域"
-      maturity="available"
-    >
-      <template #actions>
+    <section class="conversation-command-panel">
+      <div class="conversation-command-head">
+        <div class="conversation-command-title">
+          <div class="conversation-command-icon">
+            <el-icon><ChatLineRound /></el-icon>
+          </div>
+          <div>
+            <h2>会话记录</h2>
+            <p>审计并追溯所有智能体的历史交互记录</p>
+          </div>
+        </div>
         <el-button :icon="Download" @click="handleExport">
           导出报告
         </el-button>
-      </template>
-      <template #filters>
-        <OrinFilterBar>
-          <el-input
-            v-model="searchQuery"
-            class="filter-search"
-            placeholder="搜索会话 ID / 内容 / 智能体 / 模型"
-            :prefix-icon="Search"
-            clearable
+      </div>
+      <OrinFilterBar class="conversation-filter-bar">
+        <el-input
+          v-model="searchQuery"
+          class="filter-search"
+          placeholder="搜索会话 ID / 内容 / 智能体 / 模型"
+          :prefix-icon="Search"
+          clearable
+        />
+        <el-select
+          v-model="filterAgent"
+          class="filter-select"
+          placeholder="智能体"
+          clearable
+        >
+          <el-option
+            v-for="agent in agents"
+            :key="agent.agentId || agent.id"
+            :label="agent.agentName || agent.name"
+            :value="agent.agentId || agent.id"
           />
-          <el-select
-            v-model="filterAgent"
-            class="filter-select"
-            placeholder="智能体"
-            clearable
-          >
-            <el-option
-              v-for="agent in agents"
-              :key="agent.agentId || agent.id"
-              :label="agent.agentName || agent.name"
-              :value="agent.agentId || agent.id"
+        </el-select>
+        <el-select
+          v-model="filterResult"
+          class="filter-select filter-select-small"
+          placeholder="结果"
+          clearable
+        >
+          <el-option label="成功" value="success" />
+          <el-option label="失败" value="failed" />
+        </el-select>
+        <el-popover
+          placement="bottom-end"
+          trigger="click"
+          width="420"
+          popper-class="conversation-filter-popover"
+        >
+          <template #reference>
+            <el-button class="advanced-filter-button">
+              高级筛选
+              <el-tag
+                v-if="advancedFilterCount"
+                size="small"
+                round
+                effect="plain"
+              >
+                {{ advancedFilterCount }}
+              </el-tag>
+            </el-button>
+          </template>
+          <div class="advanced-filter-panel">
+            <span class="advanced-filter-title">时间范围</span>
+            <el-date-picker
+              v-model="filterDateRange"
+              class="advanced-date-range"
+              type="datetimerange"
+              start-placeholder="开始时间"
+              end-placeholder="结束时间"
+              range-separator="至"
+              value-format="YYYY-MM-DD HH:mm:ss"
+              clearable
             />
-          </el-select>
-          <el-select
-            v-model="filterResult"
-            class="filter-select filter-select-small"
-            placeholder="结果"
-            clearable
-          >
-            <el-option label="成功" value="success" />
-            <el-option label="失败" value="failed" />
-          </el-select>
-          <el-popover
-            placement="bottom-end"
-            trigger="click"
-            width="420"
-            popper-class="conversation-filter-popover"
-          >
-            <template #reference>
-              <el-button class="advanced-filter-button">
-                高级筛选
-                <el-tag
-                  v-if="advancedFilterCount"
-                  size="small"
-                  round
-                  effect="plain"
-                >
-                  {{ advancedFilterCount }}
-                </el-tag>
-              </el-button>
-            </template>
-            <div class="advanced-filter-panel">
-              <span class="advanced-filter-title">时间范围</span>
-              <el-date-picker
-                v-model="filterDateRange"
-                class="advanced-date-range"
-                type="datetimerange"
-                start-placeholder="开始时间"
-                end-placeholder="结束时间"
-                range-separator="至"
-                value-format="YYYY-MM-DD HH:mm:ss"
-                clearable
+            <span class="advanced-filter-title">Tokens 区间</span>
+            <div class="token-filter">
+              <el-input-number
+                v-model="minTokens"
+                :min="0"
+                :controls="false"
+                placeholder="最小"
               />
-              <span class="advanced-filter-title">Tokens 区间</span>
-              <div class="token-filter">
-                <el-input-number
-                  v-model="minTokens"
-                  :min="0"
-                  :controls="false"
-                  placeholder="最小"
-                />
-                <span class="token-separator">-</span>
-                <el-input-number
-                  v-model="maxTokens"
-                  :min="0"
-                  :controls="false"
-                  placeholder="最大"
-                />
-              </div>
+              <span class="token-separator">-</span>
+              <el-input-number
+                v-model="maxTokens"
+                :min="0"
+                :controls="false"
+                placeholder="最大"
+              />
             </div>
-          </el-popover>
-          <el-button class="reset-filter-button" @click="resetFilters">
-            重置
-          </el-button>
-        </OrinFilterBar>
-      </template>
-    </OrinPageShell>
+          </div>
+        </el-popover>
+        <el-button class="reset-filter-button" @click="resetFilters">
+          重置
+        </el-button>
+      </OrinFilterBar>
+    </section>
 
     <OrinMetricStrip :metrics="conversationMetrics" class="conversation-summary-strip" />
 
@@ -326,6 +327,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import {
   ArrowRight,
+  ChatLineRound,
   ChatDotRound,
   Cpu,
   DataLine,
@@ -338,7 +340,6 @@ import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
 import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
 import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
-import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import { getAgentList, getGroupedConversationLogs, getConversationHistory } from '@/api/agent';
 import { toSessionListViewModel } from '@/viewmodels';
 import { ElMessage } from 'element-plus';
@@ -753,6 +754,61 @@ onUnmounted(() => {
   padding: 0;
 }
 
+.conversation-command-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 20px 24px;
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, #ffffff);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.08));
+}
+
+.conversation-command-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--orin-border, #e2e8f0);
+}
+
+.conversation-command-title {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.conversation-command-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(13, 148, 136, 0.16);
+  border-radius: var(--radius-base, 8px);
+  color: var(--orin-primary, #0d9488);
+  background: var(--orin-primary-soft, #f0fdfa);
+}
+
+.conversation-command-title h2 {
+  margin: 0;
+  color: var(--neutral-gray-900);
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.conversation-command-title p {
+  margin: 8px 0 0;
+  color: var(--neutral-gray-500);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .conversation-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -865,9 +921,7 @@ onUnmounted(() => {
 }
 
 .accent-card {
-  background:
-    linear-gradient(135deg, rgba(13, 148, 136, 0.08), transparent 46%),
-    var(--orin-surface, #ffffff);
+  background: var(--orin-surface, #ffffff);
 }
 
 .insight-card-header,
@@ -1006,7 +1060,8 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.table-filter-bar {
+.table-filter-bar,
+.conversation-filter-bar {
   display: grid;
   grid-template-columns:
     minmax(260px, 1fr)
@@ -1018,9 +1073,7 @@ onUnmounted(() => {
   gap: 10px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
-  background:
-    linear-gradient(135deg, rgba(13, 148, 136, 0.06), transparent 52%),
-    #fff;
+  background: #fff;
 }
 
 .filter-search {
@@ -1278,13 +1331,19 @@ html.dark .recent-title {
     grid-template-columns: 1fr;
   }
 
+  .conversation-command-head {
+    flex-direction: column;
+  }
+
   .table-card-header,
   .table-filter-bar,
+  .conversation-filter-bar,
   .pagination-container {
     align-items: flex-start;
   }
 
-  .table-filter-bar {
+  .table-filter-bar,
+  .conversation-filter-bar {
     grid-template-columns: 1fr;
   }
 

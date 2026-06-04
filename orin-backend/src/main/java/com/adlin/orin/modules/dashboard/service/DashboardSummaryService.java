@@ -1,10 +1,13 @@
 package com.adlin.orin.modules.dashboard.service;
 
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.alert.repository.AlertHistoryRepository;
+import com.adlin.orin.modules.apikey.repository.ApiKeyRepository;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.adlin.orin.modules.system.repository.SysUserRepository;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
 import com.adlin.orin.modules.task.repository.TaskRepository;
 import com.adlin.orin.modules.trace.repository.WorkflowTraceRepository;
@@ -41,6 +44,9 @@ public class DashboardSummaryService {
     private final TaskRepository taskRepository;
     private final WorkflowTraceRepository workflowTraceRepository;
     private final AuditLogRepository auditLogRepository;
+    private final SysUserRepository sysUserRepository;
+    private final ApiKeyRepository apiKeyRepository;
+    private final AlertHistoryRepository alertHistoryRepository;
     private final RestTemplate restTemplate;
 
     @Value("${orin.ai-engine.url:http://127.0.0.1:8000}")
@@ -48,6 +54,7 @@ public class DashboardSummaryService {
 
     public Map<String, Object> getSummary(Authentication authentication) {
         List<String> roles = extractRoles(authentication);
+        boolean isAdmin = hasAnyRole(roles, ADMIN_ROLES);
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("roles", roles);
         summary.put("defaultHome", resolveDefaultHome(roles));
@@ -55,6 +62,10 @@ public class DashboardSummaryService {
         summary.put("metrics", metrics());
         summary.put("recentActivity", recentActivity());
         summary.put("quickLinks", quickLinks(roles));
+        if (isAdmin) {
+            summary.put("adminStats", adminStats());
+            summary.put("topAlertEvents", topAlertEvents());
+        }
         summary.put("generatedAt", LocalDateTime.now().toString());
         return summary;
     }
@@ -153,6 +164,44 @@ public class DashboardSummaryService {
                     .toList();
         } catch (Exception e) {
             log.debug("Dashboard recent activity aggregation failed: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private Map<String, Object> adminStats() {
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("totalUsers", safeCount(sysUserRepository::count));
+        stats.put("totalApiKeys", safeCount(apiKeyRepository::count));
+        stats.put("activeAlerts", alertHistoryCount("TRIGGERED"));
+        stats.put("resolvedAlerts", alertHistoryCount("RESOLVED"));
+        return stats;
+    }
+
+    private long alertHistoryCount(String status) {
+        try {
+            return alertHistoryRepository.countByStatus(status);
+        } catch (Exception e) {
+            log.debug("Alert history count failed for status {}: {}", status, e.getMessage());
+            return 0L;
+        }
+    }
+
+    private List<Map<String, Object>> topAlertEvents() {
+        try {
+            return auditLogRepository
+                    .findAll(PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt")))
+                    .getContent()
+                    .stream()
+                    .filter(log -> log.getSuccess() != null && !log.getSuccess())
+                    .map(log -> Map.<String, Object>of(
+                            "endpoint", log.getEndpoint() != null ? log.getEndpoint() : "",
+                            "method", log.getMethod() != null ? log.getMethod() : "",
+                            "statusCode", log.getStatusCode() != null ? log.getStatusCode() : 0,
+                            "createdAt", log.getCreatedAt() != null ? log.getCreatedAt().toString() : ""
+                    ))
+                    .toList();
+        } catch (Exception e) {
+            log.debug("Top alert events aggregation failed: {}", e.getMessage());
             return List.of();
         }
     }

@@ -1,7 +1,6 @@
 <script setup>
 import "./playground.css"
 import { onMounted, provide, ref } from "vue"
-import OrinPageShell from "@/components/orin/OrinPageShell.vue"
 
 import {
   createAgent,
@@ -244,14 +243,6 @@ onMounted(async () => {
     :data-theme="props.themeStyle"
   >
     <main class="shell page-shell">
-      <OrinPageShell
-        v-if="props.themeStyle === 'system'"
-        title="Playground"
-        description="应用域智能体编排、运行与协作方案验证入口"
-        icon="Promotion"
-        domain="应用域"
-        maturity="beta"
-      />
       <div v-if="errorMessage" class="error-banner">
         {{ errorMessage }}
       </div>

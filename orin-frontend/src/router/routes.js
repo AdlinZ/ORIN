@@ -17,6 +17,7 @@ const agentRoutes = {
     CONSOLE: '/dashboard/applications/agents/console/:id',
     CHAT_LOGS: '/dashboard/applications/conversations',
     WORKSPACE: '/dashboard/applications/workspace',
+    DEVELOPER: '/dashboard/applications/developer',
     SKILLS: '/dashboard/applications/skills',
     MCP: '/dashboard/applications/extensions?tab=mcp',
     EXTENSIONS: '/dashboard/applications/extensions',
@@ -84,6 +85,7 @@ const monitorRoutes = {
 
 const systemRoutes = {
     ROOT: '/dashboard/control',
+    ADMIN_DASHBOARD: '/dashboard/control/admin-overview',
     USERS: '/dashboard/control/users',
     DEPARTMENTS: '/dashboard/control/departments',
     ROLES: '/dashboard/control/roles',

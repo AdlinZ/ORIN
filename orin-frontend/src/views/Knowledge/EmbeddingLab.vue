@@ -1064,9 +1064,7 @@ const matchLabel = (type) => {
   padding: 14px;
   border: 1px solid rgba(15, 159, 149, 0.18);
   border-radius: 14px;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(15, 159, 149, 0.16), transparent 34%),
-    linear-gradient(135deg, rgba(230, 247, 245, 0.96), rgba(255, 255, 255, 0.92) 58%);
+  background: #ffffff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
@@ -1691,17 +1689,26 @@ const matchLabel = (type) => {
 
 .gauge-ring {
   --score: 0;
+  position: relative;
   width: 84px;
   height: 84px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at center, #fff 0 57%, transparent 58%),
-    conic-gradient(var(--primary) calc(var(--score) * 1%), #dbe5ea 0);
+  background: conic-gradient(var(--primary) calc(var(--score) * 1%), #dbe5ea 0);
+}
+
+.gauge-ring::after {
+  position: absolute;
+  inset: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  content: "";
 }
 
 .gauge-ring span {
+  position: relative;
+  z-index: 1;
   color: var(--strong);
   font-size: 18px;
   font-weight: 900;
@@ -1844,9 +1851,7 @@ html.dark .gauge-ring {
 }
 
 html.dark .sidebar-hero {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(20, 184, 166, 0.18), transparent 34%),
-    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.78) 62%);
+  background: #0f172a;
   border-color: rgba(45, 212, 191, 0.22);
   box-shadow: none;
 }

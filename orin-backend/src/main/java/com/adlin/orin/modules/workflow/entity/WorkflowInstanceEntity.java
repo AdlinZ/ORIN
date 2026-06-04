@@ -62,6 +62,9 @@ public class WorkflowInstanceEntity {
     @Column(name = "triggered_by", length = 100)
     private String triggeredBy;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "trigger_source", length = 50)
     private String triggerSource;
 
