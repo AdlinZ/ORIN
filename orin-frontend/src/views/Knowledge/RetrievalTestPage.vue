@@ -1,21 +1,29 @@
 <template>
   <div class="retrieval-test-page">
-    <div class="page-header">
-      <div class="header-title">
-        <el-icon class="mr-2"><Search /></el-icon>
-        <span>检索测试</span>
-      </div>
-      <div class="header-actions">
+    <OrinPageShell
+      title="检索测试"
+      description="验证知识库召回质量、相似度阈值和分片命中情况"
+      icon="Search"
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #filters>
+        <OrinFilterBar>
         <el-select v-model="selectedKbId" placeholder="选择知识库" style="width: 250px" filterable>
           <el-option
             v-for="kb in knowledgeBases"
-            :key="kb.kbId"
+            :key="kb.id"
             :label="kb.name"
-            :value="kb.kbId"
+            :value="kb.id"
           />
         </el-select>
-      </div>
-    </div>
+          <el-input-number v-model="topK" :min="1" :max="20" />
+          <el-button :icon="Search" type="primary" :loading="loading" @click="handleSearch">
+            搜索
+          </el-button>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
 
     <div class="page-content">
       <div class="search-section">
@@ -53,7 +61,13 @@
         </div>
       </div>
 
-      <div v-loading="loading" class="results-section">
+      <OrinAsyncState
+        class="results-section"
+        :status="resultState"
+        empty-text="未找到相关内容，请尝试调整查询词或降低相似度阈值"
+        :error-text="errorText"
+        @retry="handleSearch"
+      >
         <div v-if="results.length > 0" class="result-list">
           <div class="result-header">
             <span class="result-count">找到 <strong>{{ filteredResults.length }}</strong> 个相关分片</span>
@@ -82,12 +96,6 @@
           </div>
         </div>
 
-        <el-empty
-          v-else-if="searched && !loading"
-          description="未找到相关内容，请尝试调整查询词或降低相似度阈值"
-          :image-size="120"
-        />
-
         <div v-else-if="!searched" class="placeholder">
           <el-icon :size="64" color="#dcdfe6">
             <Search />
@@ -95,7 +103,7 @@
           <p class="placeholder-title">输入问题开始测试检索效果</p>
           <p class="placeholder-hint">输入与知识库内容相关的问题，系统将返回最匹配的知识分片</p>
         </div>
-      </div>
+      </OrinAsyncState>
 
       <!-- 评估面板 -->
       <div v-if="results.length > 0" class="evaluation-panel">
@@ -126,8 +134,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
-import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
+import { getKnowledgeList, testRetrieval } from '@/api/knowledge'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
+import { toKnowledgeListViewModel, toRetrievalResultViewModel } from '@/viewmodels'
 
 const query = ref('')
 const loading = ref(false)
@@ -137,6 +149,7 @@ const topK = ref(5)
 const similarityThreshold = ref(0.3)
 const selectedKbId = ref('')
 const knowledgeBases = ref([])
+const errorText = ref('')
 
 const filteredResults = computed(() => {
   return results.value.filter(r => r.score >= similarityThreshold.value)
@@ -161,17 +174,25 @@ const coverage = computed(() => {
   return (filteredResults.value.length / topK.value) * 100
 })
 
+const resultState = computed(() => {
+  if (loading.value) return 'loading'
+  if (errorText.value) return 'error'
+  if (searched.value && results.value.length === 0) return 'empty'
+  return 'success'
+})
+
 onMounted(async () => {
   await loadKnowledgeBases()
 })
 
 const loadKnowledgeBases = async () => {
   try {
-    const res = await request.get('/knowledge/kb/list')
-    if (res && Array.isArray(res)) {
-      knowledgeBases.value = res
-      if (res.length > 0) {
-        selectedKbId.value = res[0].kbId
+    const res = await getKnowledgeList()
+    const rows = toKnowledgeListViewModel(res)
+    if (rows.length > 0) {
+      knowledgeBases.value = rows
+      if (!selectedKbId.value) {
+        selectedKbId.value = rows[0].id
       }
     }
   } catch (error) {
@@ -193,19 +214,21 @@ const handleSearch = async () => {
   loading.value = true
   searched.value = true
   results.value = []
+  errorText.value = ''
 
   try {
-    const res = await request.post('/knowledge/retrieve/test', {
+    const res = await testRetrieval({
       kbId: selectedKbId.value,
       query: query.value,
       topK: topK.value
     })
-    results.value = unwrapRetrievalResults(res)
+    results.value = toRetrievalResultViewModel(res)
     if (results.value.length === 0) {
       ElMessage.info('未找到相关结果')
     }
   } catch (error) {
     console.error(error)
+    errorText.value = `检索失败${error?.traceId ? `，TraceId: ${error.traceId}` : ''}`
     ElMessage.error('检索失败')
   } finally {
     loading.value = false
@@ -214,13 +237,6 @@ const handleSearch = async () => {
 
 const formatScore = (score) => {
   return (score * 100).toFixed(1) + '%'
-}
-
-const unwrapRetrievalResults = (response) => {
-  if (Array.isArray(response)) return response
-  if (Array.isArray(response?.results)) return response.results
-  if (Array.isArray(response?.data)) return response.data
-  return []
 }
 
 const getScoreClass = (score) => {
@@ -408,7 +424,7 @@ const getScoreClass = (score) => {
 }
 
 .evaluation-panel {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #667eea;
   border-radius: 12px;
   padding: 20px;
   color: #fff;

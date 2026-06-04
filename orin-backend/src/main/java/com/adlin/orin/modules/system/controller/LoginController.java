@@ -1,6 +1,7 @@
 package com.adlin.orin.modules.system.controller;
 
 import com.adlin.orin.modules.system.dto.LoginDTO;
+import com.adlin.orin.modules.system.dto.UserResponseDTO;
 import com.adlin.orin.modules.system.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -66,7 +67,7 @@ public class LoginController {
 
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
-            response.put("user", user);
+            response.put("user", UserResponseDTO.fromEntity(user));
             response.put("roles", roles); // 包含用户角色
             return ResponseEntity.ok(response);
         } else {

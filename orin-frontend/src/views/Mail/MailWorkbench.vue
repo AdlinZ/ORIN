@@ -1,11 +1,11 @@
 <template>
   <div class="mail-workbench gmail-layout">
-    <OrinEntityHeader
+    <OrinPageShell
       v-if="!embedded"
       domain="系统设置"
       title="通知设置"
       description="统一管理邮箱服务、收件箱、发送模板与通知投递记录"
-      :summary="mailHeaderSummary"
+      icon="Message"
     >
       <template #actions>
         <div class="status-cluster">
@@ -27,7 +27,7 @@
           </el-input>
         </div>
       </template>
-    </OrinEntityHeader>
+    </OrinPageShell>
 
     <div class="gmail-main">
       <aside class="gmail-sidebar">
@@ -413,57 +413,59 @@
                 批量重试失败 ({{ selectedFailedLogs.length }})
               </el-button>
             </div>
-            <el-table
-              v-loading="loadingLogs"
-              :data="logs"
-              border
-              @selection-change="onLogSelectionChange"
-            >
-              <el-table-column type="selection" width="48" />
-              <el-table-column label="状态" width="100">
-                <template #default="{ row }">
-                  <el-tag :type="getStatusTagType(row.status)">
-                    {{ row.status }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column
-                prop="recipients"
-                label="收件人"
-                min-width="220"
-                show-overflow-tooltip
-              />
-              <el-table-column
-                prop="subject"
-                label="主题"
-                min-width="220"
-                show-overflow-tooltip
-              />
-              <el-table-column prop="createdAt" label="时间" width="180">
-                <template #default="{ row }">
-                  {{ formatDateTime(row.createdAt) }}
-                </template>
-              </el-table-column>
-              <el-table-column
-                prop="errorMessage"
-                label="错误"
-                min-width="220"
-                show-overflow-tooltip
-              />
-              <el-table-column label="操作" width="100" fixed="right">
-                <template #default="{ row }">
-                  <el-button
-                    v-if="row.status === 'FAILED'"
-                    text
-                    type="warning"
-                    :loading="retryingSingleId === row.id"
-                    @click="retrySingleLog(row)"
-                  >
-                    重试
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+            <OrinDataTable compact>
+              <el-table
+                v-loading="loadingLogs"
+                :data="logs"
+                border
+                @selection-change="onLogSelectionChange"
+              >
+                <el-table-column type="selection" width="48" />
+                <el-table-column label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="getStatusTagType(row.status)">
+                      {{ row.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="recipients"
+                  label="收件人"
+                  min-width="220"
+                  show-overflow-tooltip
+                />
+                <el-table-column
+                  prop="subject"
+                  label="主题"
+                  min-width="220"
+                  show-overflow-tooltip
+                />
+                <el-table-column prop="createdAt" label="时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatDateTime(row.createdAt) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="errorMessage"
+                  label="错误"
+                  min-width="220"
+                  show-overflow-tooltip
+                />
+                <el-table-column label="操作" width="100" fixed="right">
+                  <template #default="{ row }">
+                    <el-button
+                      v-if="row.status === 'FAILED'"
+                      text
+                      type="warning"
+                      :loading="retryingSingleId === row.id"
+                      @click="retrySingleLog(row)"
+                    >
+                      重试
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinDataTable>
           </div>
         </template>
 
@@ -483,38 +485,40 @@
                 clearable
               />
             </div>
-            <el-table :data="filteredTemplates" border>
-              <el-table-column prop="name" label="名称" min-width="150" />
-              <el-table-column prop="code" label="编码" min-width="120" />
-              <el-table-column
-                prop="subject"
-                label="主题"
-                min-width="220"
-                show-overflow-tooltip
-              />
-              <el-table-column label="默认" width="80">
-                <template #default="{ row }">
-                  <el-tag v-if="row.isDefault" type="success" size="small">
-                    默认
-                  </el-tag><span v-else>-</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="启用" width="90">
-                <template #default="{ row }">
-                  <el-switch :model-value="row.enabled" @change="(v) => toggleTemplateEnabled(row, v)" />
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="170" fixed="right">
-                <template #default="{ row }">
-                  <el-button text type="primary" @click="openTemplateEditor(row)">
-                    编辑
-                  </el-button>
-                  <el-button text type="danger" @click="deleteTemplateAction(row)">
-                    删除
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+            <OrinDataTable compact>
+              <el-table :data="filteredTemplates" border>
+                <el-table-column prop="name" label="名称" min-width="150" />
+                <el-table-column prop="code" label="编码" min-width="120" />
+                <el-table-column
+                  prop="subject"
+                  label="主题"
+                  min-width="220"
+                  show-overflow-tooltip
+                />
+                <el-table-column label="默认" width="80">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.isDefault" type="success" size="small">
+                      默认
+                    </el-tag><span v-else>-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="启用" width="90">
+                  <template #default="{ row }">
+                    <el-switch :model-value="row.enabled" @change="(v) => toggleTemplateEnabled(row, v)" />
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="170" fixed="right">
+                  <template #default="{ row }">
+                    <el-button text type="primary" @click="openTemplateEditor(row)">
+                      编辑
+                    </el-button>
+                    <el-button text type="danger" @click="deleteTemplateAction(row)">
+                      删除
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </OrinDataTable>
           </div>
         </template>
 
@@ -678,7 +682,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import OrinEntityHeader from '@/components/orin/OrinEntityHeader.vue'
+import OrinPageShell from '@/components/orin/OrinPageShell.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import {
   getMailConfig,
@@ -846,14 +851,6 @@ const templateVariables = computed(() => {
 })
 
 const unreadInboxCount = computed(() => inboxList.value.filter((item) => !item.read && !item.isRead).length)
-
-const mailHeaderSummary = computed(() => [
-  { label: '收件箱', value: inboxList.value.length },
-  { label: '未读', value: unreadInboxCount.value },
-  { label: '模板', value: templates.value.length },
-  { label: '发送记录', value: trackingTotal.value },
-  { label: '服务状态', value: mailConnected.value ? '已连接' : '未连接' }
-])
 
 const filteredInboxList = computed(() => {
   const keyword = inboxKeyword.value.trim().toLowerCase()

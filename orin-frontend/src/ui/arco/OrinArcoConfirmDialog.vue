@@ -14,6 +14,9 @@
 </template>
 
 <script setup>
+import AModal from '@arco-design/web-vue/es/modal'
+import '@arco-design/web-vue/es/modal/style/css'
+
 defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: '确认操作' },

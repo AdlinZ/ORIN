@@ -21,12 +21,14 @@ import com.adlin.orin.modules.workflow.service.WorkflowService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 协作任务执行器 - 负责执行子任务，调用智能体或工作流
@@ -51,6 +53,9 @@ public class CollaborationExecutor {
     private final CollaborationRedisService redisService;
     private final StaticSelector staticSelector;
     private final BiddingSelector biddingSelector;
+
+    @Value("${orin.collaboration.result.queue:collaboration-task-result-queue}")
+    private String collaborationResultQueueName = "collaboration-task-result-queue";
 
     // 角色 -> 能力关键词映射（从 agent name/description 中匹配）
     private static final Map<String, List<String>> ROLE_CAPABILITY_KEYWORDS = Map.of(
@@ -106,7 +111,7 @@ public class CollaborationExecutor {
         String subTaskId = subtask.getSubTaskId();
         String description = subtask.getDescription();
         String expectedRole = subtask.getExpectedRole();
-        String executorType = determineExecutorType(expectedRole);
+        String executorType = determineExecutorType(subtask);
 
         // 幂等保护：已终态的子任务不重复执行（除非上游显式改回 PENDING 触发重试）。
         String currentStatus = subtask.getStatus();
@@ -208,8 +213,8 @@ public class CollaborationExecutor {
                     .dependsOn(parseDependsOn(subtask.getDependsOn()))
                     .maxRetries(3)
                     .timeoutMillis(300000L)
-                    .executionStrategy(determineExecutorType(subtask.getExpectedRole()))
-                    .replyTo("collaboration-task-result-queue")
+                    .executionStrategy(determineExecutorType(subtask))
+                    .replyTo(collaborationResultQueueName)
                     .correlationId(callbackKey)
                     .contextSnapshot(contextSnapshot)
                     .enqueuedAt(System.currentTimeMillis())
@@ -226,7 +231,7 @@ public class CollaborationExecutor {
             pendingTaskData.put("expectedRole", subtask.getExpectedRole());
             pendingTaskData.put("description", subtask.getDescription());
             pendingTaskData.put("inputData", subtask.getInputData());
-            pendingTaskData.put("executionStrategy", determineExecutorType(subtask.getExpectedRole()));
+            pendingTaskData.put("executionStrategy", determineExecutorType(subtask));
             pendingTaskData.put("contextSnapshot", contextSnapshot);
             pendingTaskData.put("maxRetries", 3);
             redisService.updateContextField(packageId, buildPendingTaskField(subtask.getSubTaskId()), pendingTaskData);
@@ -310,6 +315,13 @@ public class CollaborationExecutor {
     /**
      * 根据 expectedRole 判断执行器类型
      */
+    private String determineExecutorType(CollabSubtaskEntity subtask) {
+        if (subtask != null && extractWorkflowId(subtask) != null) {
+            return EXECUTOR_TYPE_WORKFLOW;
+        }
+        return determineExecutorType(subtask != null ? subtask.getExpectedRole() : null);
+    }
+
     private String determineExecutorType(String expectedRole) {
         if (expectedRole == null) {
             return EXECUTOR_TYPE_AGENT;
@@ -432,6 +444,7 @@ public class CollaborationExecutor {
                 candidateAgents = preferTextAgents(candidateAgents);
             }
 
+            candidateAgents = applyFallbackAgentExclusions(candidateAgents, packageId, subTaskId);
             candidateAgents = applyParallelDiversification(candidateAgents, packageId, collaborationMode);
 
             AgentSelectionContext selectionContext = AgentSelectionContext.builder()
@@ -730,6 +743,30 @@ public class CollaborationExecutor {
         return filtered.isEmpty() ? candidates : filtered;
     }
 
+    @SuppressWarnings("unchecked")
+    private List<AgentMetadata> applyFallbackAgentExclusions(List<AgentMetadata> candidates,
+                                                             String packageId,
+                                                             String subTaskId) {
+        if (candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+        Optional<Object> excluded = memoryService.readFromBlackboard(packageId, "fallback_excluded_agents:" + subTaskId);
+        if (excluded == null || excluded.isEmpty() || !(excluded.get() instanceof List<?> list) || list.isEmpty()) {
+            return candidates;
+        }
+        Set<String> excludedIds = list.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .collect(Collectors.toSet());
+        if (excludedIds.isEmpty()) {
+            return candidates;
+        }
+        List<AgentMetadata> filtered = candidates.stream()
+                .filter(agent -> agent.getAgentId() == null || !excludedIds.contains(agent.getAgentId()))
+                .toList();
+        return filtered.isEmpty() ? candidates : filtered;
+    }
+
     private void reserveAgentForPackage(String packageId, String collaborationMode, String agentId) {
         if (packageId == null || packageId.isBlank() || agentId == null || agentId.isBlank()) {
             return;
@@ -788,13 +825,19 @@ public class CollaborationExecutor {
         String intent = packageRepository.findByPackageId(packageId)
                 .map(CollaborationPackageEntity::getIntent)
                 .orElse("");
+        String description;
         if (intent == null || intent.isBlank()) {
-            return subtask;
+            description = subtask;
+        } else if (subtask == null || subtask.isBlank()) {
+            description = intent;
+        } else {
+            description = subtask + "\n\n任务原始意图: " + intent;
         }
-        if (subtask == null || subtask.isBlank()) {
-            return intent;
+        Optional<Object> fallbackReview = memoryService.readFromBlackboard(packageId, "fallback_review:last");
+        if (fallbackReview != null && fallbackReview.isPresent() && !String.valueOf(fallbackReview.get()).isBlank()) {
+            description += "\n\n上一轮 critic 反馈: " + fallbackReview.get();
         }
-        return subtask + "\n\n任务原始意图: " + intent;
+        return description;
     }
 
     private void writeSelectionAudit(String packageId, String subTaskId, AgentSelectionResult selection,

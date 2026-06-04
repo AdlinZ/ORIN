@@ -127,6 +127,7 @@
 import { ref, computed } from 'vue';
 import { Microphone, Delete, Download } from '@element-plus/icons-vue';
 import { useAgentInteraction } from '../composables/useAgentInteraction';
+import { fetchMediaArrayBuffer } from '@/utils/mediaFetch';
 
 const props = defineProps({
   agentId: { type: String, required: true },
@@ -141,7 +142,6 @@ const { isProcessing, result, dataType, error, interact } = useAgentInteraction(
 
 const audioUrl = computed(() => {
     if (!result.value) return '';
-    console.log('[Audio Generation Result]', result.value);
     const data = result.value.data || result.value;
     if (data && data.audio_url) return data.audio_url;
     if (data && data.url) return data.url;
@@ -173,9 +173,7 @@ const handleSeek = (event) => {
 const initWaveform = async () => {
     if (!audioUrl.value || !waveformCanvas.value) return;
     try {
-        const response = await fetch(audioUrl.value);
-        if (!response.ok) throw new Error('Network response was not ok');
-        const arrayBuffer = await response.arrayBuffer();
+        const arrayBuffer = await fetchMediaArrayBuffer(audioUrl.value);
         
         if (!audioContextRef.value) {
             audioContextRef.value = new (window.AudioContext || window.webkitAudioContext)();

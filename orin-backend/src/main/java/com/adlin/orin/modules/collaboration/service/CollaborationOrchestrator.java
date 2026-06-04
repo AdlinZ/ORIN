@@ -76,6 +76,9 @@ public class CollaborationOrchestrator {
     public static final String ROLE_REVIEWER = "REVIEWER";
     public static final String ROLE_CRITIC = "CRITIC";
     public static final String ROLE_COORDINATOR = "COORDINATOR";
+    public static final String ROLE_WORKFLOW = "WORKFLOW";
+    public static final String ROLE_MCP = "MCP";
+    public static final String ROLE_HUMAN = "HUMAN";
 
     // 协作模式
     public static final String MODE_SEQUENTIAL = "SEQUENTIAL";
@@ -217,6 +220,12 @@ public class CollaborationOrchestrator {
      */
     @Transactional
     public CollaborationPackage decompose(String packageId, List<String> capabilities) {
+        return decompose(packageId, capabilities, List.of());
+    }
+
+    @Transactional
+    public CollaborationPackage decompose(String packageId, List<String> capabilities,
+                                          List<Map<String, Object>> explicitSubtasks) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
             throw new RuntimeException("Package not found: " + packageId);
@@ -228,7 +237,9 @@ public class CollaborationOrchestrator {
 
         // 根据意图类型分解任务
         String category = entity.getIntentCategory();
-        List<CollabSubtaskEntity> subtasks = generateSubtasks(packageId, category, capabilities);
+        List<CollabSubtaskEntity> subtasks = hasExplicitSubtasks(explicitSubtasks)
+                ? materializeExplicitSubtasks(packageId, explicitSubtasks)
+                : generateSubtasks(packageId, category, capabilities);
         persistSubtasksToRuntimeContext(packageId, subtasks);
 
         entity.setStatus(STATUS_EXECUTING);
@@ -241,6 +252,10 @@ public class CollaborationOrchestrator {
         memoryService.saveCheckpoint(packageId, "decomposed", Map.of("subtasks", subtasks.size()));
 
         return toDto(entity, subtasks);
+    }
+
+    private boolean hasExplicitSubtasks(List<Map<String, Object>> explicitSubtasks) {
+        return explicitSubtasks != null && !explicitSubtasks.isEmpty();
     }
 
     private void persistSubtasksToRuntimeContext(String packageId, List<CollabSubtaskEntity> subtasks) {
@@ -424,6 +439,83 @@ public class CollaborationOrchestrator {
         return subtasks;
     }
 
+    @SuppressWarnings("unchecked")
+    private List<CollabSubtaskEntity> materializeExplicitSubtasks(String packageId, List<Map<String, Object>> plan) {
+        List<CollabSubtaskEntity> subtasks = new ArrayList<>();
+        for (int i = 0; i < plan.size(); i++) {
+            Map<String, Object> item = plan.get(i);
+            if (item == null || item.isEmpty()) {
+                continue;
+            }
+            String subTaskId = valueAsString(item.getOrDefault("subTaskId", item.getOrDefault("id", String.valueOf(i + 1))));
+            if (subTaskId == null || subTaskId.isBlank()) {
+                subTaskId = String.valueOf(i + 1);
+            }
+            String description = valueAsString(item.get("description"));
+            if (description == null || description.isBlank()) {
+                continue;
+            }
+            String role = normalizeRole(valueAsString(item.getOrDefault("expectedRole", item.get("role"))));
+            List<String> dependsOn = valueAsStringList(item.get("dependsOn"));
+            Double confidence = valueAsDouble(item.get("confidence"));
+
+            Map<String, Object> inputData = new LinkedHashMap<>();
+            Object input = item.getOrDefault("inputData", item.get("input"));
+            if (input instanceof Map<?, ?> inputMap) {
+                inputMap.forEach((key, value) -> inputData.put(String.valueOf(key), value));
+            }
+            copyIfPresent(item, inputData, "workflowId");
+            copyIfPresent(item, inputData, "mcpServerId");
+            copyIfPresent(item, inputData, "toolName");
+            copyIfPresent(item, inputData, "arguments");
+
+            subtasks.add(createSubtask(
+                    packageId,
+                    subTaskId,
+                    description,
+                    role,
+                    dependsOn,
+                    confidence != null ? clampConfidence(confidence) : 0.82,
+                    inputData.isEmpty() ? null : inputData
+            ));
+        }
+        return subtaskRepository.saveAll(subtasks);
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source != null && source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
+    }
+
+    private String valueAsString(Object value) {
+        return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private Double valueAsDouble(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private List<String> valueAsStringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(this::valueAsString)
+                .filter(item -> item != null && !item.isBlank())
+                .toList();
+    }
+
     private AgentMetadata pickPlannerAgent(List<AgentMetadata> agents) {
         for (AgentMetadata agent : agents) {
             String text = ((agent.getName() != null ? agent.getName() : "") + " "
@@ -560,19 +652,27 @@ public class CollaborationOrchestrator {
     private String normalizeRole(String role) {
         String upper = role != null ? role.trim().toUpperCase(Locale.ROOT) : ROLE_SPECIALIST;
         return switch (upper) {
-            case ROLE_PLANNER, ROLE_SPECIALIST, ROLE_REVIEWER, ROLE_CRITIC, ROLE_COORDINATOR -> upper;
+            case ROLE_PLANNER, ROLE_SPECIALIST, ROLE_REVIEWER, ROLE_CRITIC, ROLE_COORDINATOR,
+                    ROLE_WORKFLOW, ROLE_MCP, ROLE_HUMAN -> upper;
             default -> ROLE_SPECIALIST;
         };
     }
 
     private CollabSubtaskEntity createSubtask(String packageId, String subTaskId, String description,
                                                String role, List<String> dependsOn, double confidence) {
+        return createSubtask(packageId, subTaskId, description, role, dependsOn, confidence, null);
+    }
+
+    private CollabSubtaskEntity createSubtask(String packageId, String subTaskId, String description,
+                                               String role, List<String> dependsOn, double confidence,
+                                               Map<String, Object> inputData) {
         return CollabSubtaskEntity.builder()
                 .packageId(packageId)
                 .subTaskId(subTaskId)
                 .description(description)
                 .expectedRole(role)
                 .dependsOn(toJson(dependsOn))
+                .inputData(inputData == null || inputData.isEmpty() ? null : toJson(inputData))
                 .confidence(confidence)
                 .status("PENDING")
                 .retryCount(0)
@@ -739,6 +839,91 @@ public class CollaborationOrchestrator {
         eventBus.publishFallbackTriggered(packageId, reason, entity.getTraceId());
 
         return toDto(packageRepository.save(entity));
+    }
+
+    /**
+     * FALLBACK 真重派：重置目标子任务并清理旧 branch_result，避免旧结果被幂等保护复用。
+     */
+    @Transactional
+    public Map<String, Object> retryFallback(String packageId, String reason, String review,
+                                             Integer attempt, List<String> subTaskIds) {
+        CollaborationPackageEntity entity = packageRepository.findByPackageId(packageId)
+                .orElseThrow(() -> new RuntimeException("Package not found: " + packageId));
+
+        List<CollabSubtaskEntity> subtasks = subtaskRepository.findByPackageId(packageId);
+        Set<String> requestedIds = subTaskIds == null || subTaskIds.isEmpty()
+                ? subtasks.stream().map(CollabSubtaskEntity::getSubTaskId).collect(Collectors.toCollection(LinkedHashSet::new))
+                : subTaskIds.stream().filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<String> resetSubTaskIds = new ArrayList<>();
+        List<String> contextFieldsToRemove = new ArrayList<>();
+        Map<String, Object> ctx = redisService != null ? redisService.loadContext(packageId).orElse(Collections.emptyMap()) : Collections.emptyMap();
+
+        for (CollabSubtaskEntity subtask : subtasks) {
+            String subTaskId = subtask.getSubTaskId();
+            if (!requestedIds.contains(subTaskId)) {
+                continue;
+            }
+            Object oldBranchResult = ctx.get("branch_result:" + subTaskId);
+            List<String> excludedAgents = extractAgentIds(oldBranchResult);
+            if (!excludedAgents.isEmpty()) {
+                memoryService.writeToBlackboard(packageId, "fallback_excluded_agents:" + subTaskId, excludedAgents);
+            }
+
+            subtask.setStatus(SUBTASK_PENDING);
+            subtask.setResult(null);
+            subtask.setErrorMessage(null);
+            subtask.setStartedAt(null);
+            subtask.setCompletedAt(null);
+            subtask.setRetryCount((subtask.getRetryCount() != null ? subtask.getRetryCount() : 0) + 1);
+            subtaskRepository.save(subtask);
+
+            resetSubTaskIds.add(subTaskId);
+            contextFieldsToRemove.add("branch_result:" + subTaskId);
+            memoryService.deleteFromBlackboard(packageId, "subtask_" + subTaskId + "_result");
+            eventBus.publishSubtaskRetry(packageId, subTaskId, subtask.getRetryCount(), reason, entity.getTraceId());
+        }
+
+        if (redisService != null && !contextFieldsToRemove.isEmpty()) {
+            redisService.removeContextFields(packageId, contextFieldsToRemove);
+        }
+
+        int fallbackAttempt = attempt != null ? attempt : 0;
+        Map<String, Object> trailEntry = new LinkedHashMap<>();
+        trailEntry.put("attempt", fallbackAttempt);
+        trailEntry.put("reason", reason != null ? reason : "critic rejected result");
+        trailEntry.put("review", truncate(review, 500));
+        trailEntry.put("resetSubTaskIds", resetSubTaskIds);
+        trailEntry.put("timestamp", System.currentTimeMillis());
+
+        List<Object> fallbackTrail = new ArrayList<>();
+        Optional<Object> existingTrail = memoryService.readFromBlackboard(packageId, "fallbackTrail");
+        if (existingTrail != null) {
+            existingTrail.ifPresent(existing -> {
+                if (existing instanceof List<?> list) {
+                    fallbackTrail.addAll(list);
+                }
+            });
+        }
+        fallbackTrail.add(trailEntry);
+        memoryService.writeToBlackboard(packageId, "fallbackTrail", fallbackTrail);
+        memoryService.writeToBlackboard(packageId, "fallback_review:last", review != null ? review : "");
+        memoryService.writeToBlackboard(packageId, "fallback_attempt:last", fallbackAttempt);
+
+        entity.setStatus(STATUS_EXECUTING);
+        entity.setErrorMessage(null);
+        entity.setUpdatedAt(LocalDateTime.now());
+        packageRepository.save(entity);
+
+        eventBus.publishFallbackTriggered(packageId, reason != null ? reason : "critic rejected result", entity.getTraceId());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("packageId", packageId);
+        response.put("status", STATUS_EXECUTING);
+        response.put("attempt", fallbackAttempt);
+        response.put("resetSubTaskIds", resetSubTaskIds);
+        response.put("fallbackTrail", fallbackTrail);
+        return response;
     }
 
     /**
@@ -950,6 +1135,16 @@ public class CollaborationOrchestrator {
 
         memoryService.readFromBlackboard(packageId, "selection_last")
                 .ifPresent(selection -> runtime.put("selection", selection));
+        Optional<Object> fallbackTrail = memoryService.readFromBlackboard(packageId, "fallbackTrail");
+        if (fallbackTrail != null) {
+            fallbackTrail.ifPresent(trail -> {
+                runtime.put("fallbackTrail", trail);
+                if (trail instanceof List<?> list) {
+                    runtime.put("fallbackAttempts", list.size());
+                }
+            });
+        }
+        runtime.putIfAbsent("fallbackAttempts", 0);
 
         return runtime;
     }
@@ -1160,6 +1355,27 @@ public class CollaborationOrchestrator {
         }
         Set<String> allowedTransitions = SUBTASK_STATUS_TRANSITIONS.get(currentStatus);
         return allowedTransitions != null && allowedTransitions.contains(newStatus);
+    }
+
+    private List<String> extractAgentIds(Object branchResult) {
+        if (!(branchResult instanceof Map<?, ?> map)) {
+            return Collections.emptyList();
+        }
+        List<String> ids = new ArrayList<>();
+        for (String key : List.of("selectedAgentId", "agentId", "executedBy")) {
+            Object value = map.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                ids.add(String.valueOf(value));
+            }
+        }
+        return ids.stream().distinct().toList();
+    }
+
+    private String truncate(String text, int limit) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() <= limit ? text : text.substring(0, limit);
     }
 
     private CollaborationPackage toDto(CollaborationPackageEntity entity) {

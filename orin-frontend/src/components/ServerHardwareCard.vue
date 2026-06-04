@@ -206,9 +206,9 @@ import {
   Setting, Cpu, Memo, FolderOpened, Connection,
   SuccessFilled, CircleCloseFilled, Top, Bottom, Refresh, VideoPlay
 } from '@element-plus/icons-vue';
-import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
 import { ROUTES } from '@/router/routes';
+import { getPrometheusConfig, getServerHardware } from '@/api/monitor';
 
 const router = useRouter();
 const loading = ref(true);
@@ -290,7 +290,7 @@ const getErrorMessage = (error) => {
 
 const fetchServerInfo = async () => {
   try {
-    const res = await request.get('/monitor/server-hardware');
+    const res = await getServerHardware();
     // Note: res is already the data object because of axios interceptor
     if (res) {
       serverInfo.value = {
@@ -338,7 +338,7 @@ onMounted(async () => {
   // Fetch config to get refresh interval
   let refreshIntervalMs = 15000; // Default 15 seconds
   try {
-    const config = await request.get('/monitor/prometheus/config');
+    const config = await getPrometheusConfig();
     if (config && config.refreshInterval) {
       refreshIntervalMs = config.refreshInterval * 1000;
     }

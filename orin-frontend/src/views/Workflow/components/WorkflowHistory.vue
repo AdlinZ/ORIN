@@ -1,53 +1,48 @@
 <template>
   <div class="workflow-history">
-    <el-table v-loading="loading" :data="instances" border>
-      <el-table-column prop="id" label="实例ID" width="120">
-        <template #default="{ row }">
-          <el-tag size="small">
-            {{ row.id?.substring(0, 8) }}...
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="getStatusType(row.status)">
-            {{ getStatusText(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="inputs" label="输入" min-width="150">
-        <template #default="{ row }">
-          <el-tooltip :content="JSON.stringify(row.inputs)" placement="top">
-            <span class="truncate">{{ JSON.stringify(row.inputs) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column prop="outputs" label="输出" min-width="150">
-        <template #default="{ row }">
-          <el-tooltip v-if="row.outputs" :content="JSON.stringify(row.outputs)" placement="top">
-            <span class="truncate">{{ JSON.stringify(row.outputs) }}</span>
-          </el-tooltip>
-          <span v-else class="text-gray">-</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="duration" label="耗时" width="80">
-        <template #default="{ row }">
-          {{ row.duration ? `${row.duration}ms` : '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="180">
-        <template #default="{ row }">
-          {{ formatTime(row.createdAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="100">
-        <template #default="{ row }">
-          <el-button type="primary" link @click="viewDetail(row)">
-            详情
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <OrinDataTable compact>
+      <el-table v-loading="loading" :data="instances" border>
+        <el-table-column prop="id" label="实例ID" width="120">
+          <template #default="{ row }">
+            <el-tag size="small">
+              {{ row.id?.substring(0, 8) }}...
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="inputs" label="输入" min-width="150">
+          <template #default="{ row }">
+            <el-tooltip :content="JSON.stringify(row.inputs)" placement="top">
+              <span class="truncate">{{ JSON.stringify(row.inputs) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column prop="outputs" label="输出" min-width="150">
+          <template #default="{ row }">
+            <el-tooltip v-if="row.outputs" :content="JSON.stringify(row.outputs)" placement="top">
+              <span class="truncate">{{ JSON.stringify(row.outputs) }}</span>
+            </el-tooltip>
+            <span v-else class="text-gray">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="duration" label="耗时" width="80">
+          <template #default="{ row }">
+            {{ row.duration ? `${row.duration}ms` : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="创建时间" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.createdAt) }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </OrinDataTable>
 
     <el-pagination
       v-if="total > 0"
@@ -64,6 +59,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getWorkflowInstances } from '@/api/workflow'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 const props = defineProps({
   workflowId: {
@@ -114,10 +110,6 @@ const getStatusText = (status) => {
 const formatTime = (time) => {
   if (!time) return '-'
   return new Date(time).toLocaleString('zh-CN')
-}
-
-const viewDetail = (row) => {
-  console.log('View detail:', row)
 }
 
 onMounted(() => {

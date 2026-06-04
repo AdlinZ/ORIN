@@ -8,7 +8,10 @@
 | [API文档.md](./API文档.md) | 接入方 / 联调 | 接口分组、统一网关示例、联调技巧 |
 | [功能完成度.md](./功能完成度.md) | 项目评估 | 模块成熟度、可验收能力、待补清单 |
 | [开发规范.md](./开发规范.md) | 贡献者 | 架构约束、编码规范、提交流程、PR 必检 |
-| [路线图.md](./路线图.md) | 项目维护者 | 走向开源项目平均水平的四阶段计划 |
+| [路线图.md](./路线图.md) | 项目维护者 | 走向开源项目平均水平的阶段计划与里程碑 |
+| [角色矩阵.md](./角色矩阵.md) | 开发者 / 运营 | 角色默认入口、菜单可见性、后端权限边界 |
+| [mcp-client-setup.md](./mcp-client-setup.md) | 接入方 / 演示 | Codex、Claude Desktop、Cursor、Windsurf 调用 ORIN MCP 的配置 |
+| [open-demo-checklist.md](./open-demo-checklist.md) | 项目维护者 | MCP API smoke、Codex 客户端验收、外部客户端展示完成口径 |
 
 前端专项文档见 [../orin-frontend/docs/](../orin-frontend/docs/)。
 
@@ -19,6 +22,7 @@
 - **要做集成 / 接入** → [API文档.md](./API文档.md)
 - **想了解项目能力边界** → [功能完成度.md](./功能完成度.md)
 - **要参与开发** → [架构设计.md](./架构设计.md) → [开发规范.md](./开发规范.md)
+- **要做 MCP 演示** → [mcp-client-setup.md](./mcp-client-setup.md) → [open-demo-checklist.md](./open-demo-checklist.md)
 
 ## 维护原则
 

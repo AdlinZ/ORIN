@@ -26,31 +26,33 @@
           <el-icon><Plus /></el-icon>添加
         </el-button>
       </div>
-      <el-table v-loading="loading" :data="rateLimitPolicies" stripe>
-        <el-table-column prop="name" label="名称" />
-        <el-table-column prop="dimension" label="维度" width="100">
-          <template #default="{ row }">
-            <el-tag size="small" effect="plain">{{ dimensionLabel(row.dimension) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="规则" min-width="140">
-          <template #default="{ row }">
-            <span class="rule-text">{{ row.capacity }} 次 / {{ row.windowSeconds }}s</span>
-            <span v-if="row.burst" class="rule-burst">突发 {{ row.burst }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="enabled" label="状态" width="80">
-          <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="togglePolicy('rate-limit', row)" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openPolicyDialog('rate-limit', row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deletePolicy('rate-limit', row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact>
+        <el-table v-loading="loading" :data="rateLimitPolicies" stripe>
+          <el-table-column prop="name" label="名称" />
+          <el-table-column prop="dimension" label="维度" width="100">
+            <template #default="{ row }">
+              <el-tag size="small" effect="plain">{{ dimensionLabel(row.dimension) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="规则" min-width="140">
+            <template #default="{ row }">
+              <span class="rule-text">{{ row.capacity }} 次 / {{ row.windowSeconds }}s</span>
+              <span v-if="row.burst" class="rule-burst">突发 {{ row.burst }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="enabled" label="状态" width="80">
+            <template #default="{ row }">
+              <el-switch v-model="row.enabled" @change="togglePolicy('rate-limit', row)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="openPolicyDialog('rate-limit', row)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="deletePolicy('rate-limit', row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </div>
 
     <!-- Circuit Breaker Policies -->
@@ -64,28 +66,30 @@
           <el-icon><Plus /></el-icon>添加
         </el-button>
       </div>
-      <el-table v-loading="loading" :data="circuitBreakerPolicies" stripe>
-        <el-table-column prop="name" label="名称" />
-        <el-table-column label="触发阈值" width="100" align="center">
-          <template #default="{ row }">失败 {{ row.failureThreshold }} 次</template>
-        </el-table-column>
-        <el-table-column label="恢复阈值" width="100" align="center">
-          <template #default="{ row }">成功 {{ row.successThreshold }} 次</template>
-        </el-table-column>
-        <el-table-column prop="timeoutSeconds" label="超时(秒)" width="100" align="center" />
-        <el-table-column prop="halfOpenMaxRequests" label="半开请求数" width="110" align="center" />
-        <el-table-column prop="enabled" label="状态" width="80">
-          <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="togglePolicy('circuit-breaker', row)" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openPolicyDialog('circuit-breaker', row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deletePolicy('circuit-breaker', row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact>
+        <el-table v-loading="loading" :data="circuitBreakerPolicies" stripe>
+          <el-table-column prop="name" label="名称" />
+          <el-table-column label="触发阈值" width="100" align="center">
+            <template #default="{ row }">失败 {{ row.failureThreshold }} 次</template>
+          </el-table-column>
+          <el-table-column label="恢复阈值" width="100" align="center">
+            <template #default="{ row }">成功 {{ row.successThreshold }} 次</template>
+          </el-table-column>
+          <el-table-column prop="timeoutSeconds" label="超时(秒)" width="100" align="center" />
+          <el-table-column prop="halfOpenMaxRequests" label="半开请求数" width="110" align="center" />
+          <el-table-column prop="enabled" label="状态" width="80">
+            <template #default="{ row }">
+              <el-switch v-model="row.enabled" @change="togglePolicy('circuit-breaker', row)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="openPolicyDialog('circuit-breaker', row)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="deletePolicy('circuit-breaker', row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </div>
 
     <!-- Retry Policies -->
@@ -99,27 +103,29 @@
           <el-icon><Plus /></el-icon>添加
         </el-button>
       </div>
-      <el-table v-loading="loading" :data="retryPolicies" stripe>
-        <el-table-column prop="name" label="名称" />
-        <el-table-column prop="maxAttempts" label="最大尝试" width="100" align="center" />
-        <el-table-column prop="retryOnStatusCodes" label="重试状态码" show-overflow-tooltip />
-        <el-table-column label="退避策略" width="130">
-          <template #default="{ row }">
-            × {{ row.backoffMultiplier }}，初始 {{ row.initialIntervalMs }}ms
-          </template>
-        </el-table-column>
-        <el-table-column prop="enabled" label="状态" width="80">
-          <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="togglePolicy('retry', row)" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openPolicyDialog('retry', row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="deletePolicy('retry', row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <OrinDataTable compact>
+        <el-table v-loading="loading" :data="retryPolicies" stripe>
+          <el-table-column prop="name" label="名称" />
+          <el-table-column prop="maxAttempts" label="最大尝试" width="100" align="center" />
+          <el-table-column prop="retryOnStatusCodes" label="重试状态码" show-overflow-tooltip />
+          <el-table-column label="退避策略" width="130">
+            <template #default="{ row }">
+              × {{ row.backoffMultiplier }}，初始 {{ row.initialIntervalMs }}ms
+            </template>
+          </el-table-column>
+          <el-table-column prop="enabled" label="状态" width="80">
+            <template #default="{ row }">
+              <el-switch v-model="row.enabled" @change="togglePolicy('retry', row)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="openPolicyDialog('retry', row)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="deletePolicy('retry', row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinDataTable>
     </div>
 
     <!-- Policy Dialog -->
@@ -192,6 +198,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Lightning, Warning, RefreshRight, Plus } from '@element-plus/icons-vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import {
   getAllPolicies,
   createRateLimitPolicy, updateRateLimitPolicy, deleteRateLimitPolicy,

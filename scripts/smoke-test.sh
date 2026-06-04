@@ -214,22 +214,22 @@ fi
 
 # 5. 已启动服务的最小 HTTP smoke（如果服务未启动则提示跳过）
 echo -e "${YELLOW}[5/6] Runtime HTTP Smoke (optional)...${NC}"
-if curl -fsS http://127.0.0.1:8080/v1/health >/dev/null 2>&1; then
+if curl -fsS --noproxy "*" http://127.0.0.1:8080/v1/health >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Backend /v1/health OK${NC}"
 else
     echo -e "${YELLOW}⚠ Backend /v1/health unavailable, skipped live backend smoke${NC}"
     echo "  Start backend: cd orin-backend && mvn spring-boot:run"
 fi
 
-if curl -fsS http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; then
+if curl -fsS --noproxy "*" http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Backend /api/v1/health OK${NC}"
 else
     echo -e "${YELLOW}⚠ Backend /api/v1/health unavailable, skipped legacy health smoke${NC}"
     echo "  Database connectivity is judged by /api/v1/health when backend is running"
 fi
 
-if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1 \
-    && curl -fsS http://127.0.0.1:8000/v1/health >/dev/null 2>&1; then
+if curl -fsS --noproxy "*" http://127.0.0.1:8000/health >/dev/null 2>&1 \
+    && curl -fsS --noproxy "*" http://127.0.0.1:8000/v1/health >/dev/null 2>&1; then
     echo -e "${GREEN}✓ AI Engine /health and /v1/health reachable${NC}"
     echo "  AI Engine may report degraded optional dependencies such as RabbitMQ"
 else
@@ -237,7 +237,7 @@ else
     echo "  Start AI Engine: cd orin-ai-engine && venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000"
 fi
 
-if curl -fsS http://127.0.0.1:5173/ >/dev/null 2>&1; then
+if curl -fsS --noproxy "*" http://127.0.0.1:5173/ >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Frontend homepage OK${NC}"
 else
     echo -e "${YELLOW}⚠ Frontend homepage unavailable, skipped live frontend smoke${NC}"
@@ -250,7 +250,7 @@ echo "  Required local runtime: frontend, backend, ai-engine, Redis, MySQL"
 echo "  Optional local infra: Milvus, RabbitMQ, Langfuse, Prometheus/Grafana, Neo4j, MinIO"
 echo "  External dependencies: model providers, Dify/RAGFlow endpoints, remote MCP servers, production databases"
 echo "  DB connectivity source: backend /api/v1/health database status; local :3306 listening is only a hint"
-echo "  Schema baseline: run bash scripts/check-schema-baseline.sh to verify snapshot coverage and V88+ boundary"
+echo "  Schema baseline: run bash scripts/check-schema-baseline.sh to verify snapshot coverage and V90+ boundary"
 echo "  Docker quickstart static preflight: run bash scripts/check-docker-quickstart.sh"
 
 echo ""

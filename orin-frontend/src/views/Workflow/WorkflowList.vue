@@ -170,98 +170,99 @@
         </div>
       </template>
 
-      <el-table
-        v-loading="loading"
-        :data="filteredWorkflows"
-        border
-        table-layout="auto"
-        :row-class-name="rowClassName"
+      <OrinAsyncState
+        :status="workflowTableState.status"
+        empty-text="暂无工作流，先创建一个 ORIN DSL 草稿"
+        empty-action-label="新建工作流"
+        :error-text="workflowTableErrorText"
+        @retry="loadWorkflows"
+        @empty-action="createWorkflow"
       >
-        <el-table-column label="工作流" min-width="320">
-          <template #default="{ row }">
-            <div class="workflow-name">
-              <span class="workflow-row-symbol" :class="sourceTone(row)">
-                <el-icon><Connection /></el-icon>
-              </span>
-              <div>
-                <button type="button" class="name-button" @click="editWorkflow(row)">
-                  {{ row.workflowName }}
-                </button>
-                <p :title="row.description || '暂无描述'">{{ row.description || '暂无描述' }}</p>
+        <el-table
+          :data="filteredWorkflows"
+          border
+          table-layout="auto"
+          :row-class-name="rowClassName"
+        >
+          <el-table-column label="工作流" min-width="320">
+            <template #default="{ row }">
+              <div class="workflow-name">
+                <span class="workflow-row-symbol" :class="sourceTone(row)">
+                  <el-icon><Connection /></el-icon>
+                </span>
+                <div>
+                  <button type="button" class="name-button" @click="editWorkflow(row)">
+                    {{ row.workflowName }}
+                  </button>
+                  <p :title="row.description || '暂无描述'">{{ row.description || '暂无描述' }}</p>
+                </div>
               </div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="96">
-          <template #default="{ row }">
-            <span class="status-pill" :class="statusTone(row.status)">
-              {{ statusLabel(row.status) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="来源" width="92">
-          <template #default="{ row }">
-            <span class="source-pill" :class="sourceTone(row)">
-              {{ workflowSource(row) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="发布校验" width="150">
-          <template #default="{ row }">
-            <div class="compatibility-cell" :title="publishIssueTitle(row)">
-              <span class="compatibility-pill" :class="compatibilityTone(row)">
-                {{ compatibilityDisplayLabel(row) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="96">
+            <template #default="{ row }">
+              <span class="status-pill" :class="statusTone(row.status)">
+                {{ statusLabel(row.status) }}
               </span>
-              <span v-if="publishIssueCount(row)">
-                {{ publishIssueCount(row) }} 项
+            </template>
+          </el-table-column>
+          <el-table-column label="来源" width="92">
+            <template #default="{ row }">
+              <span class="source-pill" :class="sourceTone(row)">
+                {{ workflowSource(row) }}
               </span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="节点" width="74" align="center">
-          <template #default="{ row }">{{ row.nodeCount }}</template>
-        </el-table-column>
-        <el-table-column label="最后更新" width="136">
-          <template #default="{ row }">
-            <span class="time-cell" :title="formatTime(row.updatedAt)">
-              {{ formatShortTime(row.updatedAt) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="152" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="action-cell">
-              <button type="button" class="action-link primary" @click="editWorkflow(row)">
-                编排
-              </button>
-              <button type="button" class="action-link" @click="goExecution(row)">
-                执行
-              </button>
-              <el-dropdown trigger="click" @command="(command) => handleWorkflowCommand(command, row)">
-                <button type="button" class="action-link">
-                  更多
-                  <el-icon class="more-icon"><ArrowDown /></el-icon>
+            </template>
+          </el-table-column>
+          <el-table-column label="发布校验" width="150">
+            <template #default="{ row }">
+              <div class="compatibility-cell" :title="publishIssueTitle(row)">
+                <span class="compatibility-pill" :class="compatibilityTone(row)">
+                  {{ compatibilityDisplayLabel(row) }}
+                </span>
+                <span v-if="publishIssueCount(row)">
+                  {{ publishIssueCount(row) }} 项
+                </span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="节点" width="74" align="center">
+            <template #default="{ row }">{{ row.nodeCount }}</template>
+          </el-table-column>
+          <el-table-column label="最后更新" width="136">
+            <template #default="{ row }">
+              <span class="time-cell" :title="formatTime(row.updatedAt)">
+                {{ formatShortTime(row.updatedAt) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="152" align="center" fixed="right">
+            <template #default="{ row }">
+              <div class="action-cell">
+                <button type="button" class="action-link primary" @click="editWorkflow(row)">
+                  编排
                 </button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="publish" :disabled="!canPublish(row)">发布</el-dropdown-item>
-                    <el-dropdown-item command="export">导出 Dify</el-dropdown-item>
-                    <el-dropdown-item command="archive" :disabled="row.status === 'ARCHIVED'">归档</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided class="danger-menu-item">删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <OrinEmptyState
-            description="暂无工作流"
-            action-label="新建工作流"
-            @action="createWorkflow"
-          />
-        </template>
-      </el-table>
+                <button type="button" class="action-link" @click="goExecution(row)">
+                  执行
+                </button>
+                <el-dropdown trigger="click" @command="(command) => handleWorkflowCommand(command, row)">
+                  <button type="button" class="action-link">
+                    更多
+                    <el-icon class="more-icon"><ArrowDown /></el-icon>
+                  </button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="publish" :disabled="!canPublish(row)">发布</el-dropdown-item>
+                      <el-dropdown-item command="export">导出 Dify</el-dropdown-item>
+                      <el-dropdown-item command="archive" :disabled="row.status === 'ARCHIVED'">归档</el-dropdown-item>
+                      <el-dropdown-item command="delete" divided class="danger-menu-item">删除</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinAsyncState>
     </OrinDataTable>
 
     <el-dialog v-model="importDialogVisible" title="导入 Dify DSL" width="520px">
@@ -302,12 +303,14 @@ import { ArrowDown, Connection, Plus, Refresh, Search, Upload, UploadFilled } fr
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
+import { createAsyncState, markEmpty, markError, markLoading, markSuccess, toWorkflowListViewModel, toWorkflowDslValidationViewModel } from '@/viewmodels'
 import { archiveWorkflow, createWorkflow as createWorkflowApi, deleteWorkflow, exportWorkflow, getWorkflows, importWorkflow, publishWorkflow } from '@/api/workflow'
 import { NODE_TYPE_LABELS, compatibilityLabel, createDefaultWorkflowDsl, normalizeWorkflowDsl, validateWorkflowDsl } from './workflowDsl'
 
 const router = useRouter()
-const loading = ref(false)
+const workflowTableState = reactive(createAsyncState())
 const importing = ref(false)
 const workflows = ref([])
 const searchQuery = ref('')
@@ -421,23 +424,19 @@ function buildBreakdown(values) {
 }
 
 async function loadWorkflows() {
-  loading.value = true
+  markLoading(workflowTableState)
   try {
     const response = await getWorkflows()
-    workflows.value = normalizeWorkflowRows(response)
+    workflows.value = toWorkflowListViewModel(response?.data || response)
+    if (workflows.value.length) {
+      markSuccess(workflowTableState)
+    } else {
+      markEmpty(workflowTableState)
+    }
   } catch (error) {
+    markError(workflowTableState, error)
     ElMessage.error(error.message || '加载工作流失败')
-  } finally {
-    loading.value = false
   }
-}
-
-function normalizeWorkflowRows(response) {
-  if (Array.isArray(response)) return response
-  if (Array.isArray(response?.data)) return response.data
-  if (Array.isArray(response?.records)) return response.records
-  if (Array.isArray(response?.content)) return response.content
-  return []
 }
 
 async function createWorkflow() {
@@ -567,7 +566,7 @@ function sourceTone(row) {
 }
 
 function publishIssueCount(row) {
-  return validateWorkflowDsl(row.workflowDefinition).length
+  return toWorkflowDslValidationViewModel(validateWorkflowDsl(row.workflowDefinition)).issueCount
 }
 
 function publishIssueTitle(row) {
@@ -576,8 +575,9 @@ function publishIssueTitle(row) {
 }
 
 function workflowCompatibilityLevel(row) {
-  if (publishIssueCount(row) > 0) return 'BLOCKED'
-  return row.compatibilityReport?.level || 'FULL'
+  const validation = toWorkflowDslValidationViewModel(validateWorkflowDsl(row.workflowDefinition))
+  if (!validation.publishable) return 'BLOCKED'
+  return row.compatibilityReport?.level || validation.level
 }
 
 function compatibilityDisplayLabel(row) {
@@ -611,16 +611,20 @@ function formatShortTime(value) {
   })
 }
 
+const workflowTableErrorText = computed(() => {
+  const error = workflowTableState.error
+  const traceId = error?.response?.data?.traceId || error?.traceId
+  const message = error?.response?.data?.message || error?.message || '工作流列表加载失败，请稍后重试'
+  return traceId ? `${message} · TraceId: ${traceId}` : message
+})
+
 onMounted(loadWorkflows)
 </script>
 
 <style scoped>
 .workflow-page {
   padding: 24px;
-  background:
-    radial-gradient(circle at 92% 0%, rgba(14, 165, 233, 0.1), transparent 28%),
-    radial-gradient(circle at 0% 4%, rgba(20, 184, 166, 0.12), transparent 24%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.62), rgba(255, 255, 255, 0) 280px);
+  background: transparent;
 }
 
 .search-input {
@@ -651,9 +655,7 @@ onMounted(loadWorkflows)
   overflow: hidden;
   border: 1px solid var(--tone-border);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76)),
-    linear-gradient(135deg, var(--tone-panel), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
@@ -662,7 +664,7 @@ onMounted(loadWorkflows)
   inset: auto 0 0 0;
   height: 3px;
   content: "";
-  background: linear-gradient(90deg, var(--tone-color), transparent);
+  background: var(--tone-color);
 }
 
 .metric-icon {
@@ -777,9 +779,7 @@ onMounted(loadWorkflows)
 .workflow-insight-card {
   border: 1px solid var(--tone-border, rgba(148, 163, 184, 0.22));
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82)),
-    linear-gradient(135deg, var(--tone-panel, rgba(248, 250, 252, 0.9)), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
 }
 
@@ -795,7 +795,7 @@ onMounted(loadWorkflows)
   inset: 0 0 auto 0;
   height: 4px;
   content: "";
-  background: linear-gradient(90deg, var(--tone-color), transparent);
+  background: var(--tone-color);
 }
 
 .spotlight-eyebrow {
@@ -1178,19 +1178,19 @@ onMounted(loadWorkflows)
 }
 
 .workflow-page :deep(.workflow-row.tone-emerald td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.035), transparent 46%) !important;
+  background: rgba(16, 185, 129, 0.035) !important;
 }
 
 .workflow-page :deep(.workflow-row.tone-blue td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.035), transparent 46%) !important;
+  background: rgba(59, 130, 246, 0.035) !important;
 }
 
 .workflow-page :deep(.workflow-row.tone-amber td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.035), transparent 46%) !important;
+  background: rgba(245, 158, 11, 0.035) !important;
 }
 
 .workflow-page :deep(.workflow-row.tone-rose td.el-table__cell) {
-  background: linear-gradient(90deg, rgba(244, 63, 94, 0.035), transparent 46%) !important;
+  background: rgba(244, 63, 94, 0.035) !important;
 }
 
 .workflow-page :deep(.el-table__row:hover td.el-table__cell) {

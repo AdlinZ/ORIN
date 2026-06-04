@@ -27,34 +27,36 @@
               </div>
             </div>
           </template>
-          <el-table
-            v-loading="loading"
-            border
-            :data="prompts"
-            style="width: 100%"
-          >
-            <el-table-column prop="name" label="模板名称" />
-            <el-table-column prop="type" label="类型" width="120">
-              <template #default="{ row }">
-                <el-tag size="small">
-                  {{ row.type }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="200" align="right">
-              <template #default="{ row }">
-                <el-button link @click="viewContent(row)">
-                  查看
-                </el-button>
-                <el-button link type="primary" @click="handleEditPrompt(row)">
-                  编辑
-                </el-button>
-                <el-button link type="danger" @click="deletePrompt(row)">
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <OrinDataTable compact>
+            <el-table
+              v-loading="loading"
+              border
+              :data="prompts"
+              style="width: 100%"
+            >
+              <el-table-column prop="name" label="模板名称" />
+              <el-table-column prop="type" label="类型" width="120">
+                <template #default="{ row }">
+                  <el-tag size="small">
+                    {{ row.type }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="200" align="right">
+                <template #default="{ row }">
+                  <el-button link @click="viewContent(row)">
+                    查看
+                  </el-button>
+                  <el-button link type="primary" @click="handleEditPrompt(row)">
+                    编辑
+                  </el-button>
+                  <el-button link type="danger" @click="deletePrompt(row)">
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
         </el-card>
       </el-tab-pane>
 
@@ -93,27 +95,29 @@
               </div>
             </div>
           </template>
-          <el-table
-            v-loading="loading"
-            border
-            :data="memory"
-            style="width: 100%"
-          >
-            <el-table-column prop="key" label="键 (Key)" width="180" />
-            <el-table-column prop="value" label="内容 (Value)" show-overflow-tooltip />
-            <el-table-column prop="updatedAt" label="最后更新" width="160">
-              <template #default="{ row }">
-                {{ formatTime(row.updatedAt) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="100" align="right">
-              <template #default="{ row }">
-                <el-button link type="danger" @click="deleteMemoryItem(row)">
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <OrinDataTable compact>
+            <el-table
+              v-loading="loading"
+              border
+              :data="memory"
+              style="width: 100%"
+            >
+              <el-table-column prop="key" label="键 (Key)" width="180" />
+              <el-table-column prop="value" label="内容 (Value)" show-overflow-tooltip />
+              <el-table-column prop="updatedAt" label="最后更新" width="160">
+                <template #default="{ row }">
+                  {{ formatTime(row.updatedAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="100" align="right">
+                <template #default="{ row }">
+                  <el-button link type="danger" @click="deleteMemoryItem(row)">
+                    删除
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
           <div v-if="memory.length === 0" class="empty-hint">
             暂无长期记忆数据，可通过对话提取或手动导入。
           </div>
@@ -258,7 +262,19 @@
 import { ref, onMounted, watch } from 'vue'
 import { Plus, Refresh, Edit, Delete, ChatDotRound, Close } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request from '@/utils/request'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import {
+  clearLongTermMemory,
+  clearShortTermMemory,
+  createPromptTemplate,
+  deleteMemoryEntry,
+  deletePromptTemplate,
+  extractMemory,
+  getAgentMemory,
+  getAgentPrompts,
+  getShortTermMemory,
+  getShortTermSessions
+} from '@/api/knowledge'
 
 const props = defineProps({
   agentId: {
@@ -317,8 +333,8 @@ const loadMeta = async () => {
   loading.value = true
   try {
     const [pRes, mRes] = await Promise.all([
-      request.get(`/knowledge/agents/${props.agentId}/meta/prompts`),
-      request.get(`/knowledge/agents/${props.agentId}/meta/memory`)
+      getAgentPrompts(props.agentId),
+      getAgentMemory(props.agentId)
     ])
     prompts.value = pRes || []
     memory.value = mRes || []
@@ -334,7 +350,7 @@ const loadSessions = async () => {
   if (!props.agentId) return
   sessionLoading.value = true
   try {
-    const res = await request.get(`/knowledge/agents/${props.agentId}/meta/memory/sessions`)
+    const res = await getShortTermSessions(props.agentId)
     sessions.value = res || []
   } catch (e) {
     console.error(e)
@@ -347,7 +363,7 @@ const viewSessionMemory = async (sessionId) => {
   selectedSession.value = sessionId
   contextLoading.value = true
   try {
-    const res = await request.get(`/knowledge/agents/${props.agentId}/meta/memory/sessions/${sessionId}`)
+    const res = await getShortTermMemory(props.agentId, sessionId)
     stMemory.value = res || []
   } catch (e) {
     ElMessage.error('加载会话记忆失败')
@@ -361,7 +377,7 @@ const handleClearSession = (sessionId) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await request.delete(`/knowledge/agents/${props.agentId}/meta/memory/sessions/${sessionId}`)
+      await clearShortTermMemory(props.agentId, sessionId)
       ElMessage.success('清除成功')
       loadSessions()
       if (selectedSession.value === sessionId) {
@@ -380,7 +396,7 @@ const deleteMemoryItem = (row) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await request.delete(`/knowledge/agents/${props.agentId}/meta/memory/${row.id}`)
+      await deleteMemoryEntry(props.agentId, row.id)
       ElMessage.success('已删除')
       loadMeta()
     } catch (e) {
@@ -396,7 +412,7 @@ const clearMemory = () => {
     type: 'error'
   }).then(async () => {
     try {
-      await request.delete(`/knowledge/agents/${props.agentId}/meta/memory`)
+      await clearLongTermMemory(props.agentId)
       ElMessage.success('已清空长期记忆库')
       loadMeta()
     } catch (e) {
@@ -420,7 +436,7 @@ const deletePrompt = (row) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await request.delete(`/knowledge/agents/${props.agentId}/meta/prompts/${row.id}`)
+      await deletePromptTemplate(props.agentId, row.id)
       ElMessage.success('删除成功')
       loadMeta()
     } catch (e) {
@@ -436,7 +452,7 @@ const submitPrompt = async () => {
   }
   
   try {
-    await request.post(`/knowledge/agents/${props.agentId}/meta/prompts`, {
+    await createPromptTemplate(props.agentId, {
       ...promptForm.value,
       agentId: props.agentId,
       isActive: true
@@ -467,9 +483,7 @@ const submitExtract = async () => {
   if (!extractForm.value.content) return
   extractLoading.value = true
   try {
-    await request.post(`/knowledge/agents/${props.agentId}/meta/extract_memory`, {
-      content: extractForm.value.content
-    })
+    await extractMemory(props.agentId, extractForm.value.content)
     ElMessage.success('分析提取并保存成功')
     extractDialogVisible.value = false
     loadMeta()

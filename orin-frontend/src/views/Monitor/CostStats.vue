@@ -1,9 +1,10 @@
 <template>
   <div class="cost-dashboard">
-    <PageHeader
+    <OrinPageShell
       title="成本分析"
       description="查看模型调用成本、供应商分布与成本占比"
       icon="Money"
+      domain="运行监控"
     >
       <template #actions>
         <el-button :icon="RefreshRight" @click="fetchCostData">
@@ -35,7 +36,7 @@
           </div>
         </div>
       </template>
-    </PageHeader>
+    </OrinPageShell>
 
     <div class="stats-grid">
       <el-card shadow="never" class="stat-card">
@@ -159,19 +160,12 @@
       </el-card>
     </div>
 
-    <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="card-header">
-          <div>
-            <h3 class="card-title">
-              成本明细
-            </h3>
-            <p class="card-subtitle">
-              当前仅按供应商聚合，后续如需要我也可以再帮你补模型级明细
-            </p>
-          </div>
-        </div>
-      </template>
+    <OrinDataTable
+      title="成本明细"
+      description="当前仅按供应商聚合，后续可扩展模型级明细"
+      compact
+      class="table-card"
+    >
       <el-table
         v-loading="loading"
         :data="distributionData"
@@ -202,16 +196,17 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+    </OrinDataTable>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { Calendar, DataAnalysis, Histogram, Money, Monitor, RefreshRight } from '@element-plus/icons-vue';
-import * as echarts from 'echarts';
+import echarts from '@/utils/echarts';
 import { ElMessage } from 'element-plus';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import { getCostDistribution, getTokenStats } from '@/api/monitor';
 
 const loading = ref(false);

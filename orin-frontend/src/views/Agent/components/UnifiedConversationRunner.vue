@@ -378,7 +378,7 @@ const appendAssistantResult = (payload, dataType) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #f6faf9 0%, #f8fafc 100%);
+  background: #f8fafc;
 }
 
 .runner-header {

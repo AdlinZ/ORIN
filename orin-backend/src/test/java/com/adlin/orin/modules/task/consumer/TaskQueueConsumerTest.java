@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -70,7 +69,7 @@ class TaskQueueConsumerTest {
     }
 
     @Test
-    void consumeTask_ShouldMoveToDeadLetterWhenInstanceFailsAndRetriesExhausted() {
+    void consumeTask_ShouldMarkFailedWithoutRetryWhenMaxRetriesIsZero() {
         TaskEntity task = TaskEntity.builder()
                 .taskId("task-2")
                 .workflowId(10L)
@@ -92,16 +91,11 @@ class TaskQueueConsumerTest {
 
         when(taskRepository.findByTaskId("task-2")).thenReturn(Optional.of(task));
         when(workflowEngine.executeInstance(21L)).thenReturn(instance);
-        doAnswer(invocation -> {
-            TaskEntity deadTask = invocation.getArgument(0);
-            deadTask.setStatus(TaskEntity.TaskStatus.DEAD);
-            return null;
-        }).when(deadLetterHandler).moveToDeadLetter(eq(task), eq(message), anyString());
-
         consumer.consumeTask(message);
 
-        verify(deadLetterHandler).moveToDeadLetter(eq(task), eq(message), contains("node failed"));
-        assertThat(task.getStatus()).isEqualTo(TaskEntity.TaskStatus.DEAD);
+        verify(deadLetterHandler, never()).moveToDeadLetter(any(), any(), anyString());
+        assertThat(task.getStatus()).isEqualTo(TaskEntity.TaskStatus.FAILED);
         assertThat(task.getErrorMessage()).contains("node failed");
+        assertThat(task.getCompletedAt()).isNotNull();
     }
 }

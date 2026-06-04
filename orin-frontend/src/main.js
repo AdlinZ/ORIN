@@ -1,11 +1,12 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia' // Import Pinia
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
+import { ElLoading } from 'element-plus'
+import 'element-plus/es/components/loading/style/css'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+import 'element-plus/es/components/notification/style/css'
 import 'element-plus/theme-chalk/dark/css-vars.css' // Dark mode support
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import ArcoVue from '@arco-design/web-vue'
-import '@arco-design/web-vue/dist/arco.css'
 import './assets/css/main.css' // Import Global CSS
 import './assets/styles/theme.css' // Import Amber Energy Theme
 import './assets/styles/global.css' // Import ORIN Global Styles
@@ -19,8 +20,7 @@ const pinia = createPinia()
 
 app.use(pinia) // Use Pinia
 
-app.use(ElementPlus)
-app.use(ArcoVue)
+app.use(ElLoading)
 app.use(router)
 
 // Register permission directive

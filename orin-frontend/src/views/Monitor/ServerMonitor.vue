@@ -653,6 +653,11 @@
                 </div>
               </template>
 
+              <OrinAsyncState
+                :status="loading ? 'loading' : (historyData.length ? 'success' : 'empty')"
+                empty-text="暂无服务器历史采样"
+              >
+              <OrinDataTable compact>
               <el-table v-loading="loading" :data="historyData" style="width: 100%">
                 <el-table-column label="时间" min-width="180" fixed>
                   <template #default="{ row }">
@@ -719,6 +724,8 @@
                   </template>
                 </el-table-column>
               </el-table>
+              </OrinDataTable>
+              </OrinAsyncState>
 
               <div class="pagination-container">
                 <el-pagination
@@ -959,6 +966,8 @@ import {
   updateSystemProperties
 } from '@/api/monitor'
 import { ROUTES } from '@/router/routes'
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 
 const router = useRouter()
 
@@ -1780,7 +1789,7 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  background: #ffffff;
 }
 
 .section-title {

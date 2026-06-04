@@ -1,10 +1,24 @@
 <template>
   <div class="asset-schema-container">
-    <PageHeader 
-      title="知识资产架构 Asset Schema" 
+    <OrinPageShell
+      title="知识资产架构 Asset Schema"
       description="定义非结构化数据的 ETL 流水线。配置解析规则、分段策略与向量化模型，并实时预览解析效果。"
       icon="Grid"
-    />
+      domain="知识域"
+      maturity="beta"
+    >
+      <template #actions>
+        <el-button type="primary" size="small" @click="savePipeline">
+          保存配置
+        </el-button>
+      </template>
+      <template #filters>
+        <OrinFilterBar>
+          <el-tag effect="plain">{{ getNodeTitle(selectedNode) }}</el-tag>
+          <el-tag type="success" effect="plain">{{ config.embeddingModel }}</el-tag>
+        </OrinFilterBar>
+      </template>
+    </OrinPageShell>
 
     <div class="schema-layout">
       <!-- Pipeline Config Area -->
@@ -15,7 +29,7 @@
             保存配置
           </el-button>
         </div>
-            
+
         <div class="visual-pipeline">
           <!-- Node 1: Source -->
           <div class="pipe-node source" :class="{ active: selectedNode === 'source' }" @click="selectNode('source')">
@@ -86,7 +100,7 @@
         <transition name="fade">
           <div v-if="selectedNode" class="node-config-panel">
             <h4>Step Config: {{ getNodeTitle(selectedNode) }}</h4>
-                    
+
             <el-form v-if="selectedNode === 'source'" label-position="left" label-width="120px">
               <el-form-item label="允许格式">
                 <el-checkbox-group v-model="config.allowedFormats">
@@ -158,7 +172,7 @@
         <div class="area-header">
           实时解析预览 (Real-time Preview)
         </div>
-            
+
         <div v-show="!previewFile" class="upload-zone">
           <el-upload
             drag
@@ -185,6 +199,14 @@
           </div>
 
           <div v-loading="previewLoading" class="chunks-visualizer">
+            <el-alert
+              v-if="previewError"
+              :title="previewError"
+              type="warning"
+              :closable="false"
+              show-icon
+              class="preview-alert"
+            />
             <div v-if="previewChunks.length > 0">
               <div class="chunk-stats">
                 生成 {{ previewChunks.length }} 个切片 | 耗时 {{ previewTime }}ms
@@ -210,9 +232,10 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue';
-import PageHeader from '@/components/PageHeader.vue';
 import { Document, Right, View, Scissor, Coin, UploadFilled } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
 // State
 const selectedNode = ref('chunking'); // Default select
@@ -232,6 +255,7 @@ const previewFile = ref(null);
 const previewLoading = ref(false);
 const previewChunks = ref([]);
 const previewTime = ref(0);
+const previewError = ref('');
 
 const getNodeTitle = (node) => {
     const map = {
@@ -259,27 +283,86 @@ const handlePreviewFile = (file) => {
 const clearPreview = () => {
     previewFile.value = null;
     previewChunks.value = [];
+    previewError.value = '';
 };
 
-const runPreview = () => {
-    if(!previewFile.value) return;
-    
-    previewLoading.value = true;
-    
-    // Mock processing delay
-    setTimeout(() => {
-        // Generate pseudo chunks based on config
-        const chunks = [];
-        const count = Math.floor(Math.random() * 5) + 3; // 3-8 chunks
-        
-        for(let i=0; i<count; i++) {
-            chunks.push(`[Chunk ${i+1}] (由 ${config.parsingMode} 模式解析) This is simulated content reflecting the current configuration of chunk size ${config.chunkSize}. In a real environment, this would be actual text from the uploaded file.`);
+const isTextPreviewFile = (file) => {
+    if (!file) return false;
+    if (file.type?.startsWith('text/')) return true;
+    return /\.(txt|md|markdown|json|csv|tsv|log|xml|html|yaml|yml)$/i.test(file.name || '');
+};
+
+const splitFixed = (text, size, overlap) => {
+    const chunks = [];
+    const step = Math.max(1, size - overlap);
+    for (let index = 0; index < text.length; index += step) {
+        const chunk = text.slice(index, index + size).trim();
+        if (chunk) chunks.push(chunk);
+    }
+    return chunks;
+};
+
+const splitRecursive = (text, size, overlap) => {
+    const blocks = text
+        .split(/\n{2,}|(?<=[。！？.!?])\s+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+    const chunks = [];
+    let current = '';
+    for (const block of blocks) {
+        const next = current ? `${current}\n\n${block}` : block;
+        if (next.length <= size) {
+            current = next;
+            continue;
         }
-        
+        if (current) chunks.push(current);
+        if (block.length > size) {
+            chunks.push(...splitFixed(block, size, overlap));
+            current = '';
+        } else {
+            current = block;
+        }
+    }
+    if (current) chunks.push(current);
+    return chunks;
+};
+
+const buildPreviewChunks = (text) => {
+    const cleanText = text.replace(/\r\n/g, '\n').trim();
+    const chunkSize = Math.max(100, Number(config.chunkSize) || 500);
+    const overlap = Math.min(Math.max(0, Number(config.chunkOverlap) || 0), Math.max(0, chunkSize - 1));
+    if (!cleanText) return [];
+    if (config.chunkMethod === 'FIXED') return splitFixed(cleanText, chunkSize, overlap);
+    return splitRecursive(cleanText, chunkSize, overlap);
+};
+
+const runPreview = async () => {
+    if(!previewFile.value) return;
+
+    previewLoading.value = true;
+    previewError.value = '';
+    previewChunks.value = [];
+    const start = performance.now();
+    try {
+        if (!isTextPreviewFile(previewFile.value)) {
+            previewError.value = '当前预览仅支持文本类样本。PDF、图片和 Office 文档需上传到知识库后由后端解析。';
+            previewTime.value = 0;
+            return;
+        }
+        const text = await previewFile.value.text();
+        const chunks = buildPreviewChunks(text);
         previewChunks.value = chunks;
-        previewTime.value = Math.floor(Math.random() * 500) + 100;
+        if (chunks.length === 0) {
+            previewError.value = '未从样本文件中解析到可预览文本。';
+        }
+        previewTime.value = Math.max(1, Math.round(performance.now() - start));
+    } catch (error) {
+        console.error('Failed to preview asset schema file:', error);
+        previewError.value = '读取样本文件失败，请确认文件内容可访问。';
+        previewTime.value = Math.max(1, Math.round(performance.now() - start));
+    } finally {
         previewLoading.value = false;
-    }, 1000);
+    }
 };
 
 // Auto update preview when config changes

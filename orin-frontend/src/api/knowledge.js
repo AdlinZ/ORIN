@@ -10,6 +10,14 @@ export const getKnowledgeList = (params) => {
     return request.get('/knowledge/list', { params });
 };
 
+export const getKnowledgeKbList = () => {
+    return request.get('/knowledge/list');
+};
+
+export const getKnowledge = (id) => {
+    return request.get(`/knowledge/${id}`);
+};
+
 export const addKnowledge = (data) => {
     return request.post('/knowledge', data);
 };
@@ -32,12 +40,13 @@ export const generateDescription = (id, model) => {
 
 // ==================== 文档管理 ====================
 
-export const uploadDocument = (kbId, file, uploadedBy) => {
+export const uploadDocument = (kbId, file, uploadedBy, options = {}) => {
     const formData = new FormData();
     formData.append('file', file);
     if (uploadedBy) formData.append('uploadedBy', uploadedBy);
     return request.post(`/knowledge/${kbId}/documents/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        ...options
     });
 };
 
@@ -47,6 +56,20 @@ export const getDocuments = (kbId) => {
 
 export const getDocument = (docId) => {
     return request.get(`/knowledge/documents/${docId}`);
+};
+
+export const getDocumentHistory = (docId) => {
+    return request.get(`/knowledge/documents/${docId}/history`);
+};
+
+export const getDocumentContent = (docId) => {
+    return request.get(`/knowledge/documents/${docId}/content`);
+};
+
+export const downloadDocument = (docId) => {
+    return request.get(`/knowledge/documents/${docId}/download`, {
+        responseType: 'blob'
+    });
 };
 
 export const deleteDocument = (docId) => {
@@ -87,10 +110,26 @@ export const getChunkStats = (docId) => {
     return request.get(`/knowledge/documents/${docId}/chunks/stats`);
 };
 
+export const getChunkVector = (chunkId) => {
+    return request.get(`/knowledge/chunks/${chunkId}/vector`);
+};
+
+export const getDocumentRetrievalInfo = (docId) => {
+    return request.get(`/knowledge/documents/${docId}/retrieval-info`);
+};
+
 // ==================== 向量检索 ====================
 
 export const testRetrieval = (payload) => {
     return request.post('/knowledge/retrieve/test', payload);
+};
+
+export const getEvaluationBenchmarks = () => {
+    return request.get('/knowledge/eval/benchmarks');
+};
+
+export const getKnowledgeVectorStatus = () => {
+    return request.get('/knowledge/vector/status');
 };
 
 export const getKnowledgeBaseVectors = (kbId, page, size) => {
@@ -288,10 +327,6 @@ export const vectorizeAllPending = () => {
     return request.post('/knowledge/documents/vectorize-all');
 };
 
-export const getDocumentHistory = (docId) => {
-    return request.get(`/knowledge/documents/${docId}/history`);
-};
-
 // ==================== 诊断 ====================
 
 export const diagnoseMilvus = () => {
@@ -306,6 +341,23 @@ export const getUnifiedKnowledge = (agentId) => {
 
 export const getBoundKnowledge = (agentId, type = 'DOCUMENT') => {
     return request.get(`/knowledge/agents/${agentId}`, { params: { type } });
+};
+
+export const uploadUnstructuredKnowledge = (agentId, kbId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('kbId', kbId);
+    formData.append('agentId', agentId);
+    return request.post('/knowledge/unstructured/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
+
+export const saveProceduralKnowledgeSkill = (agentId, workflowData) => {
+    return request.post('/knowledge/procedural/skills', {
+        ...workflowData,
+        agentId
+    });
 };
 
 export const getAgentPrompts = (agentId) => {

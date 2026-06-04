@@ -304,6 +304,11 @@
                 </div>
               </template>
 
+              <OrinAsyncState
+                :status="contentLoading ? 'loading' : (historyData.length ? 'success' : 'empty')"
+                empty-text="暂无节点历史采样"
+              >
+              <OrinDataTable compact>
               <el-table v-loading="contentLoading" :data="historyData" style="width: 100%">
                 <el-table-column label="时间" min-width="180" fixed>
                   <template #default="{ row }">
@@ -323,6 +328,8 @@
                   <template #default="{ row }"><div class="usage-cell"><el-progress :percentage="row.gpuUsage || 0" :stroke-width="8" :show-text="false" :color="getUsageColor(row.gpuUsage)" /><span class="usage-text">{{ formatPercent(row.gpuUsage) }}</span></div></template>
                 </el-table-column>
               </el-table>
+              </OrinDataTable>
+              </OrinAsyncState>
 
               <div class="pagination-container">
                 <el-pagination
@@ -488,6 +495,8 @@ import {
   updateSystemProperties
 } from '@/api/monitor';
 import { ROUTES } from '@/router/routes';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -1255,7 +1264,7 @@ onUnmounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  background: #ffffff;
 }
 
 .section-title {

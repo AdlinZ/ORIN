@@ -13,6 +13,17 @@
 - `orin-frontend/`：Vue 3 + Vite + Element Plus · 管理台
 - `orin-ai-engine/`：Python 3.11 + FastAPI + LangGraph · 工作流/协作执行层（不持久化业务数据）
 
+### 1.1 当前推进口径（2026-06-04）
+
+当前不要再优先扩新菜单或堆新模块。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立，后续开发按以下顺序收敛：
+
+1. **Phase 1 收口**：真实后端联调下的浏览器 E2E、协作人工干预验收、真实 Agent / MCP 子任务样本、外部 MCP 客户端展示资产。
+2. **Phase 1.5 角色化体验**：普通用户门户、运维工作台、管理员总览、资源级 ACL。
+3. **Phase 2 质量与可观测**：统一错误码、`traceparent`、JSON 日志、OTel / Jaeger、覆盖率红线。
+4. **Phase 3/4 安全运维与社区化**：备份恢复、默认凭据治理、v0.1.0 release、README 截图 / GIF。
+
+短期最优先 PR：**真实后端协作 E2E + Agent/MCP 子任务验收样本**。判断完成度仍以“前端入口 + Java service + Python AI Engine + smoke / E2E 验收”同时成立为准。
+
 ## 2. 启动前必读
 
 按顺序：
@@ -27,6 +38,8 @@
 - 涉及部署 / 环境变量 → [docs/部署指南.md](./docs/部署指南.md)
 - 涉及接口 / 联调 → [docs/API文档.md](./docs/API文档.md)
 - 涉及前端入口 → [docs/使用指南.md](./docs/使用指南.md)、[orin-frontend/docs/](./orin-frontend/docs/)
+- 涉及角色 / 权限 → [docs/角色矩阵.md](./docs/角色矩阵.md)
+- 涉及 MCP 客户端展示 → [docs/mcp-client-setup.md](./docs/mcp-client-setup.md)、[docs/open-demo-checklist.md](./docs/open-demo-checklist.md)
 
 ## 3. 环境与启动
 
@@ -74,6 +87,7 @@ cd orin-backend && mvn test
 
 # 前端
 cd orin-frontend && npm run test && npm run build
+# 涉及浏览器交互时额外运行：npm run test:e2e
 
 # AI 引擎
 cd orin-ai-engine && venv/bin/pytest
@@ -92,7 +106,7 @@ bash scripts/smoke-test.sh
 
 - **业务持久化只能在 Java 后端**。AI 引擎不直连业务数据库；前端不直连 AI 引擎或外部 provider
 - **协作执行链唯一**：编排层 `app.engine.collaboration_langgraph` → 分发层 `app.engine.mq_worker` → 执行内核 `app.engine.task_runtime.TaskRuntime`。**禁止**新增并行的执行内核或在 `mq_worker` 写独立执行逻辑
-- **接口前缀不混用**：`/v1/*`（API Key · 对外协议入口，含 OpenAI 兼容网关与 MCP）、`/api/v1/*`（JWT · 业务）、`/api/workflows/*`（工作流管理）。新增模块前先核对能否复用现有前缀
+- **接口前缀不混用**：`/v1/*`（API Key · 对外协议入口，含 OpenAI 兼容网关与 MCP）、`/api/v1/*`（JWT · 业务）、`/api/workflows/*`（工作流管理）、`/api/traces/*`（Trace 查询）、`/api/system/*`（系统集成 / MCP 兼容入口）。新增模块前先核对能否复用现有前缀
 - `/v1/mcp/**` 由 API Key 鉴权，与 `/api/v1/**` 的 JWT 业务接口隔离；不得混用鉴权通道
 - **新能力优先在现有模块内闭环**，不另起平行实现
 
@@ -101,6 +115,7 @@ bash scripts/smoke-test.sh
 - 所有执行型请求必须携带 `traceId`，跨服务透传 HTTP header `traceparent`
 - 任务对象统一状态枚举：`PENDING / RUNNING / COMPLETED / FAILED / CANCELLED`
 - 协作包状态机：`PLANNING → DECOMPOSING → EXECUTING → CONSENSUS → COMPLETED / FAILED / FALLBACK`
+- Docker quickstart 依赖 `docker/mysql/init/01-orin-schema.sql` 作为 `V1..V87` baseline schema snapshot；后端启动后由 Flyway 补跑 `V88..V90`。后续新增 schema 迁移从 `V91` 开始，禁止改写已发布迁移（尤其 `V5/V6/V8/V11/V87/V88/V89/V90`）。
 
 ### 5.3 安全层
 
@@ -137,6 +152,7 @@ bash scripts/smoke-test.sh
 - 组合式 API（`<script setup>`），**禁用** Options API 写新代码
 - 状态管理用 Pinia；组件间 props/emit 优先，跨页才用 store
 - 路由常量集中在 `src/router/routes.js`，菜单暴露见 `src/router/topMenuConfig.js`
+- 当前主入口以 `topMenuConfig.js` 的角色可见菜单为准：`/dashboard/applications/*`、`/dashboard/resources/*`、`/dashboard/runtime/*`、`/dashboard/control/*`。旧 `/dashboard/agents/*`、`/dashboard/system/*` 只按历史重定向处理。
 - API 请求统一走 `src/api/*`，**禁止**组件直调 `axios`
 - 表格优先用项目内 `ResizableTable` 包装组件，不裸用 `el-table`
 
@@ -183,6 +199,7 @@ bash scripts/smoke-test.sh
 - [ ] 协作执行是否仍经 `TaskRuntime`，未引入并行执行内核
 - [ ] 新增接口归入对应前缀分组，未自创新前缀
 - [ ] 涉及前端入口已更新 `routes.js` + `topMenuConfig.js`
+- [ ] 涉及角色可见性或权限边界已同步 `docs/角色矩阵.md`
 - [ ] 涉及环境变量已同步 [docs/部署指南.md](./docs/部署指南.md)
 - [ ] 单测覆盖关键路径
 - [ ] 不打印敏感字段、不提交 `.env`
@@ -210,7 +227,7 @@ bash scripts/smoke-test.sh
 冲突场景包括但不限于：
 
 - 镜像 / 包体积超过目标 → 不可自行切换基础镜像或移除依赖
-- 测试失败 → 不可自行修改测试代码绕过
+- 测试 / 验收失败 → 允许在当前任务范围内做一次定向修复；禁止修改测试代码绕过真实问题
 - 历史迁移在新环境跑不通 → 不可改写历史迁移文件
 - 依赖缺失 → 不可自行补依赖，需先确认是预期还是 bug
 - 关键验证（Docker daemon / DB / 凭据）不可用 → 第一时间停下询问，不可先做完后报告
@@ -229,14 +246,15 @@ bash scripts/smoke-test.sh
 - "为了完成任务自己拍板"
 - "等做完后在 PR 描述里报告"
 
-**测试与实际代码语义冲突时**：先确认 truth source（看真实代码与产品行为），测试过时则修测试，代码 bug 则停下报告，不可自己拍板改代码。
+**测试与实际代码语义冲突时**：先确认 truth source（看真实代码与产品行为）。若确认测试断言过时，可作为本轮唯一一次定向修复更新测试；若是代码 bug，可作为本轮唯一一次定向修复更新代码。禁止为了通过测试而删除断言、跳过用例或掩盖真实行为。
 
-**测试失败的处理（无例外）**：
+**测试 / 验收失败的处理（一次修复制）**：
 
-1. 跑测试发现 fail → 立即停下，不允许"顺手修一下"
-2. 判断根因：是测试断言过时（应改测试）还是代码 bug（应停下报告）
-3. 即使是"测试断言过时"，也必须在第一次发现时报告范围扩展，等批准
-4. "我已经在跑测试时顺手修了" 是不可接受的隐式行为
+1. 跑测试或验收发现 fail → 先判断根因，并说明将做一次定向修复。
+2. 只允许修复与当前任务直接相关的问题；不得扩大范围、不得顺手重构、不得绕过测试。
+3. 完成第一次修复后必须重新运行同一条失败命令或同一验收路径。
+4. 如果第一次修复后仍失败 → 立即停止继续修复，报告失败现象、已尝试的修复、至少两个可选方案（含 trade-off）和推荐方案，等待用户决策。
+5. 如果失败明显来自环境缺失、凭据缺失、Docker/DB 不可用等不可由代码修复的问题 → 不消耗一次修复机会，直接报告阻塞与可选方案。
 
 ### 8.3 完成判定
 

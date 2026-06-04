@@ -1,47 +1,82 @@
 <template>
   <div class="model-management page-container fade-in">
     <section class="model-shell">
-      <header class="model-topbar">
-        <div class="topbar-copy">
-          <span class="topbar-eyebrow">模型管理</span>
-          <h1>模型管理</h1>
-          <p>统一维护模型资源、供应商能力、密钥入口与启用状态。</p>
-        </div>
-        <div class="topbar-actions">
+      <OrinPageShell
+        title="模型管理"
+        description="统一维护模型资源、供应商能力、密钥入口与启用状态"
+        icon="Cpu"
+        domain="应用域"
+        maturity="available"
+      >
+        <template #actions>
           <el-button :icon="Key" @click="openKeyManagement">
             API 密钥管理
           </el-button>
           <el-button type="primary" :icon="Plus" @click="handleAdd">
             添加模型
           </el-button>
-        </div>
-      </header>
+        </template>
+        <template #filters>
+          <OrinFilterBar>
+            <el-select v-model="providerFilter" placeholder="供应商" class="filter-control">
+              <el-option label="全部供应商" value="ALL" />
+              <el-option
+                v-for="provider in providerFilterOptions"
+                :key="provider"
+                :label="provider"
+                :value="provider"
+              />
+            </el-select>
+            <el-select v-model="typeFilter" placeholder="模型类型" class="filter-control">
+              <el-option label="全部类型" value="ALL" />
+              <el-option label="对话 (Chat)" value="CHAT" />
+              <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
+              <el-option label="结果重排 (Reranker)" value="RERANKER" />
+              <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
+              <el-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
+              <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
+              <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
+            </el-select>
+            <el-select v-model="statusFilter" placeholder="运行状态" class="filter-control status-filter">
+              <el-option label="全部状态" value="ALL" />
+              <el-option label="已启用" value="ENABLED" />
+              <el-option label="已禁用" value="DISABLED" />
+            </el-select>
+            <el-select v-model="sortMode" placeholder="排序方式" class="filter-control">
+              <el-option label="最近创建优先" value="created_desc" />
+              <el-option label="最早创建优先" value="created_asc" />
+              <el-option label="模型名称 A-Z" value="name_asc" />
+              <el-option label="模型名称 Z-A" value="name_desc" />
+              <el-option label="供应商 A-Z" value="provider_asc" />
+              <el-option label="模型类型 A-Z" value="type_asc" />
+            </el-select>
+            <el-input
+              v-model="searchQuery"
+              placeholder="搜索名称 / Model ID"
+              clearable
+              class="filter-search"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-button @click="resetFilters">
+              重置
+            </el-button>
+          </OrinFilterBar>
+        </template>
+      </OrinPageShell>
 
-      <section class="summary-grid">
-        <article class="summary-card primary">
-          <span>当前结果</span>
-          <strong>{{ modelStats.filtered }}/{{ modelStats.total }}</strong>
-          <p>筛选后的模型资源数量</p>
-        </article>
-        <article class="summary-card">
-          <span>启用率</span>
-          <strong>{{ modelStats.enabledRate }}</strong>
-          <p>{{ modelStats.enabled }} 个模型可被调用</p>
-        </article>
-        <article class="summary-card">
-          <span>供应商</span>
-          <strong>{{ modelStats.providers }}</strong>
-          <p>{{ modelStats.topProvider }}</p>
-        </article>
-        <article class="summary-card">
-          <span>主类型</span>
-          <strong>{{ modelStats.topTypeCount }}</strong>
-          <p>{{ modelStats.topType }}</p>
-        </article>
-      </section>
+      <OrinMetricStrip :metrics="modelMetricItems" class="model-metric-strip" />
 
-      <section class="model-workspace">
-        <div class="workspace-head">
+      <OrinDataTable
+        class="model-workspace"
+        title="模型资源清单"
+        description="按供应商、类型和启用状态维护生产可用模型"
+        compact
+      >
+        <template #header>
+          <div class="workspace-head">
           <div>
             <h2>模型资源清单</h2>
             <p>按供应商、类型和启用状态维护生产可用模型。</p>
@@ -61,57 +96,17 @@
             </el-button>
           </div>
         </div>
+        </template>
 
-        <div class="filter-panel">
-          <el-select v-model="providerFilter" placeholder="供应商" class="filter-control">
-            <el-option label="全部供应商" value="ALL" />
-            <el-option
-              v-for="provider in providerFilterOptions"
-              :key="provider"
-              :label="provider"
-              :value="provider"
-            />
-          </el-select>
-          <el-select v-model="typeFilter" placeholder="模型类型" class="filter-control">
-            <el-option label="全部类型" value="ALL" />
-            <el-option label="对话 (Chat)" value="CHAT" />
-            <el-option label="向量嵌入 (Embedding)" value="EMBEDDING" />
-            <el-option label="结果重排 (Reranker)" value="RERANKER" />
-            <el-option label="图像生成 (Image)" value="TEXT_TO_IMAGE" />
-            <el-option label="视频生成 (Video)" value="TEXT_TO_VIDEO" />
-            <el-option label="语音转文字 (STT)" value="SPEECH_TO_TEXT" />
-            <el-option label="文字转语音 (TTS)" value="TEXT_TO_SPEECH" />
-          </el-select>
-          <el-select v-model="statusFilter" placeholder="运行状态" class="filter-control status-filter">
-            <el-option label="全部状态" value="ALL" />
-            <el-option label="已启用" value="ENABLED" />
-            <el-option label="已禁用" value="DISABLED" />
-          </el-select>
-          <el-select v-model="sortMode" placeholder="排序方式" class="filter-control">
-            <el-option label="最近创建优先" value="created_desc" />
-            <el-option label="最早创建优先" value="created_asc" />
-            <el-option label="模型名称 A-Z" value="name_asc" />
-            <el-option label="模型名称 Z-A" value="name_desc" />
-            <el-option label="供应商 A-Z" value="provider_asc" />
-            <el-option label="模型类型 A-Z" value="type_asc" />
-          </el-select>
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索名称 / Model ID"
-            clearable
-            class="filter-search"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-          <el-button @click="resetFilters">
-            重置
-          </el-button>
-        </div>
-
+        <OrinAsyncState
+          :status="modelTableState"
+          empty-text="暂无模型，请先接入服务商模型"
+          :error-text="modelLoadError"
+          empty-action-label="添加模型"
+          @retry="fetchData"
+          @empty-action="handleAdd"
+        >
         <el-table
-          v-loading="loading"
           :data="displayedList"
           row-key="id"
           class="model-table"
@@ -209,8 +204,10 @@
             </template>
           </el-table-column>
         </el-table>
+        </OrinAsyncState>
 
-        <div class="table-footer">
+        <template #footer>
+          <div class="table-footer">
           <span>共 {{ displayedList.length }} 个模型</span>
           <el-button
             v-if="displayedList.length === 0"
@@ -221,7 +218,8 @@
             添加模型
           </el-button>
         </div>
-      </section>
+        </template>
+      </OrinDataTable>
     </section>
 
     <el-drawer
@@ -763,18 +761,44 @@ import {
   Sunrise,
   View
 } from '@element-plus/icons-vue';
+import {
+  AAlert,
+  AButton,
+  ACol,
+  ACollapse,
+  ACollapseItem,
+  ADivider,
+  AFormItem,
+  AInput,
+  AInputNumber,
+  AOption,
+  ARadio,
+  ARadioGroup,
+  ARow,
+  ASelect,
+  ASwitch,
+  ATag,
+  ATextarea
+} from '@/ui/arco/components';
 import OrinArcoDataTable from '@/ui/arco/OrinArcoDataTable.vue';
 import OrinArcoFormDialog from '@/ui/arco/OrinArcoFormDialog.vue';
 import OrinArcoRowActions from '@/ui/arco/OrinArcoRowActions.vue';
 import OrinArcoSemanticTag from '@/ui/arco/OrinArcoSemanticTag.vue';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
+import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import { getModelList, saveModel, deleteModel, toggleModelStatus, fetchModels } from '@/api/model';
 import { getPricingConfig, savePricingConfig } from '@/api/monitor';
 import { getExternalKeys, saveExternalKey, deleteExternalKey, toggleExternalKeyStatus } from '@/api/apiKey';
 import { getProviderList } from '@/api/system';
+import { toModelListViewModel } from '@/viewmodels';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
 const loading = ref(false);
+const modelLoadError = ref('');
 const submitting = ref(false);
 const isFetchingModels = ref(false);
 const availableModels = ref([]);
@@ -881,11 +905,15 @@ const keyRowActions = [
 
 const fetchData = async () => {
   loading.value = true;
+  modelLoadError.value = '';
   try {
     const res = await getModelList();
-    modelList.value = res;
+    modelList.value = toModelListViewModel(res);
   } catch (e) {
     console.error(e);
+    modelLoadError.value = e?.traceId
+      ? `模型列表加载失败 · TraceId: ${e.traceId}`
+      : `模型列表加载失败：${e?.message || '未知错误'}`;
   } finally {
     loading.value = false;
     window.dispatchEvent(new Event('page-refresh-done'));
@@ -980,6 +1008,39 @@ const modelStats = computed(() => {
     topType: topType ? formatModelType(topType[0]) : '暂无类型分布',
     topTypeCount: topType ? topType[1] : 0
   };
+});
+
+const modelMetricItems = computed(() => [
+  {
+    key: 'filtered',
+    label: '当前结果',
+    value: `${modelStats.value.filtered}/${modelStats.value.total}`,
+    meta: '筛选后的模型资源数量'
+  },
+  {
+    key: 'enabled',
+    label: '启用率',
+    value: modelStats.value.enabledRate,
+    meta: `${modelStats.value.enabled} 个模型可被调用`
+  },
+  {
+    key: 'providers',
+    label: '供应商',
+    value: modelStats.value.providers,
+    meta: modelStats.value.topProvider
+  },
+  {
+    key: 'type',
+    label: '主类型',
+    value: modelStats.value.topTypeCount,
+    meta: modelStats.value.topType
+  }
+]);
+
+const modelTableState = computed(() => {
+  if (loading.value) return 'loading';
+  if (modelLoadError.value) return 'error';
+  return displayedList.value.length ? 'success' : 'empty';
 });
 
 const handleSelectionChange = (rows) => {
@@ -1214,7 +1275,6 @@ const handleImportAll = async () => {
 };
 
 const handleEdit = async (row) => {
-  console.log('Editing row:', row);
   // 1. Immediately open dialog to avoid UI block
   Object.assign(form, row);
   wizardStep.value = 2; // Jump to details/pricing
@@ -1224,17 +1284,14 @@ const handleEdit = async (row) => {
   // 2. Fetch pricing in background
   try {
     const pid = row.modelId;
-    console.log('Fetching pricing for:', pid);
     const res = await getPricingConfig();
     const list = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
     const data = Array.isArray(list) ? list.find(p => p.providerId === pid && p.tenantGroup === 'default') : null;
 
     if (data) {
         Object.assign(pricingForm, data);
-        console.log('Pricing loaded successfully');
     } else {
         pricingForm.providerId = pid;
-        console.log('No existing pricing rule, using defaults');
     }
   } catch(e) {
     console.error('Failed to load pricing info:', e);
@@ -1498,7 +1555,7 @@ onUnmounted(() => {
 
 .summary-card.primary {
   border-color: var(--el-color-primary-light-7);
-  background: linear-gradient(180deg, var(--el-color-primary-light-9), var(--el-bg-color));
+  background: var(--el-color-primary-light-9);
 }
 
 .summary-card span {

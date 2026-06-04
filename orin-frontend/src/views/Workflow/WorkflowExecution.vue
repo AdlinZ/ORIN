@@ -179,6 +179,15 @@
               重试失败任务
             </el-button>
             <el-button
+              v-if="canCancelLatestTask"
+              size="small"
+              type="danger"
+              :loading="taskStatusLoading"
+              @click="cancelLatestTask"
+            >
+              取消排队任务
+            </el-button>
+            <el-button
               v-if="latestExecutionObject?.statusUrl"
               size="small"
               text
@@ -204,6 +213,88 @@
             </div>
           </el-alert>
         </div>
+
+        <div v-if="selectedWorkflow" class="execution-ledger-header task-history-header">
+          <div>
+            <strong>任务历史</strong>
+            <span>按最近创建时间展示 Workflow task</span>
+          </div>
+          <el-tag effect="plain" round>{{ workflowTasks.length }} 条</el-tag>
+        </div>
+
+        <OrinDataTable v-if="selectedWorkflow" class="task-history-data-table" compact>
+          <OrinAsyncState
+            :status="taskHistoryState.status"
+            empty-text="该工作流暂无任务历史"
+            :error-text="taskHistoryErrorText"
+            @retry="loadTaskHistory"
+          >
+            <el-table
+              :data="workflowTasks"
+              :row-class-name="taskHistoryRowClassName"
+              stripe
+              size="small"
+              class="task-history-table"
+            >
+              <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="workflowInstanceId" label="实例ID" width="110" />
+              <el-table-column prop="status" label="状态" width="110">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="taskStatusTagType(row.status)">
+                    {{ row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="retryCount" label="重试" width="80">
+                <template #default="{ row }">
+                  {{ row.retryCount || 0 }} / {{ row.maxRetries || 0 }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="durationMs" label="耗时" width="100">
+                <template #default="{ row }">
+                  {{ formatTaskDuration(row.durationMs) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="updatedAt" label="更新时间" width="170">
+                <template #default="{ row }">
+                  {{ formatTime(row.updatedAt || row.createdAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="240" fixed="right">
+                <template #default="{ row }">
+                  <el-button
+                    v-if="row.workflowInstanceId"
+                    size="small"
+                    text
+                    type="primary"
+                    :icon="Search"
+                    @click="openTraceForTask(row)"
+                  >
+                    查看链路
+                  </el-button>
+                  <el-button
+                    v-if="canReplayTask(row)"
+                    size="small"
+                    text
+                    type="warning"
+                    @click="replayTaskFromHistory(row)"
+                  >
+                    重放
+                  </el-button>
+                  <el-button
+                    v-if="canCancelTask(row)"
+                    size="small"
+                    text
+                    type="danger"
+                    @click="cancelTaskFromHistory(row)"
+                  >
+                    取消
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinAsyncState>
+        </OrinDataTable>
 
         <div class="execution-ledger-header">
           <div>
@@ -352,13 +443,13 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { useRoute, useRouter } from 'vue-router'
 import { CaretRight, Edit, Refresh, Search } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinEmptyState from '@/components/orin/OrinEmptyState.vue'
 import { ROUTES } from '@/router/routes'
-import request from '@/utils/request'
 import {
   createAsyncState,
   markEmpty,
@@ -366,11 +457,22 @@ import {
   markLoading,
   markSuccess,
   toWorkflowListViewModel,
+  toWorkflowInstanceViewModel,
+  toWorkflowTaskViewModel,
   toWorkflowStatsViewModel,
   workflowStatusLabel,
   workflowStatusTagType
 } from '@/viewmodels'
-import { executeWorkflow, getWorkflowInstances, getWorkflows } from '@/api/workflow'
+import {
+  cancelWorkflowTask,
+  executeWorkflow,
+  getWorkflowInstance,
+  getWorkflowInstances,
+  getWorkflowTask,
+  getWorkflowTaskHistory,
+  getWorkflows,
+  replayWorkflowTask
+} from '@/api/workflow'
 import { getTraceByInstance } from '@/api/trace'
 
 const router = useRouter()
@@ -378,6 +480,7 @@ const route = useRoute()
 
 const workflowState = reactive(createAsyncState())
 const instanceState = reactive(createAsyncState({ status: 'empty' }))
+const taskHistoryState = reactive(createAsyncState({ status: 'empty' }))
 
 const search = ref('')
 const workflows = ref([])
@@ -391,6 +494,9 @@ const latestExecutionAt = ref('')
 const executionError = ref('')
 const taskStatusLoading = ref(false)
 const taskStatusResult = ref(null)
+const taskHistoryLoading = ref(false)
+const workflowTasks = ref([])
+const highlightedTaskId = ref('')
 const latestInstanceDetail = ref(null)
 const selectedInstance = ref(null)
 const selectedInstanceDetail = ref(null)
@@ -519,26 +625,17 @@ const canReplayLatestTask = computed(() => {
   return ['FAILED', 'DEAD'].includes(status)
 })
 
-const normalizeInstances = (payload) => {
-  const list = Array.isArray(payload?.data?.records)
-    ? payload.data.records
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload?.records)
-        ? payload.records
-        : Array.isArray(payload)
-          ? payload
-          : []
+const canCancelLatestTask = computed(() => {
+  const status = String(
+    taskStatusResult.value?.status ||
+    taskStatusResult.value?.data?.status ||
+    latestExecutionObject.value?.status ||
+    ''
+  ).toUpperCase()
+  return status === 'QUEUED'
+})
 
-  return list.map((item, index) => ({
-    id: item.id || item.instanceId || item.runId || `instance-${index}`,
-    status: item.status || item.state || 'UNKNOWN',
-    createdAt: item.createdAt || item.startTime || item.startedAt || null,
-    finishedAt: item.finishedAt || item.completedAt || item.endTime || null,
-    traceId: resolveTraceId(item),
-    raw: item
-  }))
-}
+const normalizeInstances = (payload) => toWorkflowInstanceViewModel(payload?.data?.records || payload?.data || payload?.records || payload)
 
 const resolveTraceId = (payload) => {
   if (!payload || typeof payload !== 'object') return ''
@@ -610,9 +707,37 @@ const loadInstances = async () => {
   }
 }
 
+const loadTaskHistory = async () => {
+  if (!selectedWorkflow.value?.id) {
+    workflowTasks.value = []
+    markEmpty(taskHistoryState)
+    return
+  }
+
+  taskHistoryLoading.value = true
+  markLoading(taskHistoryState)
+  try {
+    const response = await getWorkflowTaskHistory(selectedWorkflow.value.id, { page: 0, size: 20 })
+    const payload = response?.data ?? response
+    workflowTasks.value = toWorkflowTaskViewModel(payload?.content || payload)
+    if (workflowTasks.value.length) {
+      markSuccess(taskHistoryState)
+    } else {
+      markEmpty(taskHistoryState)
+    }
+  } catch (error) {
+    markError(taskHistoryState, error)
+    ElMessage.error(formatRequestError(error, '任务历史加载失败'))
+    workflowTasks.value = []
+  } finally {
+    taskHistoryLoading.value = false
+  }
+}
+
 const reloadAll = async () => {
   await loadWorkflows()
   await loadInstances()
+  await loadTaskHistory()
 }
 
 const selectWorkflow = async (workflow) => {
@@ -626,6 +751,7 @@ const selectWorkflow = async (workflow) => {
   selectedInstance.value = null
   selectedInstanceDetail.value = null
   await loadInstances()
+  await loadTaskHistory()
 }
 
 const runSelectedWorkflow = async () => {
@@ -669,6 +795,7 @@ const runSelectedWorkflow = async () => {
       ElMessage.success(`工作流已入队：${selectedWorkflow.value.workflowName}${taskLabel}`)
     }
     await loadInstances()
+    await loadTaskHistory()
     startExecutionPolling(latestExecutionObject.value?.taskId, latestExecutionObject.value?.workflowInstanceId)
   } catch (error) {
     executionError.value = formatRequestError(error, '工作流执行失败')
@@ -682,8 +809,9 @@ const queryLatestTask = async () => {
   if (!taskId) return null
   taskStatusLoading.value = true
   try {
-    const response = await request.get(`/api/v1/workflow-tasks/${taskId}`, { baseURL: '' })
+    const response = await getWorkflowTask(taskId)
     taskStatusResult.value = response?.data ?? response
+    await loadTaskHistory()
     const instanceId = taskStatusResult.value?.workflowInstanceId || latestExecutionObject.value?.workflowInstanceId
     if (instanceId) {
       await loadInstanceDetail(instanceId)
@@ -699,7 +827,7 @@ const queryLatestTask = async () => {
 
 const loadInstanceDetail = async (instanceId) => {
   try {
-    const response = await request.get(`/api/workflows/instances/${instanceId}`, { baseURL: '' })
+    const response = await getWorkflowInstance(instanceId)
     latestInstanceDetail.value = response?.data ?? response
   } catch (error) {
     console.warn('Failed to load workflow instance detail:', error)
@@ -714,7 +842,7 @@ const selectInstance = async (row, options = {}) => {
     detailDrawerVisible.value = true
   }
   try {
-    const response = await request.get(`/api/workflows/instances/${row.id}`, { baseURL: '' })
+    const response = await getWorkflowInstance(row.id)
     selectedInstanceDetail.value = response?.data ?? response
   } catch (error) {
     selectedInstanceDetail.value = null
@@ -759,20 +887,167 @@ const replayLatestTask = async () => {
   if (!taskId) return
   taskStatusLoading.value = true
   try {
-    const response = await request.post(`/api/v1/workflow-tasks/${taskId}/replay`, null, { baseURL: '' })
+    const taskContext = taskStatusResult.value || latestExecutionObject.value || { taskId }
+    await confirmReplayTask(taskContext)
+    const response = await replayWorkflowTask(taskId)
     const payload = response?.data ?? response
+    highlightedTaskId.value = payload.newTaskId || payload.taskId || ''
     latestExecutionObject.value = {
       ...latestExecutionObject.value,
-      taskId: payload.newTaskId || latestExecutionObject.value.taskId
+      taskId: highlightedTaskId.value || latestExecutionObject.value.taskId
     }
     latestExecution.value = JSON.stringify(payload, null, 2)
     taskStatusResult.value = payload
-    ElMessage.success('失败任务已重新入队')
+    ElMessage.success(`失败任务已重放，原任务 ${payload.originalTaskId || taskId}，新任务 ${highlightedTaskId.value || '-'}`)
+    await loadTaskHistory()
     startExecutionPolling(latestExecutionObject.value.taskId, latestExecutionObject.value.workflowInstanceId)
   } catch (error) {
-    ElMessage.error(formatRequestError(error, '任务重试失败'))
+    if (error !== 'cancel') {
+      ElMessage.error(formatRequestError(error, '任务重试失败'))
+    }
   } finally {
     taskStatusLoading.value = false
+  }
+}
+
+const cancelLatestTask = async () => {
+  const taskId = latestExecutionObject.value?.taskId
+  if (!taskId) return
+  taskStatusLoading.value = true
+  try {
+    const taskContext = taskStatusResult.value || latestExecutionObject.value || { taskId }
+    await confirmCancelTask(taskContext)
+    const response = await cancelWorkflowTask(taskId)
+    const payload = response?.data ?? response
+    taskStatusResult.value = payload
+    highlightedTaskId.value = taskId
+    latestExecutionObject.value = {
+      ...latestExecutionObject.value,
+      status: payload.status || 'CANCELLED'
+    }
+    ElMessage.success('排队任务已取消')
+    clearExecutionPolling()
+    await loadTaskHistory()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(formatRequestError(error, '任务取消失败'))
+    }
+  } finally {
+    taskStatusLoading.value = false
+  }
+}
+
+const canReplayTask = (task) => ['FAILED', 'DEAD'].includes(String(task?.status || '').toUpperCase())
+
+const canCancelTask = (task) => String(task?.status || '').toUpperCase() === 'QUEUED'
+
+const replayTaskFromHistory = async (task) => {
+  if (!task?.taskId) return
+  taskStatusLoading.value = true
+  try {
+    await confirmReplayTask(task)
+    const response = await replayWorkflowTask(task.taskId)
+    const payload = response?.data ?? response
+    highlightedTaskId.value = payload.newTaskId || payload.taskId || ''
+    latestExecutionObject.value = {
+      taskId: highlightedTaskId.value || payload.taskId,
+      workflowInstanceId: payload.workflowInstanceId || task.workflowInstanceId
+    }
+    latestExecutionAt.value = new Date().toISOString()
+    taskStatusResult.value = payload
+    ElMessage.success(`失败任务已重放，原任务 ${payload.originalTaskId || task.taskId}，新任务 ${highlightedTaskId.value || '-'}`)
+    await loadTaskHistory()
+    startExecutionPolling(latestExecutionObject.value.taskId, latestExecutionObject.value.workflowInstanceId)
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(formatRequestError(error, '任务重放失败'))
+    }
+  } finally {
+    taskStatusLoading.value = false
+  }
+}
+
+const cancelTaskFromHistory = async (task) => {
+  if (!task?.taskId) return
+  taskStatusLoading.value = true
+  try {
+    await confirmCancelTask(task)
+    const response = await cancelWorkflowTask(task.taskId)
+    taskStatusResult.value = response?.data ?? response
+    highlightedTaskId.value = task.taskId
+    ElMessage.success('排队任务已取消')
+    await loadTaskHistory()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(formatRequestError(error, '任务取消失败'))
+    }
+  } finally {
+    taskStatusLoading.value = false
+  }
+}
+
+const confirmReplayTask = (task) => ElMessageBox.confirm(
+  [
+    `原任务: ${task.taskId || latestExecutionObject.value?.taskId || '-'}`,
+    `状态: ${task.status || task.data?.status || '-'}`,
+    `失败原因: ${task.errorMessage || task.data?.errorMessage || '-'}`,
+    `死信原因: ${task.deadLetterReason || task.data?.deadLetterReason || '-'}`,
+    `重试次数: ${task.retryCount || 0} / ${task.maxRetries || 0}`,
+    `Trace ID: ${resolveTraceId(task) || resolveTraceId(latestExecutionObject.value) || '-'}`,
+    '确认后将创建一个新的排队任务，原任务终态保持不变。'
+  ].join('\n'),
+  '确认重放失败任务',
+  {
+    confirmButtonText: '重放',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }
+)
+
+const confirmCancelTask = (task) => ElMessageBox.confirm(
+  [
+    `任务: ${task.taskId || latestExecutionObject.value?.taskId || '-'}`,
+    `状态: ${task.status || task.data?.status || '-'}`,
+    `Trace ID: ${resolveTraceId(task) || resolveTraceId(latestExecutionObject.value) || '-'}`,
+    '只允许取消仍在排队中的任务，确认后任务将进入 CANCELLED 终态。'
+  ].join('\n'),
+  '确认取消排队任务',
+  {
+    confirmButtonText: '取消任务',
+    cancelButtonText: '返回',
+    type: 'warning'
+  }
+)
+
+const taskHistoryRowClassName = ({ row }) => (
+  row?.taskId && row.taskId === highlightedTaskId.value ? 'highlight-task-row' : ''
+)
+
+const openTraceForTask = async (task) => {
+  const traceId = resolveTraceId(task)
+  if (traceId) {
+    openTrace(traceId)
+    return
+  }
+
+  if (!task?.workflowInstanceId) {
+    ElMessage.warning('该任务暂无工作流实例')
+    return
+  }
+
+  traceLoadingId.value = String(task.workflowInstanceId)
+  try {
+    const response = await getTraceByInstance(task.workflowInstanceId)
+    const linkedTraceId = extractTraceIdFromResponse(response)
+    if (!linkedTraceId) {
+      ElMessage.warning('该任务暂未关联调用链路')
+      return
+    }
+    openTrace(linkedTraceId)
+  } catch (error) {
+    ElMessage.error(formatRequestError(error, '调用链路查询失败'))
+  } finally {
+    traceLoadingId.value = ''
   }
 }
 
@@ -864,6 +1139,14 @@ const formatDuration = (instance) => {
   return `${Math.round(milliseconds / 60000)}m`
 }
 
+const formatTaskDuration = (durationMs) => {
+  const value = Number(durationMs)
+  if (!Number.isFinite(value) || value <= 0) return '-'
+  if (value < 1000) return `${value}ms`
+  if (value < 60000) return `${(value / 1000).toFixed(1)}s`
+  return `${Math.round(value / 60000)}m`
+}
+
 const formatRequestError = (error, fallback) => {
   const status = error?.response?.status
   const serverMessage = error?.response?.data?.message || error?.data?.message
@@ -883,6 +1166,12 @@ const formatRequestError = (error, fallback) => {
   if (message.includes('timeout')) return '请求超时，请检查网络连接'
   return message || fallback
 }
+
+const taskHistoryErrorText = computed(() => {
+  const error = taskHistoryState.error
+  if (!error) return '任务历史加载失败，请稍后重试'
+  return formatRequestError(error, '任务历史加载失败')
+})
 
 const formatScore = (value) => {
   const number = Number(value)
@@ -991,6 +1280,15 @@ const instanceTagType = (status) => {
   return 'info'
 }
 
+const taskStatusTagType = (status) => {
+  const normalized = String(status || '').toUpperCase()
+  if (normalized === 'COMPLETED') return 'success'
+  if (['QUEUED', 'RUNNING', 'RETRYING'].includes(normalized)) return 'warning'
+  if (['FAILED', 'DEAD'].includes(normalized)) return 'danger'
+  if (normalized === 'CANCELLED') return 'info'
+  return 'info'
+}
+
 const workflowStatusTone = (status) => {
   const normalized = String(status || '').toUpperCase()
   if (normalized === 'ACTIVE') return 'tone-emerald'
@@ -1025,6 +1323,7 @@ onMounted(async () => {
   await loadWorkflows()
   if (selectedWorkflow.value?.id) {
     await loadInstances()
+    await loadTaskHistory()
   }
 })
 
@@ -1035,10 +1334,7 @@ onUnmounted(() => {
 
 <style scoped>
 .execution-page {
-  background:
-    radial-gradient(circle at 92% 0%, rgba(14, 165, 233, 0.1), transparent 28%),
-    radial-gradient(circle at 0% 4%, rgba(20, 184, 166, 0.12), transparent 24%),
-    linear-gradient(180deg, rgba(248, 250, 252, 0.62), rgba(255, 255, 255, 0) 280px);
+  background: transparent;
 }
 
 .execution-metric-grid {
@@ -1057,9 +1353,7 @@ onUnmounted(() => {
   overflow: hidden;
   border: 1px solid var(--tone-border);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76)),
-    linear-gradient(135deg, var(--tone-panel), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
@@ -1068,7 +1362,7 @@ onUnmounted(() => {
   inset: auto 0 0 0;
   height: 3px;
   content: "";
-  background: linear-gradient(90deg, var(--tone-color), transparent);
+  background: var(--tone-color);
 }
 
 .metric-icon,
@@ -1197,7 +1491,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.82);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.82));
+  background: #ffffff;
 }
 
 .workbench-card-header strong {
@@ -1241,9 +1535,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 16px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.82);
-  background:
-    radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.08), transparent 30%),
-    rgba(248, 250, 252, 0.72);
+  background: rgba(248, 250, 252, 0.72);
 }
 
 .run-input-card,
@@ -1329,6 +1621,19 @@ onUnmounted(() => {
   padding: 14px;
 }
 
+.task-history-header {
+  margin-top: 14px;
+}
+
+.task-history-table {
+  width: calc(100% - 32px);
+  margin: 12px 16px 0;
+}
+
+.task-history-table :deep(.highlight-task-row) {
+  --el-table-tr-bg-color: rgba(20, 184, 166, 0.12);
+}
+
 .execution-main-panel .execution-alert {
   margin: 12px 16px 0;
 }
@@ -1369,9 +1674,7 @@ onUnmounted(() => {
 .execution-record-card:hover,
 .execution-record-card.active {
   border-color: var(--tone-border);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.74)),
-    var(--tone-panel);
+  background: var(--tone-panel);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
 }
 
@@ -1457,9 +1760,7 @@ onUnmounted(() => {
   border: 1px solid var(--tone-border, rgba(148, 163, 184, 0.22));
   border-radius: 8px;
   padding: 16px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.82)),
-    linear-gradient(135deg, var(--tone-panel, rgba(248, 250, 252, 0.9)), rgba(255, 255, 255, 0));
+  background: #ffffff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 
@@ -1602,9 +1903,7 @@ onUnmounted(() => {
 .workflow-item.active {
   transform: none;
   border-color: rgba(13, 148, 136, 0.28);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.72)),
-    rgba(240, 253, 250, 0.9);
+  background: rgba(240, 253, 250, 0.9);
   box-shadow: inset 3px 0 0 #0d9488;
 }
 
@@ -1652,8 +1951,7 @@ onUnmounted(() => {
 }
 
 .execution-console :deep(.el-card__body) {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.82));
+  background: #ffffff;
 }
 
 .runner-actions {
@@ -1969,6 +2267,7 @@ html.dark .execution-ledger-header {
 html.dark .run-input-card,
 html.dark .run-action-card,
 html.dark .latest-run-card,
+html.dark .task-history-table,
 html.dark .execution-record-card {
   border-color: rgba(71, 85, 105, 0.52);
   background: rgba(15, 23, 42, 0.72);
@@ -1976,9 +2275,7 @@ html.dark .execution-record-card {
 
 html.dark .execution-record-card:hover,
 html.dark .execution-record-card.active {
-  background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.72)),
-    var(--tone-panel);
+  background: var(--tone-panel);
 }
 
 html.dark .record-action-link {

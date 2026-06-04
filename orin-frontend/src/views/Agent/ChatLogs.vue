@@ -1,107 +1,21 @@
 <template>
   <div class="page-container">
-    <PageHeader 
-      title="会话记录" 
-      description="审计并追溯所有智能体的历史交互记录"
-      icon="ChatLineRound"
-    >
-      <template #actions>
+    <section class="conversation-command-panel">
+      <div class="conversation-command-head">
+        <div class="conversation-command-title">
+          <div class="conversation-command-icon">
+            <el-icon><ChatLineRound /></el-icon>
+          </div>
+          <div>
+            <h2>会话记录</h2>
+            <p>审计并追溯所有智能体的历史交互记录</p>
+          </div>
+        </div>
         <el-button :icon="Download" @click="handleExport">
           导出报告
         </el-button>
-      </template>
-    </PageHeader>
-
-    <section class="conversation-summary-grid">
-      <article
-        v-for="card in summaryCards"
-        :key="card.key"
-        class="summary-card"
-        :class="`tone-${card.tone}`"
-      >
-        <div class="summary-icon">
-          <el-icon><component :is="card.icon" /></el-icon>
-        </div>
-        <div class="summary-content">
-          <span>{{ card.label }}</span>
-          <strong>{{ card.value }}</strong>
-          <small>{{ card.meta }}</small>
-        </div>
-      </article>
-    </section>
-
-    <section class="conversation-insights">
-      <article class="insight-card accent-card">
-        <div class="insight-card-header">
-          <div>
-            <span class="eyebrow">会话分布</span>
-            <strong>高频智能体</strong>
-          </div>
-          <el-tag size="small" effect="plain">
-            TOP {{ topAgentCards.length || 0 }}
-          </el-tag>
-        </div>
-        <div v-if="topAgentCards.length" class="agent-rank-list">
-          <div v-for="agent in topAgentCards" :key="agent.name" class="agent-rank-item">
-            <div class="rank-avatar">
-              {{ agent.name.slice(0, 1) }}
-            </div>
-            <div class="rank-body">
-              <div class="rank-title">
-                <span>{{ agent.name }}</span>
-                <strong>{{ agent.count }} 次</strong>
-              </div>
-              <el-progress
-                :percentage="agent.percent"
-                :show-text="false"
-                :stroke-width="6"
-              />
-            </div>
-          </div>
-        </div>
-        <el-empty v-else description="暂无会话分布" :image-size="56" />
-      </article>
-
-      <article class="insight-card recent-card">
-        <div class="insight-card-header">
-          <div>
-            <span class="eyebrow">追溯入口</span>
-            <strong>最近活跃会话</strong>
-          </div>
-          <span class="muted-text">{{ filteredChatLogs.length }} 条记录</span>
-        </div>
-        <div v-if="recentLogCards.length" class="recent-list">
-          <button
-            v-for="log in recentLogCards"
-            :key="log.sessionId"
-            type="button"
-            class="recent-item"
-            @click="viewDetail(log)"
-          >
-            <div>
-              <span class="recent-title">{{ log.lastQuery || '空会话' }}</span>
-              <small>{{ log.agentName }} · {{ log.time }}</small>
-            </div>
-            <el-icon><ArrowRight /></el-icon>
-          </button>
-        </div>
-        <el-empty v-else description="暂无活跃会话" :image-size="56" />
-      </article>
-    </section>
-
-    <el-card shadow="never" class="table-card">
-      <template #header>
-        <div class="table-card-header">
-          <div>
-            <strong>会话流水</strong>
-            <span>按最近活跃时间排序，支持筛选、导出与上下文回放</span>
-          </div>
-          <el-tag effect="plain" round>
-            {{ pagedLogs.length }} / {{ filteredChatLogs.length }}
-          </el-tag>
-        </div>
-      </template>
-      <div class="table-filter-bar">
+      </div>
+      <OrinFilterBar class="conversation-filter-bar">
         <el-input
           v-model="searchQuery"
           class="filter-search"
@@ -183,14 +97,99 @@
         <el-button class="reset-filter-button" @click="resetFilters">
           重置
         </el-button>
-      </div>
-      <el-table
-        v-loading="loading"
-        border
-        :data="pagedLogs"
-        style="width: 100%"
-        stripe
+      </OrinFilterBar>
+    </section>
+
+    <OrinMetricStrip :metrics="conversationMetrics" class="conversation-summary-strip" />
+
+    <section class="conversation-insights">
+      <article class="insight-card accent-card">
+        <div class="insight-card-header">
+          <div>
+            <span class="eyebrow">会话分布</span>
+            <strong>高频智能体</strong>
+          </div>
+          <el-tag size="small" effect="plain">
+            TOP {{ topAgentCards.length || 0 }}
+          </el-tag>
+        </div>
+        <div v-if="topAgentCards.length" class="agent-rank-list">
+          <div v-for="agent in topAgentCards" :key="agent.name" class="agent-rank-item">
+            <div class="rank-avatar">
+              {{ agent.name.slice(0, 1) }}
+            </div>
+            <div class="rank-body">
+              <div class="rank-title">
+                <span>{{ agent.name }}</span>
+                <strong>{{ agent.count }} 次</strong>
+              </div>
+              <el-progress
+                :percentage="agent.percent"
+                :show-text="false"
+                :stroke-width="6"
+              />
+            </div>
+          </div>
+        </div>
+        <el-empty v-else description="暂无会话分布" :image-size="56" />
+      </article>
+
+      <article class="insight-card recent-card">
+        <div class="insight-card-header">
+          <div>
+            <span class="eyebrow">追溯入口</span>
+            <strong>最近活跃会话</strong>
+          </div>
+          <span class="muted-text">{{ filteredChatLogs.length }} 条记录</span>
+        </div>
+        <div v-if="recentLogCards.length" class="recent-list">
+          <button
+            v-for="log in recentLogCards"
+            :key="log.sessionId"
+            type="button"
+            class="recent-item"
+            @click="viewDetail(log)"
+          >
+            <div>
+              <span class="recent-title">{{ log.lastQuery || '空会话' }}</span>
+              <small>{{ log.agentName }} · {{ log.time }}</small>
+            </div>
+            <el-icon><ArrowRight /></el-icon>
+          </button>
+        </div>
+        <el-empty v-else description="暂无活跃会话" :image-size="56" />
+      </article>
+    </section>
+
+    <OrinDataTable
+      class="table-card"
+      title="会话流水"
+      description="按最近活跃时间排序，支持筛选、导出与上下文回放"
+      compact
+    >
+      <template #header>
+        <div class="table-card-header">
+          <div>
+            <strong>会话流水</strong>
+            <span>按最近活跃时间排序，支持筛选、导出与上下文回放</span>
+          </div>
+          <el-tag effect="plain" round>
+            {{ pagedLogs.length }} / {{ filteredChatLogs.length }}
+          </el-tag>
+        </div>
+      </template>
+      <OrinAsyncState
+        :status="chatLogsState"
+        empty-text="暂无会话记录"
+        :error-text="chatLogsErrorText"
+        @retry="loadChatLogs"
       >
+        <el-table
+          border
+          :data="pagedLogs"
+          style="width: 100%"
+          stripe
+        >
         <el-table-column
           prop="sessionId"
           label="会话 ID"
@@ -257,9 +256,10 @@
             </el-button>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </OrinAsyncState>
 
-      <div class="pagination-container">
+      <template #footer>
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
@@ -267,8 +267,8 @@
           layout="total, sizes, prev, pager, next"
           :total="filteredChatLogs.length"
         />
-      </div>
-    </el-card>
+      </template>
+    </OrinDataTable>
 
     <!-- Chat Replay Drawer -->
     <el-drawer
@@ -327,6 +327,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import {
   ArrowRight,
+  ChatLineRound,
   ChatDotRound,
   Cpu,
   DataLine,
@@ -335,12 +336,17 @@ import {
   Timer,
   User
 } from '@element-plus/icons-vue';
-import PageHeader from '@/components/PageHeader.vue';
+import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';
+import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
+import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue';
 import { getAgentList, getGroupedConversationLogs, getConversationHistory } from '@/api/agent';
+import { toSessionListViewModel } from '@/viewmodels';
 import { ElMessage } from 'element-plus';
 import { marked } from 'marked';
 
 const loading = ref(false);
+const loadError = ref('');
 const filterAgent = ref('');
 const searchQuery = ref('');
 const filterDateRange = ref([]);
@@ -388,24 +394,28 @@ const loadAgents = async () => {
 
 const loadChatLogs = async () => {
   loading.value = true;
+  loadError.value = '';
   try {
     const res = await getGroupedConversationLogs(currentPage.value - 1, pageSize.value);
-    rawLogs.value = res.content.map(log => ({
-      sessionId: log.conversationId,
+    rawLogs.value = toSessionListViewModel(res.content).map(log => ({
+      sessionId: log.sessionId,
       agentId: log.agentId,
-      agentName: '', // Will be resolved by computed
-      modelName: log.model,
-      lastQuery: log.query,
-      tokens: log.cumulativeTokens,
+      agentName: log.agentName,
+      modelName: log.modelName,
+      lastQuery: log.lastQuery,
+      tokens: log.tokens,
       responseTime: log.responseTime,
-      time: log.createdAt,
-      timestamp: new Date(String(log.createdAt).replace(' ', 'T')).getTime(),
+      time: log.time,
+      timestamp: new Date(String(log.time).replace(' ', 'T')).getTime(),
       success: log.success
     }));
     // total is used for pagination
     // Since we are using grouped logs, we should probably handle totalElements
     // But local filtering is used here, so I'll just keep it simple for now or update total
   } catch (error) {
+    loadError.value = error?.traceId
+      ? `获取日志流水线失败 · TraceId: ${error.traceId}`
+      : `获取日志流水线失败：${error?.message || '未知错误'}`;
     ElMessage.error('获取日志流水线失败');
   } finally {
     loading.value = false;
@@ -536,6 +546,22 @@ const summaryCards = computed(() => [
     tone: averageLatency.value > 3000 ? 'danger' : 'green'
   }
 ]);
+
+const conversationMetrics = computed(() => summaryCards.value.map(card => ({
+  key: card.key,
+  label: card.label,
+  value: card.value,
+  meta: card.meta,
+  intent: card.tone === 'danger' ? 'danger' : 'default'
+})));
+
+const chatLogsState = computed(() => {
+  if (loading.value) return 'loading';
+  if (loadError.value) return 'error';
+  return filteredChatLogs.value.length ? 'success' : 'empty';
+});
+
+const chatLogsErrorText = computed(() => loadError.value || '请稍后重试');
 
 const topAgentCards = computed(() => {
   const counts = enrichedLogs.value.reduce((acc, log) => {
@@ -728,6 +754,61 @@ onUnmounted(() => {
   padding: 0;
 }
 
+.conversation-command-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 20px 24px;
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, #ffffff);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.08));
+}
+
+.conversation-command-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--orin-border, #e2e8f0);
+}
+
+.conversation-command-title {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.conversation-command-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(13, 148, 136, 0.16);
+  border-radius: var(--radius-base, 8px);
+  color: var(--orin-primary, #0d9488);
+  background: var(--orin-primary-soft, #f0fdfa);
+}
+
+.conversation-command-title h2 {
+  margin: 0;
+  color: var(--neutral-gray-900);
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.conversation-command-title p {
+  margin: 8px 0 0;
+  color: var(--neutral-gray-500);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .conversation-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -840,9 +921,7 @@ onUnmounted(() => {
 }
 
 .accent-card {
-  background:
-    linear-gradient(135deg, rgba(13, 148, 136, 0.08), transparent 46%),
-    var(--orin-surface, #ffffff);
+  background: var(--orin-surface, #ffffff);
 }
 
 .insight-card-header,
@@ -981,7 +1060,8 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.table-filter-bar {
+.table-filter-bar,
+.conversation-filter-bar {
   display: grid;
   grid-template-columns:
     minmax(260px, 1fr)
@@ -993,9 +1073,7 @@ onUnmounted(() => {
   gap: 10px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
-  background:
-    linear-gradient(135deg, rgba(13, 148, 136, 0.06), transparent 52%),
-    #fff;
+  background: #fff;
 }
 
 .filter-search {
@@ -1253,13 +1331,19 @@ html.dark .recent-title {
     grid-template-columns: 1fr;
   }
 
+  .conversation-command-head {
+    flex-direction: column;
+  }
+
   .table-card-header,
   .table-filter-bar,
+  .conversation-filter-bar,
   .pagination-container {
     align-items: flex-start;
   }
 
-  .table-filter-bar {
+  .table-filter-bar,
+  .conversation-filter-bar {
     grid-template-columns: 1fr;
   }
 
