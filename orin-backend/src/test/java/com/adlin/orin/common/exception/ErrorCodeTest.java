@@ -38,11 +38,15 @@ class ErrorCodeTest {
             "60001", "60002", "60003", "60004",                    // Workflow 错误
             "70001", "70002", "70003", "70004", "70005",           // Auth 错误
             "80001", "80002", "80003", "80004", "80005",           // External 错误
-            "90001", "90002", "90003", "90004"                     // Validation 错误
+            "90001", "90002", "90003", "90004",                     // Validation 错误
+            "100001", "100002", "100003", "100004",                 // 限流 / 配额 (统一错误码小刀 1)
+            "110001", "110002", "110003", "110004", "110005", "110006", // 任务 / 队列
+            "120001", "120002", "120003", "120004", "120005", "120006"  // 协作 / 子任务
     })
-    @DisplayName("F1.3 - 所有错误码都是 5 位数字格式")
-    void testAllErrorCodesAreFiveDigits(String code) {
-        assertTrue(code.matches("\\d{5}"), "错误码 " + code + " 应为5位数字");
+    @DisplayName("F1.3 - 所有错误码都是 5/6 位数字格式")
+    void testAllErrorCodesAreFiveOrSixDigits(String code) {
+        assertTrue(code.matches("\\d{5,6}"),
+                "错误码 " + code + " 应为 5 或 6 位数字");
     }
 
     // ==================== fromCode() 查找正确性 ====================
@@ -60,6 +64,10 @@ class ErrorCodeTest {
         assertEquals(ErrorCode.AUTH_TOKEN_EXPIRED, ErrorCode.fromCode("70002"));
         assertEquals(ErrorCode.DATABASE_ERROR, ErrorCode.fromCode("80004"));
         assertEquals(ErrorCode.VALIDATION_ERROR, ErrorCode.fromCode("90001"));
+        // 统一错误码小刀 1 新增 3 类 (限流 / 任务 / 协作)
+        assertEquals(ErrorCode.RATE_LIMIT_EXCEEDED, ErrorCode.fromCode("100001"));
+        assertEquals(ErrorCode.TASK_NOT_FOUND, ErrorCode.fromCode("110001"));
+        assertEquals(ErrorCode.COLLABORATION_NOT_FOUND, ErrorCode.fromCode("120001"));
     }
 
     @Test
@@ -78,7 +86,7 @@ class ErrorCodeTest {
     // ==================== 错误码范围划分正确性 ====================
 
     @Test
-    @DisplayName("F1.3 - 错误码按区间划分验证（1xxxx = 通用, 7xxxx = 认证）")
+    @DisplayName("F1.3 - 错误码按区间划分验证（1xxxx = 通用, 7xxxx = 认证, 10xxxx = 限流, 11xxxx = 任务, 12xxxx = 协作）")
     void testErrorCodeRangeClassification() {
         // 1xxxx 通用错误
         assertTrue(ErrorCode.SYSTEM_ERROR.getCode().startsWith("1"));
@@ -91,6 +99,18 @@ class ErrorCodeTest {
 
         // 9xxxx Validation 错误
         assertTrue(ErrorCode.VALIDATION_ERROR.getCode().startsWith("9"));
+
+        // 10xxxx 限流 / 配额 (统一错误码小刀 1)
+        assertTrue(ErrorCode.RATE_LIMIT_EXCEEDED.getCode().startsWith("10"));
+        assertTrue(ErrorCode.API_KEY_QUOTA_EXCEEDED.getCode().startsWith("10"));
+
+        // 11xxxx 任务 / 队列
+        assertTrue(ErrorCode.TASK_NOT_FOUND.getCode().startsWith("11"));
+        assertTrue(ErrorCode.TASK_DEAD_LETTER.getCode().startsWith("11"));
+
+        // 12xxxx 协作 / 子任务
+        assertTrue(ErrorCode.COLLABORATION_NOT_FOUND.getCode().startsWith("12"));
+        assertTrue(ErrorCode.SUBTASK_EXECUTION_FAILED.getCode().startsWith("12"));
     }
 
     // ==================== 消息非空验证 ====================

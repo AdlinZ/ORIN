@@ -85,7 +85,36 @@ public enum ErrorCode {
     VALIDATION_ERROR("90001", "数据验证失败"),
     VALIDATION_REQUIRED_FIELD("90002", "必填字段缺失"),
     VALIDATION_INVALID_FORMAT("90003", "格式不正确"),
-    VALIDATION_OUT_OF_RANGE("90004", "数值超出范围");
+    VALIDATION_OUT_OF_RANGE("90004", "数值超出范围"),
+
+    // ============================================
+    // 限流 / 配额 (10xxxx)
+    // ============================================
+    // 区别于 10005 TOO_MANY_REQUESTS (通用入口限流), 这里是细分的限流语义
+    RATE_LIMIT_EXCEEDED("100001", "请求频率超限"),
+    API_KEY_QUOTA_EXCEEDED("100002", "API Key 配额超限"),
+    API_KEY_RATE_LIMITED("100003", "API Key 调用频率超限"),
+    CONCURRENCY_LIMIT_EXCEEDED("100004", "并发数超限"),
+
+    // ============================================
+    // 任务 / 队列 (11xxxx)
+    // ============================================
+    TASK_NOT_FOUND("110001", "任务未找到"),
+    TASK_EXECUTION_FAILED("110002", "任务执行失败"),
+    TASK_TIMEOUT("110003", "任务执行超时"),
+    TASK_DEAD_LETTER("110004", "任务进入死信队列"),
+    TASK_CANCELLED("110005", "任务已取消"),
+    TASK_RETRY_EXHAUSTED("110006", "任务重试次数耗尽"),
+
+    // ============================================
+    // 协作 / 子任务 (12xxxx)
+    // ============================================
+    COLLABORATION_NOT_FOUND("120001", "协作包未找到"),
+    COLLABORATION_PACKAGE_DECOMPOSE_FAILED("120002", "协作包分解失败"),
+    COLLABORATION_PACKAGE_INVALID_STATE("120003", "协作包状态非法"),
+    SUBTASK_NOT_FOUND("120004", "子任务未找到"),
+    SUBTASK_EXECUTION_FAILED("120005", "子任务执行失败"),
+    SUBTASK_INVALID_TRANSITION("120006", "子任务状态流转非法");
 
     /**
      * 错误代码
