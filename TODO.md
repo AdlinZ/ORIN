@@ -570,7 +570,9 @@ TraceID MQ 传播（2d）
 
 ### Phase 1.5：权限完善（Phase 1 收尾后）
 
-- [ ] `P1` **资源级 ACL**：`AgentManageService`、`KnowledgeManageService`、`WorkflowService` 补充数据行级归属校验，当前仅路由级角色判断
+- [~] `P1` **资源级 ACL**：`AgentManageService`、`KnowledgeManageService`、`WorkflowService` 补充数据行级归属校验，当前仅路由级角色判断
+  - KB 第 1 刀已完成（`7a5818f4`）：V92 migration + `KnowledgeBase.ownerUserId` + `KnowledgeOwnershipResolver` + 5 个 CRUD 方法 owner 校验 + `KnowledgeManageServiceAclTest` 7 用例全绿
+  - Agent 第 2 刀 / Workflow 第 3 刀待续；现有 NULL owner KB 视为系统级（admin/operator 可见，普通用户不可见），暂不做数据回填
 - [ ] `P1` **API Key 端点限流**：`/v1/mcp/**` 绑定独立限流策略，当前限流拦截器未覆盖 MCP 路径
 - [ ] `P1` **角色视图收敛**：`ROLE_OPERATOR` 确认隐藏系统设置与组织权限顶级菜单；`ROLE_USER` 门户页补充 API Key 自助入口可见性控制
 
