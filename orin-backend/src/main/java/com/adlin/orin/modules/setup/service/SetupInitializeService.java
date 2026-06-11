@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.setup.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.audit.service.AuditHelper;
@@ -52,7 +54,7 @@ public class SetupInitializeService {
             case "siliconflow" -> modelConfigService.testSiliconFlowConnection(endpoint, apiKey, model);
             case "ollama" -> modelConfigService.testOllamaConnection(endpoint, apiKey, model);
             case "dify" -> modelConfigService.testDifyConnection(endpoint, apiKey);
-            default -> throw new IllegalArgumentException("不支持的 Provider: " + provider);
+            default -> throw new BusinessException(ErrorCode.AGENT_PROVIDER_UNSUPPORTED, "不支持的 Provider: " + provider);
         };
     }
 
@@ -90,15 +92,15 @@ public class SetupInitializeService {
 
     private SysUser upsertAdmin(AdminSetupRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("管理员信息不能为空");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "管理员信息不能为空");
         }
         String username = trim(request.getUsername());
         String password = trim(request.getPassword());
         if (username.isBlank()) {
-            throw new IllegalArgumentException("管理员用户名不能为空");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "管理员用户名不能为空");
         }
         if (password.length() < 8) {
-            throw new IllegalArgumentException("管理员密码至少 8 位");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "管理员密码至少 8 位");
         }
 
         String email = trim(request.getEmail());
@@ -109,10 +111,10 @@ public class SetupInitializeService {
         if (existingEmail.isPresent()
                 && user.getUserId() != null
                 && !existingEmail.get().getUserId().equals(user.getUserId())) {
-            throw new IllegalArgumentException("管理员邮箱已被其他用户使用");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "管理员邮箱已被其他用户使用");
         }
         if (existingEmail.isPresent() && user.getUserId() == null) {
-            throw new IllegalArgumentException("管理员邮箱已被其他用户使用");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "管理员邮箱已被其他用户使用");
         }
 
         user.setUsername(username);
@@ -169,7 +171,7 @@ public class SetupInitializeService {
             return null;
         }
         if (!isSupportedProvider(provider)) {
-            throw new IllegalArgumentException("不支持的 Provider: " + provider);
+            throw new BusinessException(ErrorCode.AGENT_PROVIDER_UNSUPPORTED, "不支持的 Provider: " + provider);
         }
         if (!apiKey.isBlank() && !encryptionUtil.isEncryptionEnabled()) {
             throw new IllegalStateException("ENCRYPTION_KEY_REQUIRED");
@@ -224,7 +226,7 @@ public class SetupInitializeService {
                     config.setDifyEndpoint(endpoint);
                 }
             }
-            default -> throw new IllegalArgumentException("不支持的 Provider: " + provider);
+            default -> throw new BusinessException(ErrorCode.AGENT_PROVIDER_UNSUPPORTED, "不支持的 Provider: " + provider);
         }
         config.setDifyApiKey(null);
         config.setSiliconFlowApiKey(null);
