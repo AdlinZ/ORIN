@@ -4,6 +4,8 @@ import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
 import com.adlin.orin.gateway.dto.EmbeddingRequest;
 import com.adlin.orin.gateway.dto.EmbeddingResponse;
+import com.adlin.orin.gateway.dto.TranscriptionRequest;
+import com.adlin.orin.gateway.dto.TranscriptionResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -88,9 +90,22 @@ public interface ProviderAdapter {
 
     /**
      * 估算请求成本
-     * 
+     *
      * @param request 请求
      * @return 估算成本（美元）
      */
     double estimateCost(ChatCompletionRequest request);
+
+    /**
+     * 转写（ASR）—— 默认不支持。
+     * <p>Provider 默认抛出 {@link UnsupportedOperationException}；由具备转写能力的 Provider 覆盖
+     * <p>典型调用方：AsrService 转写音频；调用前应已通过 RouterService 选定 provider
+     *
+     * @param request 转写请求
+     * @return 转写响应（异步 Mono）
+     */
+    default Mono<TranscriptionResponse> transcribe(TranscriptionRequest request) {
+        return Mono.error(new UnsupportedOperationException(
+                "Provider " + getProviderType() + " does not support transcription"));
+    }
 }

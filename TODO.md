@@ -575,6 +575,18 @@ TraceID MQ 传播（2d）
   - AI Engine：`TaskRuntime` cancellation 路径异步测试
   - 集成测试：`WorkflowProxyControllerTest` 加 `@Tag("integration")`，CI 默认跳过
 
+### 横切治理 · ProviderAdapter 多模态扩展（2026-06-11，第 1 刀）
+
+OCR/ASR 按模型路由的前置条件：扩展 `ProviderAdapter` 支持多模态 content 与转写通道。本刀只动 gateway 内部，未改 OCR/ASR service，下一刀再迁移。
+
+- [x] `P1` `ChatCompletionRequest.Message` 新增 `List<ContentPart> parts` 多模态字段（OpenAI 兼容：text / image_url + image_url:{url,detail}），同时保留 2 参位置构造器避免 `KnowledgeWorkflowEngine` 失配
+- [x] `P1` 新增 `TranscriptionRequest` / `TranscriptionResponse` DTO（model + audioUrl[http 或 base64 data URI] + mimeType/language/providerParams）
+- [x] `P1` `ProviderAdapter` 新增 `default Mono<TranscriptionResponse> transcribe(TranscriptionRequest)`，未覆盖 provider 返回 `Mono.error(UnsupportedOperationException)`
+- [x] `P1` `OpenAIProviderAdapter.buildOpenAIRequest` 在 `parts` 非空时按多模态序列化（`content` 字段输出 parts 数组，image_url 走 snake_case），`parts` 为空回退 `content` 字符串
+- [x] `P1` 新增 targeted 单测：`OpenAIProviderAdapterContentPartsTest`（4 例：textOnly / multimodal / parts 优先 / 空回退）、`ProviderAdapterTranscribeDefaultTest`（default 抛 UnsupportedOperationException）
+- [x] `P1` `mvn compile` 干净通过；`mvn test -Dtest=OpenAIProviderAdapterContentPartsTest,ProviderAdapterTranscribeDefaultTest,RouterServiceTest` 9/9 绿
+- [ ] `P1` **下一刀**：OCR/ASR service 改用 `RouterService` + 新多模态通道；删除三家云厂商 stub（OcrService.ocrWithAliCloud/TencentCloud/Baidu，AsrService.transcribeWithAliCloud/TencentCloud/XunFei）
+
 ---
 
 ### 暂缓事项
