@@ -1,40 +1,44 @@
 package com.adlin.orin.modules.multimodal.service;
 
+import com.adlin.orin.gateway.adapter.ProviderAdapter;
+import com.adlin.orin.gateway.dto.ChatCompletionRequest;
+import com.adlin.orin.gateway.dto.TranscriptionRequest;
+import com.adlin.orin.gateway.dto.TranscriptionResponse;
+import com.adlin.orin.gateway.service.RouterService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.*;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * ASR（自动语音识别）服务。
  * <p>对外只暴露 {@link #transcribe(String, String)}，由 model 名决定路由：
  * <ul>
  *   <li>model 名称包含 {@code whisper}（大小写不敏感）→ 走本地 Whisper CLI</li>
- *   <li>其它 → 走 SiliconFlow ASR HTTP（与历史契约一致）</li>
+ *   <li>其它 → 走 {@link RouterService#selectProviderByType} 选 transcribe adapter，由
+ *       adapter（如 {@code SiliconFlowTranscriptionAdapter}）调 {@code ProviderAdapter.transcribe}</li>
  * </ul>
- * <p>历史三家云厂商（aliCloud / tencent / xunfei）stub 已删除；后续若需新增，
- * 应以 {@code ProviderAdapter} 子接口或新 provider 形式注入，不要在本类罗列厂商。
- * <p>ProviderAdapter.transcribe 通道的实装（{@code SiliconFlowTranscriptionAdapter}）
- * 留待后续切片，本刀仍由本服务直接发 HTTP。
+ * <p>历史三家云厂商（aliCloud / tencent / xunfei）stub 已删除；新增转写能力以
+ * {@code ProviderAdapter} 子接口或新 provider 形式注入。
  */
 @Slf4j
 @Service
 public class AsrService {
 
-    @Value("${siliconflow.api.key:}")
-    private String siliconFlowApiKey;
+    private static final String TRANSCRIPTION_PROVIDER_TYPE = "siliconflow-asr";
 
-    @Value("${siliconflow.api.base-url:https://api.siliconflow.cn/v1}")
-    private String siliconFlowBaseUrl;
+    private final RouterService routerService;
+    private final ObjectMapper objectMapper;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    public AsrService(RouterService routerService, ObjectMapper objectMapper) {
+        this.routerService = routerService;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * 用指定 ASR 模型转写音频。
@@ -54,7 +58,7 @@ public class AsrService {
         if (isWhisperModel(model)) {
             return transcribeWithWhisperCli(audioPath);
         }
-        return transcribeWithSiliconFlowAsr(audioPath, model);
+        return transcribeViaProvider(audioPath, model);
     }
 
     /**
@@ -69,60 +73,64 @@ public class AsrService {
     }
 
     /**
-     * 用 SiliconFlow ASR 转写音频。
+     * 通过 RouterService 选 transcribe adapter，调 {@code provider.transcribe()}。
+     * <p>为符合 {@code RouterService.selectLowestCost} 成本估算接口，构造一个 dummy
+     * ChatCompletionRequest（仅 model 字段）作为 routing-only DTO，不参与实际请求。
      */
-    @SuppressWarnings("unchecked")
-    private String transcribeWithSiliconFlowAsr(String audioPath, String model) {
-        if (siliconFlowApiKey == null || siliconFlowApiKey.isEmpty()) {
-            log.warn("SiliconFlow API key not configured, ASR failed");
-            return "[ASR Error] SiliconFlow API key not configured";
+    private String transcribeViaProvider(String audioPath, String model) {
+        Path audioFile = Path.of(audioPath);
+        if (!Files.exists(audioFile)) {
+            log.warn("Audio file not found: {}", audioPath);
+            return "[ASR Error] Audio file not found: " + audioPath;
         }
 
+        String audioUrl;
         try {
-            Path audioFile = Path.of(audioPath);
-            if (!Files.exists(audioFile)) {
-                log.warn("Audio file not found: {}", audioPath);
-                return "[ASR Error] Audio file not found: " + audioPath;
-            }
-
             byte[] audioBytes = Files.readAllBytes(audioFile);
             String mimeType = Files.probeContentType(audioFile);
             if (mimeType == null) {
                 mimeType = "audio/mpeg";
             }
-            String base64Audio = "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(audioBytes);
-
-            String endpoint = siliconFlowBaseUrl + "/audio/transcriptions";
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", model);
-            requestBody.put("audio_url", base64Audio);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(siliconFlowApiKey);
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<String> response = restTemplate.postForEntity(endpoint, entity, String.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> responseMap = objectMapper.readValue(response.getBody(), Map.class);
-                String text = (String) responseMap.get("text");
-                if (text != null && !text.trim().isEmpty()) {
-                    log.info("SiliconFlow ASR succeeded, extracted {} chars", text.length());
-                    return text.trim();
-                } else {
-                    log.info("SiliconFlow ASR: no speech detected");
-                    return "";
-                }
-            }
-
-            log.warn("SiliconFlow ASR returned unexpected response");
-            return "[ASR Error] Unexpected response from SiliconFlow";
-
+            audioUrl = "data:" + mimeType + ";base64,"
+                    + Base64.getEncoder().encodeToString(audioBytes);
         } catch (Exception e) {
-            log.error("SiliconFlow ASR failed: {}", e.getMessage(), e);
+            log.error("Failed to read audio file: {}", e.getMessage(), e);
+            return "[ASR Error] " + e.getMessage();
+        }
+
+        TranscriptionRequest transcriptionRequest = TranscriptionRequest.builder()
+                .model(model)
+                .audioUrl(audioUrl)
+                .build();
+
+        ChatCompletionRequest routingDummy = ChatCompletionRequest.builder()
+                .model(model)
+                .build();
+        Optional<ProviderAdapter> providerOpt =
+                routerService.selectProviderByType(TRANSCRIPTION_PROVIDER_TYPE, routingDummy);
+        if (providerOpt.isEmpty()) {
+            log.warn("No healthy transcription provider available (type={}, model={})",
+                    TRANSCRIPTION_PROVIDER_TYPE, model);
+            return "[ASR Error] No healthy provider for transcription model " + model;
+        }
+
+        ProviderAdapter provider = providerOpt.get();
+        try {
+            TranscriptionResponse response = provider.transcribe(transcriptionRequest).block();
+            if (response == null) {
+                log.warn("Transcription provider {} returned null response", provider.getProviderName());
+                return "[ASR Error] Empty response from provider " + provider.getProviderName();
+            }
+            String text = response.getText();
+            if (text == null) {
+                return "";
+            }
+            log.info("ASR via {} succeeded, model={}, chars={}",
+                    provider.getProviderName(), model, text.length());
+            return text;
+        } catch (Exception e) {
+            log.error("ASR via {} failed for model={}: {}",
+                    provider.getProviderName(), model, e.getMessage(), e);
             return "[ASR Error] " + e.getMessage();
         }
     }
