@@ -165,10 +165,7 @@ public class AsrService {
      * @return 识别的文字
      */
     public String transcribeWithAliCloud(String audioPath, String accessKeyId, String accessKeySecret) {
-        // TODO: 实现阿里云 ASR 集成
-        // 阿里云 ASR API: https://help.aliyun.com/document_detail/306441.html
-        log.info("AliCloud ASR not implemented yet");
-        return "[ASR Error] AliCloud ASR not implemented";
+        throw new UnsupportedOperationException("AliCloud ASR not implemented");
     }
 
     /**
@@ -180,10 +177,7 @@ public class AsrService {
      * @return 识别的文字
      */
     public String transcribeWithTencentCloud(String audioPath, String secretId, String secretKey) {
-        // TODO: 实现腾讯云 ASR 集成
-        // 腾讯云 ASR API: https://cloud.tencent.com/document/product/1093/37850
-        log.info("TencentCloud ASR not implemented yet");
-        return "[ASR Error] TencentCloud ASR not implemented";
+        throw new UnsupportedOperationException("TencentCloud ASR not implemented");
     }
 
     /**
@@ -195,9 +189,6 @@ public class AsrService {
      * @return 识别的文字
      */
     public String transcribeWithXunFei(String audioPath, String appId, String apiKey) {
-        // TODO: 实现讯飞 ASR 集成
-        // 讯飞 ASR API: https://www.xfyun.cn/doc/asr/online_asr/Chinese.html
-        log.info("XunFei ASR not implemented yet");
-        return "[ASR Error] XunFei ASR not implemented";
+        throw new UnsupportedOperationException("XunFei ASR not implemented");
     }
 }

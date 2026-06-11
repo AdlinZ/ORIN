@@ -13,16 +13,18 @@
 - `orin-frontend/`：Vue 3 + Vite + Element Plus · 管理台
 - `orin-ai-engine/`：Python 3.11 + FastAPI + LangGraph · 工作流/协作执行层（不持久化业务数据）
 
-### 1.1 当前推进口径（2026-06-04）
+### 1.1 当前推进口径（2026-06-11）
 
 当前不要再优先扩新菜单或堆新模块。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立，后续开发按以下顺序收敛：
 
-1. **Phase 1 收口**：真实后端联调下的浏览器 E2E、协作人工干预验收、真实 Agent / MCP 子任务样本、外部 MCP 客户端展示资产。
-2. **Phase 1.5 角色化体验**：普通用户门户、运维工作台、管理员总览、资源级 ACL。
-3. **Phase 2 质量与可观测**：统一错误码、`traceparent`、JSON 日志、OTel / Jaeger、覆盖率红线。
+1. **Phase 1 收口**（当前 Sprint）：真实后端联调下的浏览器 E2E、协作人工干预验收、真实 Agent / MCP 子任务样本、OCR 空桩修复、外部 MCP 客户端展示资产。
+2. **Phase 1.5 角色化体验**：资源级 ACL、API Key 端点限流、角色专属视图收敛。
+3. **Phase 2 质量与可观测**：统一错误码、`traceparent` 跨 MQ 传播、JSON 结构化日志、OTel / Jaeger、覆盖率红线。
 4. **Phase 3/4 安全运维与社区化**：备份恢复、默认凭据治理、v0.1.0 release、README 截图 / GIF。
 
-短期最优先 PR：**真实后端协作 E2E + Agent/MCP 子任务验收样本**。判断完成度仍以“前端入口 + Java service + Python AI Engine + smoke / E2E 验收”同时成立为准。
+**2026-06-11 安全修复已合并 main**：JWT roles 缺失时拒绝认证（不再 fallback 到 `ROLE_USER`）；ASR 三个云端空桩改为抛异常。详见 [TODO.md](./TODO.md) 审核修复记录。
+
+短期最优先 PR：**真实后端协作 E2E + OCR 空桩修复 + Agent/MCP 子任务验收样本**。判断完成度仍以”前端入口 + Java service + Python AI Engine + smoke / E2E 验收”同时成立为准。
 
 ## 2. 启动前必读
 
@@ -124,6 +126,7 @@ bash scripts/smoke-test.sh
 - 默认密码、示例密钥、`JWT_SECRET` 不得 hardcode 进代码，必须从环境变量读取
 - 跨域 `CORS_ALLOWED_ORIGINS` 不得为 `*`
 - 所有写操作 / 敏感读取要写入审计日志
+- **JWT token 必须携带 `roles` claim**：`JwtAuthenticationFilter` 在 token 缺少 `roles` 时拒绝认证而非 fallback 到默认角色。`generateToken` 调用方必须传入角色列表；`refreshToken` 会自动保留原 claims，无需额外处理
 
 ### 5.4 流程层
 
@@ -203,6 +206,8 @@ bash scripts/smoke-test.sh
 - [ ] 涉及环境变量已同步 [docs/部署指南.md](./docs/部署指南.md)
 - [ ] 单测覆盖关键路径
 - [ ] 不打印敏感字段、不提交 `.env`
+- [ ] 新增 `generateToken` 调用已传入 `roles` claim（防止 JWT 认证被拒绝）
+- [ ] 新增未实现方法抛 `UnsupportedOperationException` 而非返回错误字符串
 
 ## 8. 协作工作模式
 

@@ -503,6 +503,91 @@
 
 ---
 
+## 代码审核修复记录（2026-06-11）
+
+以下问题由 Kiro 代码审核发现并已修复，提交至 main：
+
+### 已修复 P0
+
+- [x] `P0` **JWT 角色验证漏洞**：`JwtAuthenticationFilter` 移除 `ROLE_USER` fallback，token 缺少 `roles` claim 时直接拒绝认证，不再以低权限身份放行
+  - 文件：`orin-backend/.../security/JwtAuthenticationFilter.java`
+- [x] `P0` **ASR 空桩改为异常**：`AsrService` 阿里云、腾讯云、讯飞三个未实现方法从返回错误字符串改为抛 `UnsupportedOperationException`，调用方可明确区分未实现与运行时错误
+  - 文件：`orin-backend/.../multimodal/service/AsrService.java`
+- [x] `P0` **`.env` 未被 git 追踪**（验证，无需操作）：确认 `.env` 已在 `.gitignore` 中且未被追踪，内容为占位符模板
+
+### 已修复 P1
+
+- [x] `P1` **KnowledgeWorkflowEngine AGENT 步骤真实化**：注入 `RouterService`，`executeAgentStep` 从 mock 字符串改为通过网关调用真实 LLM Provider；provider 不可用时返回含 `error` 键的 Map
+  - 文件：`orin-backend/.../knowledge/component/KnowledgeWorkflowEngine.java`
+- [x] `P1` **MilvusVectorService 日志级别修正**：三处 `log.warn("DEBUG: ...")` 改为 `log.debug`，不再污染生产告警日志
+  - 文件：`orin-backend/.../knowledge/service/MilvusVectorService.java`
+- [x] `P1` **前端路由双轨制**（验证，无需操作）：确认旧路径均为 redirect 规则，守卫逻辑统一走 `topMenuConfig.js` 角色集合，无双轨制冲突
+
+---
+
+## 后续开发计划（2026-06-11）
+
+### 执行顺序
+
+```
+OCR 空桩修复（~1h）
+    ↓
+协同页面真实 E2E 联调（2–3d）
+    ↓
+MCP tools/call 验收 + 录屏（1d）
+    ↓
+资源级 ACL（3–4d）
+    ↓
+统一错误码（2d）
+    ↓
+TraceID MQ 传播（2d）
+    ↓
+结构化日志 + 测试补齐（3–4d）
+```
+
+---
+
+### Phase 1 收尾（当前 Sprint）
+
+- [ ] `P0` **OCR 空桩**：`OcrService` 阿里云、腾讯云、百度三个方法与 ASR 同步改为抛 `UnsupportedOperationException`
+  - 文件：`orin-backend/.../multimodal/service/OcrService.java`
+- [~] `P0` **协同人工干预真实联调**：协同页面 pause/resume/terminate 接口对接真实后端，替换现有 mock；Playwright E2E 已覆盖 mock，需补真实后端 E2E 场景
+- [~] `P0` **工作流子任务烟雾测试**：补齐 RabbitMQ + AI Engine worker + 后端 listener 完整链路端到端验收
+- [ ] `P0` **MCP `tools/call` 验收录屏**：在 Claude Desktop / Cursor 下执行 `tools/call`，录制截图/GIF 作为功能凭证；补充工具隔离和资源清理异常路径测试
+
+---
+
+### Phase 1.5：权限完善（Phase 1 收尾后）
+
+- [ ] `P1` **资源级 ACL**：`AgentManageService`、`KnowledgeManageService`、`WorkflowService` 补充数据行级归属校验，当前仅路由级角色判断
+- [ ] `P1` **API Key 端点限流**：`/v1/mcp/**` 绑定独立限流策略，当前限流拦截器未覆盖 MCP 路径
+- [ ] `P1` **角色视图收敛**：`ROLE_OPERATOR` 确认隐藏系统设置与组织权限顶级菜单；`ROLE_USER` 门户页补充 API Key 自助入口可见性控制
+
+---
+
+### Phase 2：可观测性与工程质量
+
+- [ ] `P1` **统一错误码**：后端公共异常处理层定义错误码枚举（格式：`ORIN-XXXX`），覆盖认证、授权、限流、模型调用失败；Python 侧 `task_runtime.py` 对齐同一结构
+- [ ] `P1` **TraceID 跨 MQ 传播**：RabbitMQ 发布时写入 `traceparent` 头，worker 消费时提取绑定 span，目标是 HTTP → AI Engine 调用链在 Jaeger 中完整可见
+- [ ] `P2` **结构化 JSON 日志**：后端接入 `logstash-logback-encoder`，日志包含 `traceId`、`userId`、`agentId` 字段，为后续 ELK / Grafana Loki 接入做准备
+- [ ] `P2` **测试覆盖补齐**：
+  - 后端：`JwtAuthenticationFilter`（roles 缺失拒绝逻辑）、`KnowledgeWorkflowEngine`（AGENT/SKILL/LOGIC 三类步骤）单元测试
+  - AI Engine：`TaskRuntime` cancellation 路径异步测试
+  - 集成测试：`WorkflowProxyControllerTest` 加 `@Tag("integration")`，CI 默认跳过
+
+---
+
+### 暂缓事项
+
+以下功能在核心链路稳定前不启动：
+
+- `[ ]` AutoGen / CrewAI 集成（当前占位符，等 Phase 1 协同链路稳定后评估）
+- `[ ]` Langfuse / Prometheus / Jaeger 三方监控 UI 统一（等结构化日志落地后再整合）
+- `[ ]` 云端 ASR/OCR 实现（阿里云、腾讯云等，空桩已改为异常，按需实现）
+- `[ ]` Nacos/Consul 配置中心接入（`RouterService` 当前优先级路由够用）
+
+---
+
 ## 已完成历史事项
 
 - [x] 集成 Milvus 向量引擎，支持知识库的增删改查及向量检索

@@ -874,7 +874,7 @@ public class MilvusVectorService implements VectorStoreProvider {
             }
 
             SearchResults searchResults = response.getData();
-            log.warn("DEBUG: searchResults = {}", searchResults);
+            log.debug("searchResults = {}", searchResults);
 
             io.milvus.response.SearchResultsWrapper wrapper = new io.milvus.response.SearchResultsWrapper(
                     searchResults.getResults());
@@ -884,7 +884,7 @@ public class MilvusVectorService implements VectorStoreProvider {
 
             // Debug: print raw results
             if (scores.size() > 0) {
-                log.warn("DEBUG: Got {} search results, first score: {}", scores.size(), scores.get(0).getScore());
+                log.debug("Got {} search results, first score: {}", scores.size(), scores.get(0).getScore());
             }
 
             // Debug: Query actual data count in partition
@@ -899,7 +899,7 @@ public class MilvusVectorService implements VectorStoreProvider {
                             .withVectorFieldName("embedding")
                             .build();
                     R<SearchResults> debugResponse = client.search(debugSearchParam);
-                    log.warn("DEBUG: Search entire collection (no partition) status: {}, results: {}",
+                    log.debug("Search entire collection (no partition) status: {}, results: {}",
                             debugResponse.getStatus(),
                             debugResponse.getData() != null ? "got data" : "no data");
                 } catch (Exception e) {

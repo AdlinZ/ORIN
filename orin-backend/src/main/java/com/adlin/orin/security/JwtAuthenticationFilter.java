@@ -72,17 +72,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtService.extractAllClaims(jwt);
                 List<String> roles = (List<String>) claims.get("roles");
 
-                List<GrantedAuthority> authorities;
-                if (roles != null && !roles.isEmpty()) {
-                    authorities = roles.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
-                } else {
-                    // Fallback to basic role if none found (caution: this might
-                    // over/under-privilege)
-                    // Better approach: UserDetailsService.loadByUsername(...)
-                    authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+                if (roles == null || roles.isEmpty()) {
+                    log.warn("JWT token missing roles claim for user {}, rejecting", username);
+                    filterChain.doFilter(request, response);
+                    return;
                 }
+
+                List<GrantedAuthority> authorities = roles.stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toList());
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userId, // principal
