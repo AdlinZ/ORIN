@@ -600,6 +600,43 @@ TraceID MQ 传播（2d）
   - AI Engine：`TaskRuntime` cancellation 路径异步测试
   - 集成测试：`WorkflowProxyControllerTest` 加 `@Tag("integration")`，CI 默认跳过
 
+### 横切治理 · ProviderAdapter 多模态扩展（2026-06-11，第 1 刀）
+
+OCR/ASR 按模型路由的前置条件：扩展 `ProviderAdapter` 支持多模态 content 与转写通道。本刀只动 gateway 内部，未改 OCR/ASR service，下一刀再迁移。
+
+- [x] `P1` `ChatCompletionRequest.Message` 新增 `List<ContentPart> parts` 多模态字段（OpenAI 兼容：text / image_url + image_url:{url,detail}），同时保留 2 参位置构造器避免 `KnowledgeWorkflowEngine` 失配
+- [x] `P1` 新增 `TranscriptionRequest` / `TranscriptionResponse` DTO（model + audioUrl[http 或 base64 data URI] + mimeType/language/providerParams）
+- [x] `P1` `ProviderAdapter` 新增 `default Mono<TranscriptionResponse> transcribe(TranscriptionRequest)`，未覆盖 provider 返回 `Mono.error(UnsupportedOperationException)`
+- [x] `P1` `OpenAIProviderAdapter.buildOpenAIRequest` 在 `parts` 非空时按多模态序列化（`content` 字段输出 parts 数组，image_url 走 snake_case），`parts` 为空回退 `content` 字符串
+- [x] `P1` 新增 targeted 单测：`OpenAIProviderAdapterContentPartsTest`（4 例：textOnly / multimodal / parts 优先 / 空回退）、`ProviderAdapterTranscribeDefaultTest`（default 抛 UnsupportedOperationException）
+- [x] `P1` `mvn compile` 干净通过；`mvn test -Dtest=OpenAIProviderAdapterContentPartsTest,ProviderAdapterTranscribeDefaultTest,RouterServiceTest` 9/9 绿
+- [ ] `P1` **下一刀**：OCR/ASR service 改用 `RouterService` + 新多模态通道；删除三家云厂商 stub（OcrService.ocrWithAliCloud/TencentCloud/Baidu，AsrService.transcribeWithAliCloud/TencentCloud/XunFei）
+
+### OCR/ASR 迁移到 ProviderAdapter 路由（2026-06-11，第 2 刀）
+
+承接第 1 刀的多模态能力，把 OCR 真正切到 `RouterService + provider.chatCompletion`，ASR 走「whisper → 本地 CLI / 其它 → SiliconFlow HTTP」模型路由；删除三家云厂商 stub。
+
+- [x] `P0` `OcrService.recognize(imageUrl, model)`：内部构造多模态 `ChatCompletionRequest`（system prompt + 文本指令 + image_url 部件），经 `RouterService.selectProviderByModel` 选 provider，调用 `provider.chatCompletion(req).block()` 提取文本；缺 provider / provider 抛错 / 响应空都返回 `[OCR Error] ...`，保留与历史契约一致
+- [x] `P0` 删除 `OcrService.ocrWithSiliconFlowVlm(imageUrl)` 无参 overload + `OcrService.ocrWithAliCloud/TencentCloud/Baidu` 三个 stub
+- [x] `P0` `AsrService.transcribe(audioPath, model)`：model 包含 `whisper`（大小写不敏感）→ 本地 Whisper CLI；其它 → SiliconFlow ASR HTTP（保留原有 RestTemplate 实现，未在本刀抽到 `ProviderAdapter.transcribe` 通道）
+- [x] `P0` 删除 `AsrService.transcribeWithSiliconFlowAsr(audioPath)` 无参 overload + `AsrService.transcribeWithAliCloud/TencentCloud/XunFei` 三个 stub
+- [x] `P0` `ImageParser.parseWithCloud` / `AudioParser.parseWithCloud` 改为新方法名（`recognize` / `transcribe`）
+- [x] `P0` 新增 targeted 单测：`OcrServiceTest` 8 例（null/blank 参数、no provider、文本提取、NO_TEXT_DETECTED → 空串、provider 抛错、多模态 parts 构造）、`AsrServiceTest` 6 例（参数校验、SiliconFlow 无 key、whisper CLI 不可用、音频文件不存在）
+- [x] `P0` `mvn compile` 干净通过；`mvn test -Dtest=OcrServiceTest,AsrServiceTest,OpenAIProviderAdapterContentPartsTest,ProviderAdapterTranscribeDefaultTest,RouterServiceTest` 23/23 绿
+- [ ] `P1` **下一刀**：实装 `SiliconFlowTranscriptionAdapter implements ProviderAdapter`（override `transcribe` 走 SiliconFlow `/audio/transcriptions`），在 `GatewayProviderRefreshService` 注册为 `siliconflow-asr`，让 `AsrService.transcribe` 真正走 `RouterService.selectProviderByModel + provider.transcribe()`，删掉 AsrService 内部 RestTemplate 硬码
+
+### ASR 转写通道实装（2026-06-11，第 3 刀）
+
+承接第 1 刀的 `ProviderAdapter.transcribe` 通道与第 2 刀的 AsrService stub 删除，把 ASR 转写真正切到「按 provider type 路由 + provider.transcribe」，删 AsrService 内部 RestTemplate / `@Value` 硬码。
+
+- [x] `P1` 新增 `SiliconFlowTranscriptionAdapter implements ProviderAdapter`：`getProviderType="siliconflow-asr"`，override `transcribe` POST `{baseUrl}/audio/transcriptions` 携带 Bearer 头和 `{model, audio_url[, language]}`；`chatCompletion/chatCompletionStream/embedding` 按 ASR-only 语义抛 `UnsupportedOperationException`；`estimateCost` 暂为 0
+- [x] `P1` `GatewayProviderRefreshService.registerSiliconFlowAsr`：与 chat adapter 共享 siliconflow 凭据，但 provider id / type 独立为 `siliconflow-asr`（避免抢同一注册键）；`refreshFromConfig` 增加对应 unregister + register 调用
+- [x] `P1` `AsrService` 注入 `RouterService` + `ObjectMapper`，删除 `siliconflowApiKey / siliconFlowBaseUrl` 两个 `@Value`、删除 `RestTemplate restTemplate = new RestTemplate()` 硬码、删除 `transcribeWithSiliconFlowAsr` 方法；`transcribeViaProvider` 走 `routerService.selectProviderByType("siliconflow-asr", dummyReq)` + `provider.transcribe(req).block()`；`isWhisperModel` 仍走本地 Whisper CLI
+- [x] `P1` 重写 `AsrServiceTest`（基于 RouterService mock 重新设计，10 例：参数校验、whisper CLI 路径、no provider / provider 抛错 / null 响应 / 文本提取 / 空文本），新增 `SiliconFlowTranscriptionAdapterTest`（16 例：providerType 名称、endpoint + body + Bearer 头校验、language 透传、缺 text → 空串、非 2xx 抛错、空 apiKey / blank audioUrl / null request / blank model 抛错、chat/embedding 仍 UnsupportedOperation、estimateCost=0、getModels stub、healthCheck 成功 + 失败两个路径）
+- [x] `P1` `mvn compile` 干净通过；`mvn test -Dtest=AsrServiceTest,SiliconFlowTranscriptionAdapterTest,OcrServiceTest,OpenAIProviderAdapterContentPartsTest,ProviderAdapterTranscribeDefaultTest,RouterServiceTest` 43/43 绿
+- [x] `P1` slice 1 / 2 五个测试类回归 18/18 绿（4+1+4+8+1），确认转写通道实装未污染既有 chat / parts / routing 路径
+- [ ] `P2` **未来可选**：将 ASR 路由也做成「按模型前缀」（如 `whisper-` / `funaudiollm-`）走 `RouterService.selectProviderByModel`，目前先按 provider type 直选；本刀范围内不引入额外 RouterService 变更
+
 ---
 
 ### 暂缓事项

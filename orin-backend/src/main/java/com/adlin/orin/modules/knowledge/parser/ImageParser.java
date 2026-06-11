@@ -158,9 +158,9 @@ public class ImageParser implements DocumentParser {
             }
             String base64Image = "data:" + mimeType + ";base64," + Base64.getEncoder().encodeToString(imageBytes);
 
-            // 调用 SiliconFlow VLM OCR
+            // 调用 VLM OCR（由 OcrService 内部按 model 路由 provider）
             String model = config.getOrDefault("ocr_model", "Qwen/Qwen2-VL-7B-Instruct");
-            String extractedText = ocrService.ocrWithSiliconFlowVlm(base64Image, model);
+            String extractedText = ocrService.recognize(base64Image, model);
 
             if (extractedText.startsWith("[OCR Error]")) {
                 log.warn("SiliconFlow VLM OCR failed: {}", extractedText);

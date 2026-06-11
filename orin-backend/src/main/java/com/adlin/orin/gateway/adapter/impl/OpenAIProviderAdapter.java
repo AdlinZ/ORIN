@@ -264,16 +264,21 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
     /**
      * 构建OpenAI请求
      */
-    private Map<String, Object> buildOpenAIRequest(ChatCompletionRequest request) {
+    Map<String, Object> buildOpenAIRequest(ChatCompletionRequest request) {
         Map<String, Object> body = new HashMap<>();
         body.put("model", request.getModel());
 
         // 转换消息格式
-        List<Map<String, String>> messages = new ArrayList<>();
+        List<Map<String, Object>> messages = new ArrayList<>();
         for (ChatCompletionRequest.Message msg : request.getMessages()) {
-            Map<String, String> message = new HashMap<>();
+            Map<String, Object> message = new HashMap<>();
             message.put("role", msg.getRole());
-            message.put("content", msg.getContent());
+            // 多模态：parts 非空时按 parts 序列化（OpenAI 兼容多模态）
+            if (msg.getParts() != null && !msg.getParts().isEmpty()) {
+                message.put("content", msg.getParts());
+            } else {
+                message.put("content", msg.getContent());
+            }
             if (msg.getName() != null) {
                 message.put("name", msg.getName());
             }

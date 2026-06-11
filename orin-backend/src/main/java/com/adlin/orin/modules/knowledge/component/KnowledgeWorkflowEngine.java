@@ -149,7 +149,10 @@ public class KnowledgeWorkflowEngine {
         log.info("Calling Agent: {} with input keys={}", agentId, input.keySet());
         String prompt = input.getOrDefault("prompt", input.toString()).toString();
         ChatCompletionRequest request = ChatCompletionRequest.builder()
-                .messages(List.of(new ChatCompletionRequest.Message("user", prompt, null, null)))
+                .messages(List.of(ChatCompletionRequest.Message.builder()
+                        .role("user")
+                        .content(prompt)
+                        .build()))
                 .build();
         Optional<ProviderAdapter> provider = routerService.selectProvider(request, RouterService.RoutingStrategy.LOWEST_COST);
         if (provider.isEmpty()) {
