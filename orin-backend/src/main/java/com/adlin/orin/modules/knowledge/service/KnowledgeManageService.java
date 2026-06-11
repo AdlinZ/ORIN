@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
@@ -547,7 +549,7 @@ public class KnowledgeManageService {
                                 documentService.getDocuments(knowledgeBaseId);
 
                         if (docs == null || docs.isEmpty()) {
-                                throw new RuntimeException("知识库中没有文档，无法生成描述");
+                                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "知识库中没有文档，无法生成描述");
                         }
 
                         log.info("Generating description for KB: {}, found {} documents", knowledgeBaseId, docs.size());
@@ -644,7 +646,7 @@ public class KnowledgeManageService {
                         }
 
                         if (contentBuilder.length() == 0) {
-                                throw new RuntimeException("无法读取文档内容");
+                                throw new BusinessException(ErrorCode.OPERATION_FAILED, "无法读取文档内容");
                         }
 
                         String documentContent = contentBuilder.toString();
@@ -654,7 +656,7 @@ public class KnowledgeManageService {
 
                 } catch (Exception e) {
                         log.error("生成知识库描述失败: {}", e.getMessage(), e);
-                        throw new RuntimeException("生成描述失败: " + e.getMessage());
+                        throw new BusinessException(ErrorCode.OPERATION_FAILED, "生成描述失败: " + e.getMessage());
                 }
         }
 
@@ -695,7 +697,7 @@ public class KnowledgeManageService {
                                 endpoint = "https://api.siliconflow.cn/v1";
                         }
                         if (apiKey == null || apiKey.isEmpty()) {
-                                throw new RuntimeException("未配置 SiliconFlow API Key");
+                                throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "未配置 SiliconFlow API Key");
                         }
                         if (model == null || model.isEmpty()) {
                                 model = "Qwen/Qwen2-7B-Instruct";
@@ -743,26 +745,26 @@ public class KnowledgeManageService {
                                 });
 
                         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                                throw new RuntimeException("LLM API调用失败");
+                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM API调用失败");
                         }
 
                         @SuppressWarnings("unchecked")
                         List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
                         if (choices == null || choices.isEmpty()) {
-                                throw new RuntimeException("LLM未返回有效响应");
+                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM未返回有效响应");
                         }
 
                         @SuppressWarnings("unchecked")
                         Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                         if (message == null) {
-                                throw new RuntimeException("LLM响应格式错误");
+                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM响应格式错误");
                         }
 
                         String content = (String) message.get("content");
                         log.info("LLM原始响应: {}", content);
 
                         if (content == null || content.isEmpty()) {
-                                throw new RuntimeException("LLM返回内容为空");
+                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM返回内容为空");
                         }
 
                         // 解析JSON响应
@@ -788,7 +790,7 @@ public class KnowledgeManageService {
 
                 } catch (Exception e) {
                         log.error("调用LLM失败: {}", e.getMessage(), e);
-                        throw new RuntimeException("调用LLM失败: " + e.getMessage());
+                        throw new BusinessException(ErrorCode.MODEL_API_ERROR, "调用LLM失败: " + e.getMessage());
                 }
         }
 

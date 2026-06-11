@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
@@ -228,7 +230,7 @@ public class CollaborationOrchestrator {
                                           List<Map<String, Object>> explicitSubtasks) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
@@ -733,7 +735,7 @@ public class CollaborationOrchestrator {
         Optional<CollabSubtaskEntity> subtaskOpt = subtaskRepository.findByPackageIdAndSubTaskId(packageId, subTaskId);
 
         if (subtaskOpt.isEmpty()) {
-            throw new RuntimeException("Subtask not found: " + subTaskId);
+            throw new BusinessException(ErrorCode.SUBTASK_NOT_FOUND, "Subtask not found: " + subTaskId);
         }
 
         CollabSubtaskEntity subtask = subtaskOpt.get();
@@ -741,7 +743,7 @@ public class CollaborationOrchestrator {
 
         // 校验状态转换是否合法
         if (!isValidStatusTransition(currentStatus, status)) {
-            throw new IllegalStateException(
+            throw new BusinessException(ErrorCode.SUBTASK_INVALID_TRANSITION,
                     String.format("Invalid status transition: %s -> %s for subtask %s",
                             currentStatus, status, subTaskId));
         }
@@ -825,7 +827,7 @@ public class CollaborationOrchestrator {
     public CollaborationPackage executeFallback(String packageId, String reason) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
@@ -933,7 +935,7 @@ public class CollaborationOrchestrator {
     public CollaborationPackage complete(String packageId, String result) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
@@ -985,7 +987,7 @@ public class CollaborationOrchestrator {
     public CollaborationPackage fail(String packageId, String errorMessage) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
@@ -1012,14 +1014,14 @@ public class CollaborationOrchestrator {
     public CollaborationPackage pause(String packageId) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
         String currentStatus = entity.getStatus();
 
         if (!STATUS_EXECUTING.equals(currentStatus) && !STATUS_PLANNING.equals(currentStatus)) {
-            throw new IllegalStateException("Only EXECUTING or PLANNING packages can be paused, current: " + currentStatus);
+            throw new BusinessException(ErrorCode.COLLABORATION_PACKAGE_INVALID_STATE, "Only EXECUTING or PLANNING packages can be paused, current: " + currentStatus);
         }
 
         entity.setStatus(STATUS_PAUSED);
@@ -1038,14 +1040,14 @@ public class CollaborationOrchestrator {
     public CollaborationPackage resume(String packageId) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
         String currentStatus = entity.getStatus();
 
         if (!STATUS_PAUSED.equals(currentStatus)) {
-            throw new IllegalStateException("Only PAUSED packages can be resumed, current: " + currentStatus);
+            throw new BusinessException(ErrorCode.COLLABORATION_PACKAGE_INVALID_STATE, "Only PAUSED packages can be resumed, current: " + currentStatus);
         }
 
         entity.setStatus(STATUS_EXECUTING);
@@ -1064,14 +1066,14 @@ public class CollaborationOrchestrator {
     public CollaborationPackage cancel(String packageId) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
         String currentStatus = entity.getStatus();
 
         if (STATUS_COMPLETED.equals(currentStatus) || STATUS_FAILED.equals(currentStatus) || STATUS_CANCELLED.equals(currentStatus)) {
-            throw new IllegalStateException("Cannot cancel package in terminal state: " + currentStatus);
+            throw new BusinessException(ErrorCode.COLLABORATION_PACKAGE_INVALID_STATE, "Cannot cancel package in terminal state: " + currentStatus);
         }
 
         entity.setStatus(STATUS_CANCELLED);
@@ -1099,7 +1101,7 @@ public class CollaborationOrchestrator {
     public Map<String, Object> getRuntimeStatus(String packageId) {
         Optional<CollaborationPackageEntity> entityOpt = packageRepository.findByPackageId(packageId);
         if (entityOpt.isEmpty()) {
-            throw new RuntimeException("Package not found: " + packageId);
+            throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Package not found: " + packageId);
         }
 
         CollaborationPackageEntity entity = entityOpt.get();
@@ -1156,13 +1158,13 @@ public class CollaborationOrchestrator {
     public CollabSubtaskEntity manuallyHandleSubtask(String packageId, String subTaskId, String handlerInput) {
         Optional<CollabSubtaskEntity> subtaskOpt = subtaskRepository.findByPackageIdAndSubTaskId(packageId, subTaskId);
         if (subtaskOpt.isEmpty()) {
-            throw new RuntimeException("Subtask not found: " + subTaskId);
+            throw new BusinessException(ErrorCode.SUBTASK_NOT_FOUND, "Subtask not found: " + subTaskId);
         }
 
         CollabSubtaskEntity subtask = subtaskOpt.get();
 
         if (!"PENDING".equals(subtask.getStatus()) && !"RUNNING".equals(subtask.getStatus())) {
-            throw new IllegalStateException("Only PENDING or RUNNING subtasks can be manually handled");
+            throw new BusinessException(ErrorCode.SUBTASK_INVALID_TRANSITION, "Only PENDING or RUNNING subtasks can be manually handled");
         }
 
         subtask.setStatus("MANUAL_HANDLING");

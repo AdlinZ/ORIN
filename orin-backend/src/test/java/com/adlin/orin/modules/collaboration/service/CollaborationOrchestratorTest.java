@@ -465,7 +465,7 @@ class CollaborationOrchestratorTest {
                 .thenReturn(Optional.of(subtask));
 
         // COMPLETED -> PENDING 是非法转换
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(com.adlin.orin.common.exception.BusinessException.class, () ->
                 orchestrator.updateSubtaskStatus("pkg-e2e-005", "1", "PENDING", null, null)
         );
     }
@@ -491,7 +491,7 @@ class CollaborationOrchestratorTest {
 
         // COMPLETED 状态不能暂停
         entity.setStatus("COMPLETED");
-        assertThrows(IllegalStateException.class, () -> orchestrator.pause("pkg-e2e-006"));
+        assertThrows(com.adlin.orin.common.exception.BusinessException.class, () -> orchestrator.pause("pkg-e2e-006"));
     }
 
     @Test
