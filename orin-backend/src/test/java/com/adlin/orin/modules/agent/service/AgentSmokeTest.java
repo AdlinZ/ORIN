@@ -268,12 +268,17 @@ class AgentSmokeTest {
         AgentMetadata agent1 = new AgentMetadata();
         agent1.setAgentId("agent-001");
         agent1.setName("Test Agent 1");
+        agent1.setOwnerUserId(42L); // 资源级 ACL 第 2 刀: getAllAgents 按 owner 过滤
 
         AgentMetadata agent2 = new AgentMetadata();
         agent2.setAgentId("agent-002");
         agent2.setName("Test Agent 2");
+        agent2.setOwnerUserId(42L); // 同上
 
-        when(metadataRepository.findAll()).thenReturn(Arrays.asList(agent1, agent2));
+        // 资源级 ACL 第 2 刀: 普通用户路径, 走 findByOwnerUserId
+        when(ownershipResolver.isCurrentUserPrivileged()).thenReturn(false);
+        when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(42L);
+        when(metadataRepository.findByOwnerUserId(42L)).thenReturn(Arrays.asList(agent1, agent2));
 
         // When: 获取所有智能体
         List<AgentMetadata> agents = agentManageService.getAllAgents();
@@ -359,8 +364,14 @@ class AgentSmokeTest {
     @Test
     @DisplayName("E1.1 - Smoke Test: 删除智能体")
     void testDeleteAgent_Success() {
-        // Given: 智能体存在
+        // Given: 智能体存在 (资源级 ACL 第 2 刀: deleteAgent 改写为 findById + assertCanManage)
         String agentId = "agent-to-delete";
+        AgentMetadata existing = new AgentMetadata();
+        existing.setAgentId(agentId);
+        existing.setName("Test Agent to Delete");
+        existing.setOwnerUserId(42L);
+        when(metadataRepository.findById(agentId)).thenReturn(Optional.of(existing));
+        // ownershipResolver.assertCanManage 是 mock 方法, 默认无副作用, 不需要额外 stub
 
         // When: 删除智能体
         agentManageService.deleteAgent(agentId);

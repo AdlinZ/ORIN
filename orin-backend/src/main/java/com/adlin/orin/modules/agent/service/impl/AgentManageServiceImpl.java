@@ -5,6 +5,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentJobEntity;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
@@ -211,7 +213,7 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         if ("DIFY".equals(provider)) {
             if (!difyIntegrationService.testConnection(endpointUrl, apiKey)) {
-                throw new RuntimeException("Failed to connect to Dify agent");
+                throw new BusinessException(ErrorCode.AGENT_CONNECTION_FAILED, "Failed to connect to Dify agent");
             }
             // Fetch App Info to get Name
             // Note: For Dify, we might need a separate API call to get app info if not
@@ -244,7 +246,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             }
         } else if ("SiliconFlow".equals(provider)) {
             if (!siliconFlowIntegrationService.testConnection(endpointUrl, apiKey)) {
-                throw new RuntimeException("Failed to connect to SiliconFlow agent");
+                throw new BusinessException(ErrorCode.AGENT_CONNECTION_FAILED, "Failed to connect to SiliconFlow agent");
             }
             agentName = "SiliconFlow Model";
             modelName = "deepseek-ai/DeepSeek-V3"; // Default or detect
@@ -252,21 +254,21 @@ public class AgentManageServiceImpl implements AgentManageService {
             // model to use
         } else if ("MiniMax".equals(provider)) {
             if (!minimaxIntegrationService.testConnection(endpointUrl, apiKey, "abab6.5g-chat")) {
-                throw new RuntimeException("Failed to connect to MiniMax agent");
+                throw new BusinessException(ErrorCode.AGENT_CONNECTION_FAILED, "Failed to connect to MiniMax agent");
             }
             agentName = "MiniMax Agent";
             modelName = "abab6.5g-chat";
         } else if ("Ollama".equals(provider)) {
             String targetModel = (modelName != null && !modelName.isEmpty()) ? modelName : "llama3";
             if (!ollamaIntegrationService.testConnection(endpointUrl, apiKey, targetModel)) {
-                throw new RuntimeException("Failed to connect to Ollama agent (make sure Ollama is running)");
+                throw new BusinessException(ErrorCode.AGENT_CONNECTION_FAILED, "Failed to connect to Ollama agent (make sure Ollama is running)");
             }
             if (agentName == null || agentName.equals("新智能体")) {
                 agentName = "Ollama Local Agent (" + targetModel + ")";
             }
             modelName = targetModel;
         } else {
-            throw new RuntimeException("Unsupported provider or unable to identify");
+            throw new BusinessException(ErrorCode.AGENT_PROVIDER_UNSUPPORTED, "Unsupported provider or unable to identify");
         }
 
         // 3. Create/Update Agent Access Profile
@@ -2723,7 +2725,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             log.error("Failed to export agents", e);
             // Audit logging for failed export
             auditHelper.logAgentBatchExport("SYSTEM", "EXPORT", 0, detail, false, e.getMessage());
-            throw new RuntimeException("Failed to export agents: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to export agents: " + e.getMessage(), e);
         }
     }
 
@@ -2815,7 +2817,7 @@ public class AgentManageServiceImpl implements AgentManageService {
             log.error("Failed to import agents", e);
             // Audit logging for failed import
             auditHelper.logAgentBatchImport("SYSTEM", "IMPORT", importedCount, skippedCount, detail, false, e.getMessage());
-            throw new RuntimeException("Failed to import agents: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to import agents: " + e.getMessage(), e);
         }
     }
 
