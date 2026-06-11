@@ -157,7 +157,7 @@ public class AudioParser implements DocumentParser {
     private AsrResult parseWithCloud(Path input, Map<String, String> config) {
         try {
             String model = config.getOrDefault("asr_model", "openai/whisper-large-v3-turbo");
-            String extractedText = asrService.transcribeWithSiliconFlowAsr(input.toString(), model);
+            String extractedText = asrService.transcribe(input.toString(), model);
 
             if (extractedText.startsWith("[ASR Error]")) {
                 log.warn("SiliconFlow ASR failed: {}", extractedText);
