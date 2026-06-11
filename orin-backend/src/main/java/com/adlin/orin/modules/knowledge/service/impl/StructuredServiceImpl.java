@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.service.RouterService;
 import com.adlin.orin.modules.knowledge.entity.StructuredDataTable;
@@ -38,7 +40,7 @@ public class StructuredServiceImpl implements StructuredService {
             // 1. Parse CSV Header
             String headerLine = reader.readLine();
             if (headerLine == null) {
-                throw new RuntimeException("Empty CSV file");
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Empty CSV file");
             }
 
             String[] headers = headerLine.split(",");
@@ -101,7 +103,7 @@ public class StructuredServiceImpl implements StructuredService {
 
         } catch (Exception e) {
             log.error("Failed to parse CSV", e);
-            throw new RuntimeException("CSV upload failed: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "CSV upload failed: " + e.getMessage(), e);
         }
     }
 
@@ -111,7 +113,7 @@ public class StructuredServiceImpl implements StructuredService {
 
         List<Map<String, Object>> schemas = getDatabaseSchema(agentId);
         if (schemas.isEmpty()) {
-            throw new RuntimeException("No structured data found for agent: " + agentId);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "No structured data found for agent: " + agentId);
         }
 
         String schemaDesc = schemas.stream()
@@ -140,7 +142,7 @@ public class StructuredServiceImpl implements StructuredService {
                 return sql.replaceAll("```sql", "").replaceAll("```", "").trim();
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate SQL", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to generate SQL", e);
         }
 
         return "";
@@ -153,14 +155,14 @@ public class StructuredServiceImpl implements StructuredService {
         // 安全检查：只允许 SELECT 查询
         String trimmedSql = sql.trim().toUpperCase();
         if (!trimmedSql.startsWith("SELECT")) {
-            throw new RuntimeException("Only SELECT queries are allowed");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Only SELECT queries are allowed");
         }
         
         try {
             return jdbcTemplate.queryForList(sql);
         } catch (Exception e) {
             log.error("SQL execution failed", e);
-            throw new RuntimeException("SQL execution failed: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "SQL execution failed: " + e.getMessage(), e);
         }
     }
 
