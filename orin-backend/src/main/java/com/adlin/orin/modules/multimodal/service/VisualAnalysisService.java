@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.multimodal.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -91,7 +93,7 @@ public class VisualAnalysisService {
                 : (config.getVlmModel() != null ? config.getVlmModel() : fallbackVlmModel);
 
         if (model == null || model.isEmpty()) {
-            throw new RuntimeException("未配置 VLM 模型，请在系统设置中选择视觉模型");
+            throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "未配置 VLM 模型，请在系统设置中选择视觉模型");
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -204,7 +206,7 @@ public class VisualAnalysisService {
                             Thread.sleep(retryDelay * attempt); // Exponential backoff
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
-                            throw new RuntimeException("Retry interrupted", ie);
+                            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Retry interrupted", ie);
                         }
                         continue;
                     }
@@ -215,7 +217,7 @@ public class VisualAnalysisService {
                             "/multimodal/vlm", "POST", model, "127.0.0.1", "ORIN-VLM-Service",
                             "[Image Analysis]", null, response.getStatusCode().value(),
                             duration, 0, 0, 0.0, false, error, null, null);
-                    throw new RuntimeException(error);
+                    throw new BusinessException(ErrorCode.OPERATION_FAILED, error);
                 }
             } catch (Exception e) {
                 // Network errors and JSON parsing errors are retryable
@@ -226,7 +228,7 @@ public class VisualAnalysisService {
                         Thread.sleep(retryDelay * attempt);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        throw new RuntimeException("Retry interrupted", ie);
+                        throw new BusinessException(ErrorCode.OPERATION_FAILED, "Retry interrupted", ie);
                     }
                     continue;
                 }
@@ -239,12 +241,12 @@ public class VisualAnalysisService {
                         "/multimodal/vlm", "POST", model, "127.0.0.1", "ORIN-VLM-Service",
                         "[Image Analysis]", null, 500,
                         duration, 0, 0, 0.0, false, e.getMessage(), null, null);
-                throw new RuntimeException(errorMsg, e);
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, errorMsg, e);
             }
         }
 
         // Should not reach here, but just in case
-        throw new RuntimeException("VLM Analysis failed after " + maxRetries + " attempts");
+        throw new BusinessException(ErrorCode.OPERATION_FAILED, "VLM Analysis failed after " + maxRetries + " attempts");
     }
 
     public String analyzeImage(String imageUrl) {
