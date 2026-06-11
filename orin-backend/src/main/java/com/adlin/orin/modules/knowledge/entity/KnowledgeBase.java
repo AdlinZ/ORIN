@@ -48,6 +48,9 @@ public class KnowledgeBase {
     @Column(name = "source_agent_id")
     private String sourceAgentId; // ID of the agent this KB was synced from (optional binding)
 
+    @Column(name = "owner_user_id")
+    private Long ownerUserId; // resource-level ACL owner; NULL means "system-level", visible to admin/operator only
+
     @Column(name = "sync_time")
     private LocalDateTime syncTime;
 

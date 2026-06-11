@@ -49,10 +49,19 @@ public class KnowledgeManageService {
         private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository documentRepository;
         private final ModelConfigService modelConfigService;
         private final SiliconFlowIntegrationService siliconFlowIntegrationService;
+        private final KnowledgeOwnershipResolver ownershipResolver;
         private final ObjectMapper objectMapper = new ObjectMapper();
 
         public List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> getAllKnowledgeBases() {
-                List<KnowledgeBase> bases = knowledgeBaseRepository.findAll();
+                List<KnowledgeBase> bases;
+                if (ownershipResolver.isCurrentUserPrivileged()) {
+                        // admin / operator: 看全部(含 NULL owner 的系统级 KB)
+                        bases = knowledgeBaseRepository.findAll();
+                } else {
+                        // 普通用户: 仅看 owner = currentUserId 的 KB, NULL owner 视为系统级不可见
+                        Long currentUserId = ownershipResolver.resolveFromCurrentRequest();
+                        bases = knowledgeBaseRepository.findByOwnerUserId(currentUserId);
+                }
                 List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> dtoList = new ArrayList<>();
                 for (KnowledgeBase kb : bases) {
                         dtoList.add(mapToDTO(kb, null, false));
@@ -299,7 +308,9 @@ public class KnowledgeManageService {
          */
         public KnowledgeBase updateStatus(String kbId, boolean enabled) {
                 KnowledgeBase kb = knowledgeBaseRepository.findById(kbId)
-                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + kbId));
+                                .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
+                                                "KnowledgeBase", kbId));
+                ownershipResolver.assertCanManage(kb);
 
                 kb.setStatus(enabled ? "ENABLED" : "DISABLED");
                 // In a real scenario, we might also want to call Dify API to disable it there
@@ -318,6 +329,8 @@ public class KnowledgeManageService {
                 if (kb.getCreatedAt() == null) {
                         kb.setCreatedAt(LocalDateTime.now());
                 }
+                // 资源级 ACL: 强制覆盖 owner 为当前请求用户, 不信任请求体里传入的 owner_user_id
+                kb.setOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
                 kb.setSyncTime(LocalDateTime.now());
                 if (kb.getStatus() == null) {
                         kb.setStatus("ENABLED");
@@ -341,7 +354,9 @@ public class KnowledgeManageService {
          */
         public KnowledgeBase updateKnowledgeBase(String id, KnowledgeBase updates) {
                 KnowledgeBase kb = knowledgeBaseRepository.findById(id)
-                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + id));
+                                .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
+                                                "KnowledgeBase", id));
+                ownershipResolver.assertCanManage(kb);
                 if (updates.getName() != null)
                         kb.setName(updates.getName());
                 if (updates.getType() != null)
@@ -396,6 +411,7 @@ public class KnowledgeManageService {
                 KnowledgeBase kb = knowledgeBaseRepository.findById(id)
                                 .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
                                                 "KnowledgeBase", id));
+                ownershipResolver.assertCanManage(kb);
 
                 // 1. Delete all documents associated with this KB (Bulk Optimized)
                 documentService.deleteByKnowledgeBaseId(id);
