@@ -4,6 +4,8 @@ import com.adlin.orin.modules.trace.interceptor.SkillTraceInterceptor;
 import com.adlin.orin.modules.trace.service.TraceService;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
 import com.adlin.orin.modules.workflow.engine.handler.NodeExecutionResult;
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.exception.WorkflowExecutionException;
 import com.adlin.orin.modules.workflow.service.WorkflowEventPublisher;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
@@ -428,16 +430,16 @@ public class GraphExecutor {
     @SuppressWarnings("unchecked")
     private GraphParts parseAndValidateGraph(Map<String, Object> graphDefinition) {
         if (graphDefinition == null) {
-            throw new IllegalArgumentException("Graph definition is required");
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph definition is required");
         }
         Object rawNodes = graphDefinition.get("nodes");
         if (!(rawNodes instanceof List<?> rawNodeList) || rawNodeList.isEmpty()) {
-            throw new IllegalArgumentException("Graph must contain at least one node");
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph must contain at least one node");
         }
         List<Map<String, Object>> nodes = new ArrayList<>();
         for (Object rawNode : rawNodeList) {
             if (!(rawNode instanceof Map<?, ?> rawMap)) {
-                throw new IllegalArgumentException("Graph node must be an object");
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph node must be an object");
             }
             Map<String, Object> node = new HashMap<>();
             rawMap.forEach((key, value) -> node.put(String.valueOf(key), value));
@@ -449,7 +451,7 @@ public class GraphExecutor {
         if (rawEdges instanceof List<?> rawEdgeList) {
             for (Object rawEdge : rawEdgeList) {
                 if (!(rawEdge instanceof Map<?, ?> rawMap)) {
-                    throw new IllegalArgumentException("Graph edge must be an object");
+                    throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph edge must be an object");
                 }
                 Map<String, Object> edge = new HashMap<>();
                 rawMap.forEach((key, value) -> edge.put(String.valueOf(key), value));
@@ -467,13 +469,13 @@ public class GraphExecutor {
             Object rawId = node.get("id");
             Object rawType = node.get("type");
             if (!(rawId instanceof String id) || id.isBlank()) {
-                throw new IllegalArgumentException("Graph node id is required");
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph node id is required");
             }
             if (!nodeIds.add(id)) {
-                throw new IllegalArgumentException("Duplicate graph node id: " + id);
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Duplicate graph node id: " + id);
             }
             if (!(rawType instanceof String type) || type.isBlank()) {
-                throw new IllegalArgumentException("Graph node type is required: " + id);
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph node type is required: " + id);
             }
             getNodeHandler(node);
         }
@@ -484,16 +486,16 @@ public class GraphExecutor {
             String source = (String) edge.get("source");
             String target = (String) edge.get("target");
             if (source == null || source.isBlank()) {
-                throw new IllegalArgumentException("Graph edge source is required");
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph edge source is required");
             }
             if (target == null || target.isBlank()) {
-                throw new IllegalArgumentException("Graph edge target is required");
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph edge target is required");
             }
             if (!nodeIds.contains(source)) {
-                throw new IllegalArgumentException("Graph edge source not found: " + source);
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph edge source not found: " + source);
             }
             if (!nodeIds.contains(target)) {
-                throw new IllegalArgumentException("Graph edge target not found: " + target);
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph edge target not found: " + target);
             }
             adjacency.computeIfAbsent(source, ignored -> new ArrayList<>()).add(target);
             targets.add(target);
@@ -502,7 +504,7 @@ public class GraphExecutor {
         boolean hasStartNode = nodes.stream().anyMatch(n -> "start".equalsIgnoreCase((String) n.get("type")));
         boolean hasEntryNode = nodes.stream().map(n -> (String) n.get("id")).anyMatch(id -> !targets.contains(id));
         if (!hasStartNode && !hasEntryNode) {
-            throw new IllegalArgumentException("Graph must contain a start node or at least one entry node");
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph must contain a start node or at least one entry node");
         }
 
         boolean hasEndNode = nodes.stream().anyMatch(n -> "end".equalsIgnoreCase((String) n.get("type")));
@@ -510,14 +512,14 @@ public class GraphExecutor {
                 .map(n -> (String) n.get("id"))
                 .anyMatch(id -> !adjacency.containsKey(id) || adjacency.get(id).isEmpty());
         if (!hasEndNode && !hasLeafNode) {
-            throw new IllegalArgumentException("Graph must contain an end node or at least one leaf node");
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph must contain an end node or at least one leaf node");
         }
 
         Set<String> visited = new HashSet<>();
         Set<String> visiting = new HashSet<>();
         for (String nodeId : nodeIds) {
             if (hasCycle(nodeId, adjacency, visited, visiting)) {
-                throw new IllegalArgumentException("Graph contains a cycle involving node: " + nodeId);
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"Graph contains a cycle involving node: " + nodeId);
             }
         }
     }
@@ -550,7 +552,7 @@ public class GraphExecutor {
 
         NodeHandler handler = nodeHandlers.get(beanName);
         if (handler == null) {
-            throw new IllegalArgumentException("No node handler found for type: " + type);
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG,"No node handler found for type: " + type);
         }
         return handler;
     }

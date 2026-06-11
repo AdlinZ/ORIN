@@ -211,7 +211,7 @@ class GraphExecutorTest {
         graph.put("nodes", nodes);
         graph.put("edges", List.of(createEdge("start", "unknown", null)));
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(com.adlin.orin.common.exception.BusinessException.class, () ->
                 graphExecutor.executeGraph(graph, new ConcurrentHashMap<>()));
     }
 
@@ -251,7 +251,7 @@ class GraphExecutorTest {
                 createEdge("action", "start", null)
         ));
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(com.adlin.orin.common.exception.BusinessException.class, () ->
                 graphExecutor.executeGraph(graph, new ConcurrentHashMap<>()));
     }
 
