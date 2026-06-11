@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.component;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.apikey.entity.ExternalProviderKey;
 import com.adlin.orin.modules.apikey.repository.ExternalProviderKeyRepository;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
@@ -177,7 +179,7 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
         if (effectiveApiKey == null || effectiveApiKey.isEmpty() || effectiveApiKey.equals("sk-placeholder")) {
             log.error("SiliconFlow API Key is invalid or not configured! Cannot generate embeddings. " +
                       "Please configure a valid API Key in application.properties or ModelConfig.");
-            throw new RuntimeException("SiliconFlow API Key is not configured. Please set a valid API Key.");
+            throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "SiliconFlow API Key is not configured. Please set a valid API Key.");
         }
 
         String url = baseUrl + "/embeddings";
@@ -208,11 +210,11 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
                 return embedding;
             } else {
                 log.error("SiliconFlow Embedding Failed: {}, response: {}", response.getStatusCode(), response.getBody());
-                throw new RuntimeException("Embedding API failed with status: " + response.getStatusCode());
+                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "Embedding API failed with status: " + response.getStatusCode());
             }
         } catch (Exception e) {
             log.error("Error calling SiliconFlow Embedding API: {}", e.getMessage());
-            throw new RuntimeException("Embedding failed: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.MODEL_API_ERROR, "Embedding failed: " + e.getMessage(), e);
         }
     }
 
@@ -241,7 +243,7 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
      */
     public String chat(String prompt, String model) {
         if (effectiveApiKey == null || effectiveApiKey.isEmpty() || effectiveApiKey.equals("sk-placeholder")) {
-            throw new RuntimeException("SiliconFlow API Key is not configured. Please set a valid API Key.");
+            throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "SiliconFlow API Key is not configured. Please set a valid API Key.");
         }
 
         String chatModel = (model != null && !model.isEmpty()) ? model : "Qwen/Qwen2.5-7B-Instruct";
@@ -273,10 +275,10 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
                 }
             }
             log.error("SiliconFlow LLM chat failed: {}, response: {}", response.getStatusCode(), response.getBody());
-            throw new RuntimeException("LLM chat API failed with status: " + response.getStatusCode());
+            throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM chat API failed with status: " + response.getStatusCode());
         } catch (Exception e) {
             log.error("Error calling SiliconFlow LLM API: {}", e.getMessage());
-            throw new RuntimeException("LLM chat failed: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM chat failed: " + e.getMessage(), e);
         }
     }
 }
