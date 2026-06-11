@@ -583,7 +583,16 @@ TraceID MQ 传播（2d）
 
 ### Phase 2：可观测性与工程质量
 
-- [ ] `P1` **统一错误码**：后端公共异常处理层定义错误码枚举（格式：`ORIN-XXXX`），覆盖认证、授权、限流、模型调用失败；Python 侧 `task_runtime.py` 对齐同一结构
+- [~] `P1` **统一错误码**：后端公共异常处理层定义错误码枚举（格式：`ORIN-XXXX`），覆盖认证、授权、限流、模型调用失败；Python 侧 `task_runtime.py` 对齐同一结构
+  - 小刀 1（`a83790d9`）：扩 ErrorCode 3 个新分类（10 限流 / 11 任务 / 12 协作），共 16 个新码；ErrorCodeTest 62/62 绿
+  - 小刀 2（`bf944d04`）：GraphExecutor 15 处裸抛改用 `BusinessException(WORKFLOW_INVALID_CONFIG, msg)`；7/7 绿
+  - 小刀 3（`1cd6ea81`）：AgentManageServiceImpl 7 处裸抛（Provider 连接 / 批量导入导出）；修 ACL 1c2318e4 遗留 AgentSmokeTest 2 处盲点；13/13 绿
+  - 小刀 4（`ad52752d`）：CollaborationOrchestrator 15 处 + KnowledgeManageService 9 处 = 24 处；54/54 绿
+  - 小刀 5（`537b1fa7`）：SetupInitializeService 8 处参数校验裸抛（不含 3 处字符串错误码）；4/4 绿
+  - 累计 5 刀 54 处裸抛改 BusinessException,163+ 个 targeted 单测全绿
+  - **保留 3 处字符串错误码**（独立调查, 8.2.1 自主决定）: SetupInitializeService L64 `SETUP_DISABLED` / L67 `SETUP_ALREADY_COMPLETED` / L177 `ENCRYPTION_KEY_REQUIRED` — `SetupController.initialize` L72-83 `switch (e.getMessage())` 主动 case 匹配, 部署指南 L26 文档化, 字符串是 SetupController API 内部契约, 改 ErrorCode 超出本小刀范围
+  - 现状: 后端裸抛 192 → 138 处 (含 Setup 3 处字符串), 散落 50+ 文件, 按贡献度分批
+  - 暂不做: 格式统一为 `ORIN-XXXX` 前缀（会全局重命名 40+ 错误码）；Python 端 `task_runtime.py` 结构化错误码
 - [ ] `P1` **TraceID 跨 MQ 传播**：RabbitMQ 发布时写入 `traceparent` 头，worker 消费时提取绑定 span，目标是 HTTP → AI Engine 调用链在 Jaeger 中完整可见
 - [ ] `P2` **结构化 JSON 日志**：后端接入 `logstash-logback-encoder`，日志包含 `traceId`、`userId`、`agentId` 字段，为后续 ELK / Grafana Loki 接入做准备
 - [ ] `P2` **测试覆盖补齐**：
