@@ -127,184 +127,154 @@
       <el-empty v-if="!detailLoading && traces.length === 0" description="未找到该 traceId 的调用链路" />
 
       <template v-else>
-        <el-card class="table-card relation-card">
-          <template #header>
-            <div class="card-header">
-              <span>关联对象</span>
-              <el-tag v-if="summary.langfuse?.available" type="success">
-                Langfuse 可用
-              </el-tag>
-              <el-tag v-else type="info">
-                Langfuse 未启用
-              </el-tag>
-            </div>
-          </template>
-          <div v-loading="summaryLoading" class="relation-content">
-            <el-empty
-              v-if="!summaryLoading && summary.found === false"
-              description="暂无关联的任务、实例、协作包或审计事件"
-            />
-            <template v-else>
-              <div v-if="summary.workflowInstance" class="relation-section">
-                <h3>Workflow 实例</h3>
-                <el-descriptions :column="3" border>
-                  <el-descriptions-item label="实例ID">
-                    {{ summary.workflowInstance.id }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="Workflow ID">
-                    {{ summary.workflowInstance.workflowId }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="状态">
-                    <el-tag :type="getStatusTagType(summary.workflowInstance.status)">
-                      {{ summary.workflowInstance.status }}
-                    </el-tag>
-                  </el-descriptions-item>
-                  <el-descriptions-item label="耗时">
-                    {{ summary.workflowInstance.durationMs || '-' }} ms
-                  </el-descriptions-item>
-                  <el-descriptions-item label="触发来源">
-                    {{ summary.workflowInstance.triggerSource || '-' }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="操作">
-                    <el-button type="primary" link @click="openWorkflow(summary.workflowInstance.workflowId)">
-                      执行页
-                    </el-button>
-                  </el-descriptions-item>
-                  <el-descriptions-item label="错误摘要" :span="3">
-                    {{ summary.workflowInstance.errorMessage || '-' }}
-                  </el-descriptions-item>
-                </el-descriptions>
-              </div>
+        <el-card class="detail-tabs-card">
+          <el-tabs v-model="activeDetailTab" @tab-click="onDetailTabClick">
 
-              <div class="relation-section">
-                <h3>Workflow 任务</h3>
+            <!-- Tab 1：步骤详情 -->
+            <el-tab-pane label="步骤详情" name="steps">
+              <OrinAsyncState
+                :status="detailLoading ? 'loading' : (traces.length ? 'success' : 'empty')"
+                empty-text="未找到该 traceId 的调用链路"
+              >
                 <OrinDataTable compact>
-                <el-table border :data="summary.workflowTasks || []" empty-text="暂无关联任务" size="small">
-                  <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
-                  <el-table-column prop="workflowInstanceId" label="实例ID" width="100" />
-                  <el-table-column prop="status" label="状态" width="110">
-                    <template #default="{ row }">
-                      <el-tag :type="getStatusTagType(row.status)">
-                        {{ row.status }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="retryCount" label="重试" width="80" />
-                  <el-table-column prop="durationMs" label="耗时(ms)" width="110" />
-                  <el-table-column prop="errorMessage" label="错误摘要" min-width="180" show-overflow-tooltip />
-                  <el-table-column label="操作" width="150" fixed="right">
-                    <template #default="{ row }">
-                      <el-button type="primary" link @click="openTask(row.taskId)">
-                        任务详情
-                      </el-button>
-                      <el-button type="primary" link @click="openWorkflow(row.workflowId)">
-                        执行页
-                      </el-button>
-                    </template>
-                  </el-table-column>
-                </el-table>
+                  <el-table v-loading="detailLoading" border :data="traces" stripe>
+                    <el-table-column prop="stepName" label="步骤名称" min-width="150" />
+                    <el-table-column prop="skillName" label="技能名称" min-width="150" />
+                    <el-table-column prop="status" label="状态" width="100">
+                      <template #default="{ row }">
+                        <el-tag :type="getStatusTagType(row.status)">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="startedAt" label="开始时间" width="180" />
+                    <el-table-column prop="durationMs" label="耗时 (ms)" width="120" />
+                    <el-table-column prop="cpuUsage" label="CPU %" width="100" />
+                    <el-table-column prop="memoryUsage" label="内存 (MB)" width="120">
+                      <template #default="{ row }">{{ formatMemory(row.memoryUsage) }}</template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="120">
+                      <template #default="{ row }">
+                        <el-button size="small" @click="viewDetail(row)">查看详情</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
                 </OrinDataTable>
-              </div>
+              </OrinAsyncState>
+            </el-tab-pane>
 
-              <div class="relation-section">
-                <h3>协作包</h3>
-                <OrinDataTable compact>
-                <el-table border :data="summary.collaborationPackages || []" empty-text="暂无关联协作包" size="small">
-                  <el-table-column prop="packageId" label="Package ID" min-width="180" show-overflow-tooltip />
-                  <el-table-column prop="status" label="状态" width="120" />
-                  <el-table-column prop="intentCategory" label="类别" width="120" />
-                  <el-table-column prop="intentPriority" label="优先级" width="100" />
-                  <el-table-column prop="errorMessage" label="错误摘要" min-width="180" show-overflow-tooltip />
-                  <el-table-column label="操作" width="120" fixed="right">
-                    <template #default="{ row }">
-                      <el-button type="primary" link @click="openCollaborationPackage(row.packageId)">
-                        包详情
-                      </el-button>
-                    </template>
-                  </el-table-column>
-                </el-table>
-                </OrinDataTable>
-              </div>
-
-              <div class="relation-section">
-                <h3>审计事件</h3>
-                <OrinDataTable compact>
-                <el-table border :data="summary.auditLogs || []" empty-text="暂无关联审计事件" size="small">
-                  <el-table-column prop="id" label="审计ID" min-width="180" show-overflow-tooltip />
-                  <el-table-column prop="method" label="方法" width="80" />
-                  <el-table-column prop="endpoint" label="端点" min-width="180" show-overflow-tooltip />
-                  <el-table-column prop="success" label="结果" width="90">
-                    <template #default="{ row }">
-                      <el-tag :type="row.success ? 'success' : 'danger'">
-                        {{ row.success ? '成功' : '失败' }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="statusCode" label="状态码" width="90" />
-                  <el-table-column prop="responseTime" label="耗时(ms)" width="110" />
-                  <el-table-column prop="errorMessage" label="错误摘要" min-width="180" show-overflow-tooltip />
-                </el-table>
-                </OrinDataTable>
-              </div>
-            </template>
-          </div>
-        </el-card>
-
-        <el-card class="chart-card">
-          <h3>执行时序图</h3>
-          <div ref="timelineChart" class="chart-container" />
-        </el-card>
-
-        <el-row :gutter="20" class="chart-row">
-          <el-col :span="12">
-            <el-card class="chart-card">
-              <h3>CPU 使用率</h3>
-              <div ref="cpuChart" class="chart-container-small" />
-            </el-card>
-          </el-col>
-          <el-col :span="12">
-            <el-card class="chart-card">
-              <h3>内存使用</h3>
-              <div ref="memoryChart" class="chart-container-small" />
-            </el-card>
-          </el-col>
-        </el-row>
-
-        <el-card class="table-card">
-          <h3>步骤详情</h3>
-          <OrinAsyncState
-            :status="detailLoading ? 'loading' : (traces.length ? 'success' : 'empty')"
-            empty-text="未找到该 traceId 的调用链路"
-          >
-          <OrinDataTable compact>
-          <el-table v-loading="detailLoading" border :data="traces" stripe>
-            <el-table-column prop="stepName" label="步骤名称" min-width="150" />
-            <el-table-column prop="skillName" label="技能名称" min-width="150" />
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusTagType(row.status)">
-                  {{ row.status }}
-                </el-tag>
+            <!-- Tab 2：关联对象 -->
+            <el-tab-pane name="relations">
+              <template #label>
+                <span>关联对象</span>
+                <el-tag v-if="summary.langfuse?.available" type="success" size="small" style="margin-left:6px">Langfuse</el-tag>
               </template>
-            </el-table-column>
-            <el-table-column prop="startedAt" label="开始时间" width="180" />
-            <el-table-column prop="durationMs" label="耗时 (ms)" width="120" />
-            <el-table-column prop="cpuUsage" label="CPU %" width="100" />
-            <el-table-column prop="memoryUsage" label="内存 (MB)" width="120">
-              <template #default="{ row }">
-                {{ formatMemory(row.memoryUsage) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button size="small" @click="viewDetail(row)">
-                  查看详情
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          </OrinDataTable>
-          </OrinAsyncState>
+              <div v-loading="summaryLoading" class="relation-content">
+                <el-empty
+                  v-if="!summaryLoading && summary.found === false"
+                  description="暂无关联的任务、实例、协作包或审计事件"
+                />
+                <template v-else>
+                  <div v-if="summary.workflowInstance" class="relation-section">
+                    <h3>Workflow 实例</h3>
+                    <el-descriptions :column="3" border>
+                      <el-descriptions-item label="实例ID">{{ summary.workflowInstance.id }}</el-descriptions-item>
+                      <el-descriptions-item label="Workflow ID">{{ summary.workflowInstance.workflowId }}</el-descriptions-item>
+                      <el-descriptions-item label="状态">
+                        <el-tag :type="getStatusTagType(summary.workflowInstance.status)">{{ summary.workflowInstance.status }}</el-tag>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="耗时">{{ summary.workflowInstance.durationMs || '-' }} ms</el-descriptions-item>
+                      <el-descriptions-item label="触发来源">{{ summary.workflowInstance.triggerSource || '-' }}</el-descriptions-item>
+                      <el-descriptions-item label="操作">
+                        <el-button type="primary" link @click="openWorkflow(summary.workflowInstance.workflowId)">执行页</el-button>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="错误摘要" :span="3">{{ summary.workflowInstance.errorMessage || '-' }}</el-descriptions-item>
+                    </el-descriptions>
+                  </div>
+
+                  <div class="relation-section">
+                    <h3>Workflow 任务</h3>
+                    <OrinDataTable compact>
+                      <el-table border :data="summary.workflowTasks || []" empty-text="暂无关联任务" size="small">
+                        <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
+                        <el-table-column prop="workflowInstanceId" label="实例ID" width="100" />
+                        <el-table-column prop="status" label="状态" width="110">
+                          <template #default="{ row }">
+                            <el-tag :type="getStatusTagType(row.status)">{{ row.status }}</el-tag>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="retryCount" label="重试" width="80" />
+                        <el-table-column prop="durationMs" label="耗时(ms)" width="110" />
+                        <el-table-column prop="errorMessage" label="错误摘要" min-width="180" show-overflow-tooltip />
+                        <el-table-column label="操作" width="150" fixed="right">
+                          <template #default="{ row }">
+                            <el-button type="primary" link @click="openTask(row.taskId)">任务详情</el-button>
+                            <el-button type="primary" link @click="openWorkflow(row.workflowId)">执行页</el-button>
+                          </template>
+                        </el-table-column>
+                      </el-table>
+                    </OrinDataTable>
+                  </div>
+
+                  <div class="relation-section">
+                    <h3>协作包</h3>
+                    <OrinDataTable compact>
+                      <el-table border :data="summary.collaborationPackages || []" empty-text="暂无关联协作包" size="small">
+                        <el-table-column prop="packageId" label="Package ID" min-width="180" show-overflow-tooltip />
+                        <el-table-column prop="status" label="状态" width="120" />
+                        <el-table-column prop="intentCategory" label="类别" width="120" />
+                        <el-table-column prop="intentPriority" label="优先级" width="100" />
+                        <el-table-column prop="errorMessage" label="错误摘要" min-width="180" show-overflow-tooltip />
+                        <el-table-column label="操作" width="120" fixed="right">
+                          <template #default="{ row }">
+                            <el-button type="primary" link @click="openCollaborationPackage(row.packageId)">包详情</el-button>
+                          </template>
+                        </el-table-column>
+                      </el-table>
+                    </OrinDataTable>
+                  </div>
+
+                  <div class="relation-section">
+                    <h3>审计事件</h3>
+                    <OrinDataTable compact>
+                      <el-table border :data="summary.auditLogs || []" empty-text="暂无关联审计事件" size="small">
+                        <el-table-column prop="id" label="审计ID" min-width="180" show-overflow-tooltip />
+                        <el-table-column prop="method" label="方法" width="80" />
+                        <el-table-column prop="endpoint" label="端点" min-width="180" show-overflow-tooltip />
+                        <el-table-column prop="success" label="结果" width="90">
+                          <template #default="{ row }">
+                            <el-tag :type="row.success ? 'success' : 'danger'">{{ row.success ? '成功' : '失败' }}</el-tag>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="statusCode" label="状态码" width="90" />
+                        <el-table-column prop="responseTime" label="耗时(ms)" width="110" />
+                        <el-table-column prop="errorMessage" label="错误摘要" min-width="180" show-overflow-tooltip />
+                      </el-table>
+                    </OrinDataTable>
+                  </div>
+                </template>
+              </div>
+            </el-tab-pane>
+
+            <!-- Tab 3：图表 -->
+            <el-tab-pane label="执行图表" name="charts">
+              <div class="charts-pane">
+                <div class="chart-block">
+                  <h3>执行时序图</h3>
+                  <div ref="timelineChart" class="chart-container" />
+                </div>
+                <div class="chart-row-inline">
+                  <div class="chart-block">
+                    <h3>CPU 使用率</h3>
+                    <div ref="cpuChart" class="chart-container-small" />
+                  </div>
+                  <div class="chart-block">
+                    <h3>内存使用</h3>
+                    <div ref="memoryChart" class="chart-container-small" />
+                  </div>
+                </div>
+              </div>
+            </el-tab-pane>
+
+          </el-tabs>
         </el-card>
       </template>
     </template>
@@ -385,6 +355,7 @@ const summary = ref({})
 const traceLink = ref({})
 const detailDialogVisible = ref(false)
 const currentTrace = ref(null)
+const activeDetailTab = ref('steps')
 
 const timelineChart = ref(null)
 const cpuChart = ref(null)
@@ -470,8 +441,7 @@ const loadTraceDetail = async (traceId) => {
     stats.value = traceStats || {}
     summary.value = traceSummary || {}
     traceLink.value = link || {}
-    await nextTick()
-    initCharts()
+    activeDetailTab.value = 'steps'
   } catch (error) {
     traces.value = []
     stats.value = {}
@@ -501,6 +471,13 @@ const initCharts = () => {
   initTimelineChart()
   initCpuChart()
   initMemoryChart()
+}
+
+const onDetailTabClick = async (tab) => {
+  if (tab.paneName === 'charts' && traces.value.length > 0) {
+    await nextTick()
+    initCharts()
+  }
 }
 
 const disposeCharts = () => {
@@ -692,15 +669,13 @@ watch(
 .search-card,
 .trace-meta-card,
 .stats-row,
-.chart-card,
-.chart-row {
+.detail-tabs-card {
   margin-bottom: 16px;
 }
 
 .search-card,
 .trace-meta-card,
-.chart-card,
-.table-card,
+.detail-tabs-card,
 .stat-card {
   overflow: hidden;
   border-radius: var(--monitor-radius) !important;
@@ -817,6 +792,28 @@ watch(
   margin: 0 0 20px 0;
   font-size: 18px;
   font-weight: 600;
+}
+
+.charts-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chart-row-inline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.chart-block h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.detail-tabs-card :deep(.el-tabs__content) {
+  padding-top: 16px;
 }
 
 .chart-container {

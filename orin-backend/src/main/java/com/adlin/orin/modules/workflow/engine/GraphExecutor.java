@@ -53,7 +53,13 @@ public class GraphExecutor {
             Map.entry("loop", "loopNodeHandler"),
             Map.entry("variable_assigner", "variableAssignerNodeHandler"),
             Map.entry("variable-assigner", "variableAssignerNodeHandler"),
-            Map.entry("skill", "skillNodeHandler"));
+            Map.entry("skill", "skillNodeHandler"),
+            Map.entry("template_transform", "templateTransformNodeHandler"),
+            Map.entry("variable_aggregator", "variableAggregatorNodeHandler"),
+            Map.entry("document_extractor", "documentExtractorNodeHandler"),
+            Map.entry("parameter_extractor", "parameterExtractorNodeHandler"),
+            Map.entry("list_operator", "listOperatorNodeHandler"),
+            Map.entry("question_classifier", "questionClassifierNodeHandler"));
 
     /**
      * Compatibility only for older tests/callers. New production calls must pass

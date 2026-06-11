@@ -214,149 +214,106 @@
           </el-alert>
         </div>
 
-        <div v-if="selectedWorkflow" class="execution-ledger-header task-history-header">
-          <div>
-            <strong>任务历史</strong>
-            <span>按最近创建时间展示 Workflow task</span>
-          </div>
-          <el-tag effect="plain" round>{{ workflowTasks.length }} 条</el-tag>
-        </div>
+        <el-tabs v-if="selectedWorkflow" v-model="activeExecutionTab" class="execution-detail-tabs">
 
-        <OrinDataTable v-if="selectedWorkflow" class="task-history-data-table" compact>
-          <OrinAsyncState
-            :status="taskHistoryState.status"
-            empty-text="该工作流暂无任务历史"
-            :error-text="taskHistoryErrorText"
-            @retry="loadTaskHistory"
-          >
-            <el-table
-              :data="workflowTasks"
-              :row-class-name="taskHistoryRowClassName"
-              stripe
-              size="small"
-              class="task-history-table"
+          <!-- Tab 1：执行流水 -->
+          <el-tab-pane name="instances">
+            <template #label>
+              <span>执行流水</span>
+              <el-tag effect="plain" round size="small" style="margin-left:6px">{{ instances.length }}</el-tag>
+            </template>
+            <OrinAsyncState
+              :status="instanceState.status"
+              empty-text="该工作流暂无实例记录"
+              @retry="loadInstances"
             >
-              <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
-              <el-table-column prop="workflowInstanceId" label="实例ID" width="110" />
-              <el-table-column prop="status" label="状态" width="110">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="taskStatusTagType(row.status)">
-                    {{ row.status }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="retryCount" label="重试" width="80">
-                <template #default="{ row }">
-                  {{ row.retryCount || 0 }} / {{ row.maxRetries || 0 }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="durationMs" label="耗时" width="100">
-                <template #default="{ row }">
-                  {{ formatTaskDuration(row.durationMs) }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="updatedAt" label="更新时间" width="170">
-                <template #default="{ row }">
-                  {{ formatTime(row.updatedAt || row.createdAt) }}
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="240" fixed="right">
-                <template #default="{ row }">
-                  <el-button
-                    v-if="row.workflowInstanceId"
-                    size="small"
-                    text
-                    type="primary"
-                    :icon="Search"
-                    @click="openTraceForTask(row)"
-                  >
-                    查看链路
-                  </el-button>
-                  <el-button
-                    v-if="canReplayTask(row)"
-                    size="small"
-                    text
-                    type="warning"
-                    @click="replayTaskFromHistory(row)"
-                  >
-                    重放
-                  </el-button>
-                  <el-button
-                    v-if="canCancelTask(row)"
-                    size="small"
-                    text
-                    type="danger"
-                    @click="cancelTaskFromHistory(row)"
-                  >
-                    取消
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </OrinAsyncState>
-        </OrinDataTable>
-
-        <div class="execution-ledger-header">
-          <div>
-            <strong>执行流水</strong>
-            <span>{{ selectedWorkflow ? selectedWorkflow.workflowName : '未选择工作流' }}</span>
-          </div>
-          <el-tag effect="plain" round>{{ instances.length }} 条</el-tag>
-        </div>
-
-        <OrinAsyncState
-          :status="instanceState.status"
-          :empty-text="selectedWorkflow ? '该工作流暂无实例记录' : '请选择工作流查看实例'"
-          @retry="loadInstances"
-        >
-          <div class="execution-record-list">
-            <div
-              v-for="instance in instances"
-              :key="instance.id"
-              class="execution-record-card"
-              :class="[instanceTone(instance.status), { active: selectedInstance?.id === instance.id }]"
-              @click="selectInstance(instance)"
-            >
-              <div class="record-status-rail" aria-hidden="true" />
-              <div class="record-main">
-                <div class="record-title-row">
-                  <code>{{ instance.id }}</code>
-                  <span class="instance-pill" :class="instanceTone(instance.status)">
-                    {{ instance.status }}
-                  </span>
-                </div>
-                <p>{{ instancePreview(instance) }}</p>
-                <div class="record-meta-row">
-                  <span>开始 {{ formatTime(instance.createdAt) }}</span>
-                  <span>结束 {{ formatTime(instance.finishedAt) }}</span>
-                  <span>耗时 {{ formatDuration(instance) }}</span>
+              <div class="execution-record-list">
+                <div
+                  v-for="instance in instances"
+                  :key="instance.id"
+                  class="execution-record-card"
+                  :class="[instanceTone(instance.status), { active: selectedInstance?.id === instance.id }]"
+                  @click="selectInstance(instance)"
+                >
+                  <div class="record-status-rail" aria-hidden="true" />
+                  <div class="record-main">
+                    <div class="record-title-row">
+                      <code>{{ instance.id }}</code>
+                      <span class="instance-pill" :class="instanceTone(instance.status)">{{ instance.status }}</span>
+                    </div>
+                    <p>{{ instancePreview(instance) }}</p>
+                    <div class="record-meta-row">
+                      <span>开始 {{ formatTime(instance.createdAt) }}</span>
+                      <span>结束 {{ formatTime(instance.finishedAt) }}</span>
+                      <span>耗时 {{ formatDuration(instance) }}</span>
+                    </div>
+                  </div>
+                  <div class="record-actions">
+                    <span class="record-action-link" role="button" tabindex="0"
+                      @click.stop="selectInstance(instance)"
+                      @keydown.enter.stop.prevent="selectInstance(instance)"
+                      @keydown.space.stop.prevent="selectInstance(instance)"
+                    >查看详情</span>
+                    <span class="record-action-link" role="button" tabindex="0"
+                      @click.stop="openTraceForInstance(instance)"
+                      @keydown.enter.stop.prevent="openTraceForInstance(instance)"
+                      @keydown.space.stop.prevent="openTraceForInstance(instance)"
+                    >{{ traceLoadingId === instance.id ? '查询中' : 'Trace' }}</span>
+                  </div>
                 </div>
               </div>
-              <div class="record-actions">
-                <span
-                  class="record-action-link"
-                  role="button"
-                  tabindex="0"
-                  @click.stop="selectInstance(instance)"
-                  @keydown.enter.stop.prevent="selectInstance(instance)"
-                  @keydown.space.stop.prevent="selectInstance(instance)"
+            </OrinAsyncState>
+          </el-tab-pane>
+
+          <!-- Tab 2：任务历史 -->
+          <el-tab-pane name="tasks">
+            <template #label>
+              <span>任务历史</span>
+              <el-tag effect="plain" round size="small" style="margin-left:6px">{{ workflowTasks.length }}</el-tag>
+            </template>
+            <OrinDataTable compact>
+              <OrinAsyncState
+                :status="taskHistoryState.status"
+                empty-text="该工作流暂无任务历史"
+                :error-text="taskHistoryErrorText"
+                @retry="loadTaskHistory"
+              >
+                <el-table
+                  :data="workflowTasks"
+                  :row-class-name="taskHistoryRowClassName"
+                  stripe
+                  size="small"
+                  class="task-history-table"
                 >
-                  查看详情
-                </span>
-                <span
-                  class="record-action-link"
-                  role="button"
-                  tabindex="0"
-                  @click.stop="openTraceForInstance(instance)"
-                  @keydown.enter.stop.prevent="openTraceForInstance(instance)"
-                  @keydown.space.stop.prevent="openTraceForInstance(instance)"
-                >
-                  {{ traceLoadingId === instance.id ? '查询中' : 'Trace' }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </OrinAsyncState>
+                  <el-table-column prop="taskId" label="任务ID" min-width="180" show-overflow-tooltip />
+                  <el-table-column prop="workflowInstanceId" label="实例ID" width="110" />
+                  <el-table-column prop="status" label="状态" width="110">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="taskStatusTagType(row.status)">{{ row.status }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="retryCount" label="重试" width="80">
+                    <template #default="{ row }">{{ row.retryCount || 0 }} / {{ row.maxRetries || 0 }}</template>
+                  </el-table-column>
+                  <el-table-column prop="durationMs" label="耗时" width="100">
+                    <template #default="{ row }">{{ formatTaskDuration(row.durationMs) }}</template>
+                  </el-table-column>
+                  <el-table-column prop="updatedAt" label="更新时间" width="170">
+                    <template #default="{ row }">{{ formatTime(row.updatedAt || row.createdAt) }}</template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="240" fixed="right">
+                    <template #default="{ row }">
+                      <el-button v-if="row.workflowInstanceId" size="small" text type="primary" :icon="Search" @click="openTraceForTask(row)">查看链路</el-button>
+                      <el-button v-if="canReplayTask(row)" size="small" text type="warning" @click="replayTaskFromHistory(row)">重放</el-button>
+                      <el-button v-if="canCancelTask(row)" size="small" text type="danger" @click="cancelTaskFromHistory(row)">取消</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </OrinAsyncState>
+            </OrinDataTable>
+          </el-tab-pane>
+
+        </el-tabs>
       </section>
     </section>
 
@@ -488,6 +445,7 @@ const selectedWorkflow = ref(null)
 const instances = ref([])
 const executionInput = ref('{\n  "query": ""\n}')
 const executing = ref(false)
+const activeExecutionTab = ref('instances')
 const latestExecution = ref('')
 const latestExecutionObject = ref(null)
 const latestExecutionAt = ref('')
@@ -1655,6 +1613,19 @@ onUnmounted(() => {
   display: grid;
   gap: 10px;
   padding: 14px 16px 18px;
+}
+
+.execution-detail-tabs {
+  padding: 0 16px;
+}
+
+.execution-detail-tabs :deep(.el-tabs__header) {
+  margin-bottom: 0;
+  padding-top: 8px;
+}
+
+.execution-detail-tabs :deep(.el-tabs__content) {
+  padding-top: 12px;
 }
 
 .execution-record-card {
