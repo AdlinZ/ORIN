@@ -21,5 +21,10 @@ public interface WorkflowRepository extends JpaRepository<WorkflowEntity, Long> 
 
     List<WorkflowEntity> findByOwnerUserIdAndMcpExposedTrue(Long ownerUserId);
 
+    /**
+     * 资源级 ACL 第 3 刀: 按 owner 过滤工作流(普通用户列表场景)。
+     */
+    List<WorkflowEntity> findByOwnerUserId(Long ownerUserId);
+
     boolean existsByWorkflowName(String workflowName);
 }

@@ -48,7 +48,7 @@ public class WorkflowService {
     private final OrinWorkflowDslNormalizer workflowDslNormalizer;
     private final OrinWorkflowDslValidator workflowDslValidator;
     private final TaskService taskService;
-    private final AgentOwnershipResolver ownershipResolver;
+    private final WorkflowOwnershipResolver workflowOwnershipResolver;
 
     /**
      * 将字符串转换为 WorkflowType 枚举
@@ -85,7 +85,7 @@ public class WorkflowService {
         WorkflowEntity entity = WorkflowEntity.builder()
                 .workflowName(name)
                 .description(description)
-                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
+                .ownerUserId(workflowOwnershipResolver.resolveFromCurrentRequest())
                 .workflowType(WorkflowEntity.WorkflowType.DAG)
                 .workflowDefinition(workflowDefinition)
                 .status(WorkflowEntity.WorkflowStatus.DRAFT) // Import as draft
@@ -125,7 +125,7 @@ public class WorkflowService {
         WorkflowEntity entity = WorkflowEntity.builder()
                 .workflowName(finalName)
                 .description(request.getDescription())
-                .ownerUserId(ownershipResolver.resolveFromCurrentRequest())
+                .ownerUserId(workflowOwnershipResolver.resolveFromCurrentRequest())
                 .mcpExposed(Boolean.TRUE.equals(request.getMcpExposed()))
                 .workflowType(parseWorkflowType(request.getWorkflowType()))
                 .workflowDefinition(workflowDslNormalizer.normalize(request.getWorkflowDefinition(), "ORIN"))
@@ -154,6 +154,8 @@ public class WorkflowService {
 
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        // 资源级 ACL 第 3 刀: 非 owner / 非 admin/operator 拒绝更新
+        workflowOwnershipResolver.assertCanManage(entity);
 
         // Update fields
         if (request.getWorkflowName() != null) {
@@ -175,7 +177,7 @@ public class WorkflowService {
             entity.setRetryPolicy(request.getRetryPolicy());
         }
         if (request.getMcpExposed() != null && request.getMcpExposed() != entity.isMcpExposed()) {
-            assertCanManageWorkflowMcpExposure(entity);
+            workflowOwnershipResolver.assertCanManageMcpExposure(entity);
             entity.setMcpExposed(request.getMcpExposed());
         }
         WorkflowEntity.WorkflowStatus requestedStatus = parseWorkflowStatus(request.getStatus());
@@ -197,6 +199,8 @@ public class WorkflowService {
         log.info("Publishing workflow: {}", id);
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        // 资源级 ACL 第 3 刀: 非 owner / 非 admin/operator 拒绝发布
+        workflowOwnershipResolver.assertCanManage(entity);
         ensureWorkflowCanPublish(entity);
         entity.setStatus(WorkflowEntity.WorkflowStatus.ACTIVE);
         return toResponse(workflowRepository.save(entity));
@@ -207,6 +211,8 @@ public class WorkflowService {
         log.info("Archiving workflow: {}", id);
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        // 资源级 ACL 第 3 刀: 非 owner / 非 admin/operator 拒绝归档
+        workflowOwnershipResolver.assertCanManage(entity);
         entity.setStatus(WorkflowEntity.WorkflowStatus.ARCHIVED);
         return toResponse(workflowRepository.save(entity));
     }
@@ -223,13 +229,6 @@ public class WorkflowService {
         workflowDslValidator.validateForPublishOrThrow(normalized);
         if (!workflowEngine.validateWorkflow(entity.getId())) {
             throw new IllegalStateException("Workflow validation failed: " + entity.getId());
-        }
-    }
-
-    private void assertCanManageWorkflowMcpExposure(WorkflowEntity entity) {
-        Long currentUserId = ownershipResolver.resolveFromCurrentRequest();
-        if (!ownershipResolver.isCurrentUserAdmin() && !currentUserId.equals(entity.getOwnerUserId())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权修改该工作流的 MCP 暴露设置");
         }
     }
 
@@ -327,6 +326,8 @@ public class WorkflowService {
                                                                        String triggerSource, String traceId) {
         WorkflowEntity workflow = workflowRepository.findById(workflowId)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowId));
+        // 资源级 ACL 第 3 刀: 非 owner / 非 admin/operator 拒绝执行
+        workflowOwnershipResolver.assertCanManage(workflow);
         if (workflow.getStatus() == WorkflowEntity.WorkflowStatus.ARCHIVED) {
             throw new IllegalStateException("Workflow is archived and cannot be executed: " + workflowId);
         }
@@ -427,7 +428,15 @@ public class WorkflowService {
     }
 
     public List<WorkflowResponse> getAllWorkflows() {
-        return workflowRepository.findAll().stream()
+        // 资源级 ACL 第 3 刀: admin / operator 看全部, 普通用户按 owner 过滤
+        List<WorkflowEntity> entities;
+        if (workflowOwnershipResolver.isCurrentUserPrivileged()) {
+            entities = workflowRepository.findAll();
+        } else {
+            Long currentUserId = workflowOwnershipResolver.resolveFromCurrentRequest();
+            entities = workflowRepository.findByOwnerUserId(currentUserId);
+        }
+        return entities.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -435,24 +444,36 @@ public class WorkflowService {
     public WorkflowResponse getWorkflowById(Long id) {
         WorkflowEntity entity = workflowRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        // 资源级 ACL 第 3 刀: 非 owner / 非 admin/operator 拒绝读取
+        workflowOwnershipResolver.assertCanManage(entity);
         return toResponse(entity);
     }
 
     public WorkflowInstanceEntity getInstance(Long instanceId) {
-        return instanceRepository.findById(instanceId)
+        WorkflowInstanceEntity instance = instanceRepository.findById(instanceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow instance not found: " + instanceId));
+        // 资源级 ACL 第 3 刀: instance 跟随所属 workflow 的 owner
+        WorkflowEntity workflow = workflowRepository.findById(instance.getWorkflowId())
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + instance.getWorkflowId()));
+        workflowOwnershipResolver.assertCanManage(workflow);
+        return instance;
     }
 
     public List<WorkflowInstanceEntity> getWorkflowInstances(Long workflowId) {
+        // 资源级 ACL 第 3 刀: instance 跟随所属 workflow 的 owner
+        WorkflowEntity workflow = workflowRepository.findById(workflowId)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowId));
+        workflowOwnershipResolver.assertCanManage(workflow);
         return instanceRepository.findByWorkflowIdOrderByStartedAtDesc(workflowId);
     }
 
     @Transactional
     public void deleteWorkflow(Long id) {
         log.info("Deleting workflow: {}", id);
-        if (!workflowRepository.existsById(id)) {
-            throw new IllegalArgumentException("Workflow not found: " + id);
-        }
+        WorkflowEntity entity = workflowRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        // 资源级 ACL 第 3 刀: 非 owner / 非 admin/operator 拒绝删除
+        workflowOwnershipResolver.assertCanManage(entity);
 
         // Delete associated steps and instances
         stepRepository.deleteByWorkflowId(id);
