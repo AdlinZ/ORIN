@@ -523,6 +523,16 @@
   - 文件：`orin-backend/.../knowledge/service/MilvusVectorService.java`
 - [x] `P1` **前端路由双轨制**（验证，无需操作）：确认旧路径均为 redirect 规则，守卫逻辑统一走 `topMenuConfig.js` 角色集合，无双轨制冲突
 
+### 本轮提交记录（2026-06-11 OCR 收尾）
+
+- [x] `P0` **OCR 空桩**：与 5a3656fa 的 ASR 改造同构，`OcrService.ocrWithAliCloud / ocrWithTencentCloud / ocrWithBaidu` 由返回 `"[OCR Error] ..."` 魔法字符串改为 `throw new UnsupportedOperationException(...)`；新增 `OcrServiceTest` 3 用例钉契约
+  - 文件：`orin-backend/.../multimodal/service/OcrService.java`、`OcrServiceTest.java`
+  - 提交：`880ceb6b refactor(ocr): throw UnsupportedOperationException for unimplemented OCR methods`
+- [x] `P0` **编译回归修复**：`KnowledgeWorkflowEngine.executeAgentStep` 中 `new Message("user", prompt)` 2 参构造器在 `5a3656fa` 合并时未通过 `mvn compile` 验证，阻塞本轮 OCR 测试执行；按 `ChatCompletionRequest.Message` `@AllArgsConstructor` 4 参签名 `(role, content, thinking, name)` 补 `null`
+  - 文件：`orin-backend/.../knowledge/component/KnowledgeWorkflowEngine.java`
+  - 提交：`84c11197 fix(knowledge): use 4-arg Message constructor in executeAgentStep`
+- 验证：`mvn -DskipTests compile` exit=0；`mvn test -Dtest=OcrServiceTest` 3/3 绿
+
 ---
 
 ## 后续开发计划（2026-06-11）
@@ -549,8 +559,9 @@ TraceID MQ 传播（2d）
 
 ### Phase 1 收尾（当前 Sprint）
 
-- [ ] `P0` **OCR 空桩**：`OcrService` 阿里云、腾讯云、百度三个方法与 ASR 同步改为抛 `UnsupportedOperationException`
-  - 文件：`orin-backend/.../multimodal/service/OcrService.java`
+- [x] `P0` **OCR 空桩**：`OcrService` 阿里云、腾讯云、百度三个方法与 ASR 同步改为抛 `UnsupportedOperationException`（`880ceb6b`）；新增 `OcrServiceTest` 钉契约，3 用例绿
+  - 文件：`orin-backend/.../multimodal/service/OcrService.java`、`OcrServiceTest.java`
+  - 顺手修复：`KnowledgeWorkflowEngine.executeAgentStep` 2 参 `Message` 构造器调用在 `mvn compile` 失败（`5a3656fa` 遗留），已改为 4 参（`84c11197`）
 - [~] `P0` **协同人工干预真实联调**：协同页面 pause/resume/terminate 接口对接真实后端，替换现有 mock；Playwright E2E 已覆盖 mock，需补真实后端 E2E 场景
 - [~] `P0` **工作流子任务烟雾测试**：补齐 RabbitMQ + AI Engine worker + 后端 listener 完整链路端到端验收
 - [ ] `P0` **MCP `tools/call` 验收录屏**：在 Claude Desktop / Cursor 下执行 `tools/call`，录制截图/GIF 作为功能凭证；补充工具隔离和资源清理异常路径测试
