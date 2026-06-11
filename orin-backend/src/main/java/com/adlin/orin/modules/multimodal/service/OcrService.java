@@ -150,10 +150,7 @@ public class OcrService {
      * @return 识别的文字
      */
     public String ocrWithAliCloud(String imageUrl, String accessKeyId, String accessKeySecret) {
-        // TODO: 实现阿里云 OCR 集成
-        // 阿里云 OCR API: https://help.aliyun.com/document_detail/297.html
-        log.info("AliCloud OCR not implemented yet");
-        return "[OCR Error] AliCloud OCR not implemented";
+        throw new UnsupportedOperationException("AliCloud OCR not implemented");
     }
 
     /**
@@ -165,10 +162,7 @@ public class OcrService {
      * @return 识别的文字
      */
     public String ocrWithTencentCloud(String imageUrl, String secretId, String secretKey) {
-        // TODO: 实现腾讯云 OCR 集成
-        // 腾讯云 OCR API: https://cloud.tencent.com/document/product/866/33524
-        log.info("TencentCloud OCR not implemented yet");
-        return "[OCR Error] TencentCloud OCR not implemented";
+        throw new UnsupportedOperationException("TencentCloud OCR not implemented");
     }
 
     /**
@@ -180,9 +174,6 @@ public class OcrService {
      * @return 识别的文字
      */
     public String ocrWithBaidu(String imageUrl, String apiKey, String secretKey) {
-        // TODO: 实现百度 OCR 集成
-        // 百度 OCR API: https://cloud.baidu.com/doc/OCRAPI/sdk_python
-        log.info("Baidu OCR not implemented yet");
-        return "[OCR Error] Baidu OCR not implemented";
+        throw new UnsupportedOperationException("Baidu OCR not implemented");
     }
 }
