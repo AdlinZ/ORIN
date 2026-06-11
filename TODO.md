@@ -573,7 +573,8 @@ TraceID MQ 传播（2d）
 - [~] `P1` **资源级 ACL**：`AgentManageService`、`KnowledgeManageService`、`WorkflowService` 补充数据行级归属校验，当前仅路由级角色判断
   - KB 第 1 刀已完成（`7a5818f4`）：V92 migration + `KnowledgeBase.ownerUserId` + `KnowledgeOwnershipResolver` + 5 个 CRUD 方法 owner 校验 + `KnowledgeManageServiceAclTest` 7 用例全绿
   - Agent 第 2 刀已完成（`1c2318e4`）：`AgentOwnershipResolver` 加 `isCurrentUserPrivileged` + `assertCanManage(AgentMetadata)`；`AgentManageServiceImpl` 改 5 处（getAllAgents / updateAgent / updateAgentConfig / deleteAgent / chatWithConversation）；`AgentManageServiceAclTest` 8 用例全绿
-  - Workflow 第 3 刀待续；batch / versions / async / refresh 涉及多 agentId 语义复杂，单独切
+  - Workflow 第 3 刀已完成（`af909e11`）：新建 `WorkflowOwnershipResolver`（workflow 模块内，镜像 Agent 模板）+ `WorkflowService` 改 10 处（5 写 + 4 读 + archive + instance 跟随 workflow）；`WorkflowServiceAclTest` 9 用例全绿
+  - 资源级 ACL 3 刀全部完成。下一刀可考虑：抽 common `OwnershipResolver` 基类（KB / Agent / Workflow 三份 Resolver 模板统一）/ batch & versions & async & refresh 多 agentId 语义 / NULL owner KB 数据回填
   - 现有 NULL owner KB 视为系统级（admin/operator 可见，普通用户不可见），暂不做数据回填
 - [ ] `P1` **API Key 端点限流**：`/v1/mcp/**` 绑定独立限流策略，当前限流拦截器未覆盖 MCP 路径
 - [ ] `P1` **角色视图收敛**：`ROLE_OPERATOR` 确认隐藏系统设置与组织权限顶级菜单；`ROLE_USER` 门户页补充 API Key 自助入口可见性控制
