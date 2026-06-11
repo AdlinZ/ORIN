@@ -433,7 +433,12 @@ public class AgentManageServiceImpl implements AgentManageService {
     @Override
     @Cacheable(value = "agent_list")
     public java.util.List<AgentMetadata> getAllAgents() {
-        return metadataRepository.findAll();
+        // 资源级 ACL 第 2 刀: admin / operator 看全部, 普通用户按 owner 过滤
+        if (ownershipResolver.isCurrentUserPrivileged()) {
+            return metadataRepository.findAll();
+        }
+        Long currentUserId = ownershipResolver.resolveFromCurrentRequest();
+        return metadataRepository.findByOwnerUserId(currentUserId);
     }
 
     @Override
@@ -447,6 +452,8 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         // 1. Update Metadata
         metadataRepository.findById(agentId).ifPresent(metadata -> {
+            // 资源级 ACL 第 2 刀: 非 owner / 非 admin/operator 拒绝更新
+            ownershipResolver.assertCanManage(metadata);
             if (request.getName() != null)
                 metadata.setName(request.getName());
             if (request.getModel() != null) {
@@ -587,6 +594,8 @@ public class AgentManageServiceImpl implements AgentManageService {
     })
     public java.util.Optional<AgentMetadata> updateAgentConfig(String agentId, AgentMetadata config) {
         return metadataRepository.findById(agentId).map(existing -> {
+            // 资源级 ACL 第 2 刀: 非 owner / 非 admin/operator 拒绝更新
+            ownershipResolver.assertCanManage(existing);
             boolean metadataChanged = false;
             // boolean profileChanged = false; // Unused
 
@@ -659,6 +668,12 @@ public class AgentManageServiceImpl implements AgentManageService {
             @CacheEvict(value = "agent_list", allEntries = true)
     })
     public void deleteAgent(String agentId) {
+        // 资源级 ACL 第 2 刀: 非 owner / 非 admin/operator 拒绝删除
+        AgentMetadata metadata = metadataRepository.findById(agentId)
+                .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
+                        "AgentMetadata", agentId));
+        ownershipResolver.assertCanManage(metadata);
+
         accessProfileRepository.deleteById(agentId);
         metadataRepository.deleteById(agentId);
         healthStatusRepository.deleteById(agentId);
@@ -1858,6 +1873,8 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         AgentMetadata metadata = metadataRepository.findById(agentId)
                 .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
+        // 资源级 ACL 第 2 刀: 普通用户不能 chat 别人的 agent
+        ownershipResolver.assertCanManage(metadata);
 
         // 2. Dynamic System Prompt Assembly (Includes Memory and Skills)
         String dynamicSystemPrompt;
