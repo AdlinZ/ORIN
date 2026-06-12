@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.collaboration.producer;
 
+import com.adlin.orin.common.trace.TraceContext;
 import com.adlin.orin.modules.collaboration.dto.CollabTaskMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,7 @@ public class CollaborationMQProducer {
             log.info("Publishing collab task to MQ: packageId={}, subTaskId={}, attempt={}",
                     message.getPackageId(), message.getSubTaskId(), message.getAttempt());
 
-            collabRabbitTemplate.convertAndSend(exchangeName, routingKey, message);
+            collabRabbitTemplate.convertAndSend(exchangeName, routingKey, message, tracePostProcessor());
 
             log.debug("Task published successfully: {}", message.getCorrelationId());
         } catch (AmqpException e) {
@@ -56,7 +57,7 @@ public class CollaborationMQProducer {
         log.info("Publishing collab task retry: packageId={}, subTaskId={}, attempt={}, delay={}ms",
                 message.getPackageId(), message.getSubTaskId(), message.getAttempt(), delay);
 
-        // 消息后处理器：设置延迟和优先级
+        // 消息后处理器：设置延迟和优先级 + W3C traceparent 传播
         MessagePostProcessor messagePostProcessor = msg -> {
             msg.getMessageProperties().setPriority(9); // 高优先级
             msg.getMessageProperties().setHeader("x-retry-count", message.getAttempt());
@@ -65,6 +66,7 @@ public class CollaborationMQProducer {
             if (delay > 0) {
                 msg.getMessageProperties().setExpiration(String.valueOf(delay));
             }
+            injectTraceHeaders(msg);
             return msg;
         };
 
@@ -99,9 +101,32 @@ public class CollaborationMQProducer {
         MessagePostProcessor messagePostProcessor = msg -> {
             msg.getMessageProperties().setReplyTo(replyTo);
             msg.getMessageProperties().setCorrelationId(message.getCorrelationId());
+            injectTraceHeaders(msg);
             return msg;
         };
 
         collabRabbitTemplate.convertAndSend(exchangeName, routingKey, message, messagePostProcessor);
+    }
+
+    /**
+     * 独立 trace MPP，用于 {@link #sendTask(CollabTaskMessage)} 这种原 MPP 为空的场景。
+     * 同样在已有 MPP 的 send 路径里通过 {@link #injectTraceHeaders(org.springframework.amqp.core.Message)}
+     * 内联合并，避免重复组装。
+     */
+    private MessagePostProcessor tracePostProcessor() {
+        return msg -> {
+            injectTraceHeaders(msg);
+            return msg;
+        };
+    }
+
+    /**
+     * 注入 W3C traceparent + 兼容 X-Trace-Id，从当前线程 MDC 解析 traceId，
+     * MDC 为空时由 {@link TraceContext#buildFromMdc()} 兜底生成。
+     */
+    private static void injectTraceHeaders(org.springframework.amqp.core.Message msg) {
+        String traceparent = TraceContext.buildFromMdc();
+        msg.getMessageProperties().setHeader(TraceContext.TRACEPARENT_HEADER, traceparent);
+        msg.getMessageProperties().setHeader(TraceContext.TRACE_ID_HEADER, traceparent.substring(3, 35));
     }
 }

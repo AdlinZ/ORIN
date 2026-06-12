@@ -21,7 +21,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
@@ -166,7 +169,11 @@ class CollaborationMqIsolationTest {
                 .metadata(Map.of("maxRetries", 3))
                 .build();
 
-        listener.handleResult(result);
+        Message amqpMessage = Mockito.mock(Message.class);
+        MessageProperties messageProperties = new MessageProperties();
+        Mockito.when(amqpMessage.getMessageProperties()).thenReturn(messageProperties);
+
+        listener.handleResult(result, amqpMessage);
 
         verify(redisService).getContextField("pkg-iso-002", "pending_task:sub-2");
 

@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.task.consumer;
 
+import com.adlin.orin.common.trace.TraceContext;
 import com.adlin.orin.modules.task.dto.TaskMessage;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
@@ -9,12 +10,15 @@ import com.adlin.orin.modules.workflow.engine.WorkflowEngine;
 import com.adlin.orin.modules.workflow.entity.WorkflowInstanceEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 任务队列消费者 - 支持指数退避重试
@@ -44,56 +48,77 @@ public class TaskQueueConsumer {
      * 监听任务队列
      */
     @RabbitListener(queues = "${orin.task.queue.name:workflow-task-queue}")
-    public void consumeTask(TaskMessage taskMessage) {
-        log.info("Received task: taskId={}, priority={}, retryCount={}",
-                taskMessage.getTaskId(), taskMessage.getPriority(), taskMessage.getRetryCount());
-
-        Optional<TaskEntity> taskOpt = taskRepository.findByTaskId(taskMessage.getTaskId());
-        if (taskOpt.isEmpty()) {
-            log.warn("Task not found in database: {}", taskMessage.getTaskId());
-            return;
-        }
-
-        TaskEntity task = taskOpt.get();
-
-        // 检查任务状态，避免重复执行
-        if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.DEAD
-                || task.getStatus() == TaskStatus.CANCELLED) {
-            log.info("Task already terminal: taskId={}, status={}", taskMessage.getTaskId(), task.getStatus());
-            return;
-        }
-
-        // 更新任务状态为运行中
-        task.setStatus(TaskStatus.RUNNING);
-        task.setStartedAt(LocalDateTime.now());
-        taskRepository.save(task);
-
+    public void consumeTask(TaskMessage taskMessage, Message message) {
+        bindMdcFromMessage(message);
         try {
-            // 执行工作流
-            WorkflowInstanceEntity instance = executeWorkflow(task, taskMessage);
-            if (instance.getStatus() != WorkflowInstanceEntity.InstanceStatus.SUCCESS) {
-                String message = instance.getErrorMessage() != null
-                        ? instance.getErrorMessage()
-                        : "Workflow instance finished with status: " + instance.getStatus();
-                throw new WorkflowTaskExecutionException(message, instance);
+            log.info("Received task: taskId={}, priority={}, retryCount={}",
+                    taskMessage.getTaskId(), taskMessage.getPriority(), taskMessage.getRetryCount());
+
+            Optional<TaskEntity> taskOpt = taskRepository.findByTaskId(taskMessage.getTaskId());
+            if (taskOpt.isEmpty()) {
+                log.warn("Task not found in database: {}", taskMessage.getTaskId());
+                return;
             }
 
-            // 执行成功，更新任务状态
-            task.setStatus(TaskStatus.COMPLETED);
-            task.setCompletedAt(LocalDateTime.now());
-            task.setOutputData(instance.getOutputData());
-            task.setErrorMessage(null);
-            task.setErrorStack(null);
-            if (task.getStartedAt() != null) {
-                task.setDurationMs(java.time.Duration.between(task.getStartedAt(), task.getCompletedAt()).toMillis());
+            TaskEntity task = taskOpt.get();
+
+            // 检查任务状态，避免重复执行
+            if (task.getStatus() == TaskStatus.COMPLETED || task.getStatus() == TaskStatus.DEAD
+                    || task.getStatus() == TaskStatus.CANCELLED) {
+                log.info("Task already terminal: taskId={}, status={}", taskMessage.getTaskId(), task.getStatus());
+                return;
             }
+
+            // 更新任务状态为运行中
+            task.setStatus(TaskStatus.RUNNING);
+            task.setStartedAt(LocalDateTime.now());
             taskRepository.save(task);
 
-            log.info("Task completed successfully: {}", taskMessage.getTaskId());
+            try {
+                // 执行工作流
+                WorkflowInstanceEntity instance = executeWorkflow(task, taskMessage);
+                if (instance.getStatus() != WorkflowInstanceEntity.InstanceStatus.SUCCESS) {
+                    String errMsg = instance.getErrorMessage() != null
+                            ? instance.getErrorMessage()
+                            : "Workflow instance finished with status: " + instance.getStatus();
+                    throw new WorkflowTaskExecutionException(errMsg, instance);
+                }
 
-        } catch (Exception e) {
-            handleTaskFailure(task, taskMessage, e);
+                // 执行成功，更新任务状态
+                task.setStatus(TaskStatus.COMPLETED);
+                task.setCompletedAt(LocalDateTime.now());
+                task.setOutputData(instance.getOutputData());
+                task.setErrorMessage(null);
+                task.setErrorStack(null);
+                if (task.getStartedAt() != null) {
+                    task.setDurationMs(java.time.Duration.between(task.getStartedAt(), task.getCompletedAt()).toMillis());
+                }
+                taskRepository.save(task);
+
+                log.info("Task completed successfully: {}", taskMessage.getTaskId());
+
+            } catch (Exception e) {
+                handleTaskFailure(task, taskMessage, e);
+            }
+        } finally {
+            MDC.remove(TraceContext.TRACE_ID_KEY);
+            MDC.remove(TraceContext.SPAN_ID_KEY);
         }
+    }
+
+    /**
+     * 从入站 AMQP message 的 traceparent header 抽取 traceId/spanId 灌 MDC。
+     * 缺 header 时生成新 traceId；缺 spanId 时新生成。
+     */
+    private static void bindMdcFromMessage(Message amqpMessage) {
+        String header = amqpMessage == null || amqpMessage.getMessageProperties() == null
+                ? null
+                : (String) amqpMessage.getMessageProperties().getHeader(TraceContext.TRACEPARENT_HEADER);
+        TraceContext.Traceparent tp = TraceContext.parse(header);
+        String traceId = tp != null ? tp.traceId() : UUID.randomUUID().toString().replace("-", "");
+        String spanId = tp != null ? tp.spanId() : TraceContext.generateSpanId();
+        MDC.put(TraceContext.TRACE_ID_KEY, traceId);
+        MDC.put(TraceContext.SPAN_ID_KEY, spanId);
     }
 
     /**

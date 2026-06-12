@@ -607,7 +607,8 @@ TraceID MQ 传播（2d）
   - **保留 3 处字符串错误码**（独立调查, 8.2.1 自主决定）: SetupInitializeService L64 `SETUP_DISABLED` / L67 `SETUP_ALREADY_COMPLETED` / L177 `ENCRYPTION_KEY_REQUIRED` — `SetupController.initialize` L72-83 `switch (e.getMessage())` 主动 case 匹配, 部署指南 L26 文档化, 字符串是 SetupController API 内部契约, 改 ErrorCode 超出本小刀范围
   - 现状: 后端裸抛 192 → 0 处 (不含 Setup 3 处字符串契约)
   - 暂不做: 格式统一为 `ORIN-XXXX` 前缀（会全局重命名 40+ 错误码）；Python 端 `task_runtime.py` 结构化错误码
-- [ ] `P1` **TraceID 跨 MQ 传播**：RabbitMQ 发布时写入 `traceparent` 头，worker 消费时提取绑定 span，目标是 HTTP → AI Engine 调用链在 Jaeger 中完整可见
+- [x] `P1` **TraceID 跨 MQ 传播**：RabbitMQ 发布时写入 `traceparent` 头，worker 消费时提取绑定 span，目标是 HTTP → AI Engine 调用链在 Jaeger 中完整可见
+  本轮补齐后端 RabbitMQ 边界：collab/task 共 5 个 send site 通过 MessagePostProcessor 注入 `traceparent` + `X-Trace-Id`；3 个 `@RabbitListener` 从 message property 抽取 `traceparent` 灌 MDC 并在 finally 清。`common/trace/TraceContext` 工具集中放 W3C 编解码。新增 5 个测试 / 扩展 2 个。`mvn test` 664/664 全绿。AI Engine Python inbound 解析与 OTel SDK 跨进程 span 串联待小刀 2。
 - [ ] `P2` **结构化 JSON 日志**：后端接入 `logstash-logback-encoder`，日志包含 `traceId`、`userId`、`agentId` 字段，为后续 ELK / Grafana Loki 接入做准备
 - [ ] `P2` **测试覆盖补齐**：
   - 后端：`JwtAuthenticationFilter`（roles 缺失拒绝逻辑）、`KnowledgeWorkflowEngine`（AGENT/SKILL/LOGIC 三类步骤）单元测试

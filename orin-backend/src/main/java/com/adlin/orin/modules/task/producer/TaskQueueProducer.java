@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.task.producer;
 
+import com.adlin.orin.common.trace.TraceContext;
 import com.adlin.orin.modules.task.dto.TaskMessage;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import lombok.RequiredArgsConstructor;
@@ -32,11 +33,14 @@ public class TaskQueueProducer {
         log.info("Sending task to queue: taskId={}, priority={}, workflowId={}",
                 taskMessage.getTaskId(), taskMessage.getPriority(), taskMessage.getWorkflowId());
 
-        // 设置消息优先级
+        // 设置消息优先级 + W3C traceparent 传播
         MessagePostProcessor messagePostProcessor = message -> {
             int priority = getPriorityValue(taskMessage.getPriority());
             message.getMessageProperties().setPriority(priority);
             message.getMessageProperties().setDeliveryMode(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
+            String traceparent = TraceContext.buildFromMdc();
+            message.getMessageProperties().setHeader(TraceContext.TRACEPARENT_HEADER, traceparent);
+            message.getMessageProperties().setHeader(TraceContext.TRACE_ID_HEADER, traceparent.substring(3, 35));
             return message;
         };
 

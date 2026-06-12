@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.collaboration.consumer;
 
+import com.adlin.orin.common.trace.TraceContext;
 import com.adlin.orin.modules.collaboration.dto.CollabTaskMessage;
 import com.adlin.orin.modules.collaboration.dto.CollabTaskResult;
 import com.adlin.orin.modules.collaboration.event.CollaborationEventBus;
@@ -9,11 +10,14 @@ import com.adlin.orin.modules.collaboration.service.CollaborationOrchestrator;
 import com.adlin.orin.modules.collaboration.service.CollaborationRedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -61,100 +65,105 @@ public class CollaborationResultListener {
             queues = "${orin.collaboration.result.queue:collaboration-task-result-queue}",
             containerFactory = "collabRabbitListenerContainerFactory"
     )
-    public void handleResult(CollabTaskResult result) {
-        String callbackKey = result.getPackageId() + ":" + result.getSubTaskId();
-        CompletableFuture<String> future = callbacks.remove(callbackKey);
+    public void handleResult(CollabTaskResult result, Message message) {
+        bindMdcFromMessage(message);
+        try {
+            String callbackKey = result.getPackageId() + ":" + result.getSubTaskId();
+            CompletableFuture<String> future = callbacks.remove(callbackKey);
 
-        log.info("Received collab task result: packageId={}, subTaskId={}, status={}",
-                result.getPackageId(), result.getSubTaskId(), result.getStatus());
+            log.info("Received collab task result: packageId={}, subTaskId={}, status={}",
+                    result.getPackageId(), result.getSubTaskId(), result.getStatus());
 
-        if (future == null) {
-            log.warn("No callback found for result: {}, processing anyway", callbackKey);
-            // 即使没有 callback，也更新状态
-            processResult(result);
-            return;
-        }
-
-        if ("COMPLETED".equals(result.getStatus())) {
-            // 成功完成
-            // 并行 fan-in：先原子写入完整分支结果，避免通用状态更新写入的精简 payload 抢占字段。
-            long branchCounter = redisService.writeBranchResultAndIncrement(
-                    result.getPackageId(),
-                    result.getSubTaskId(),
-                    buildBranchPayload(result)
-            );
-
-            // 更新 subtask 状态（幂等：重复回执时忽略 COMPLETED->COMPLETED）
-            safeUpdateSubtaskStatus(
-                    result.getPackageId(),
-                    result.getSubTaskId(),
-                    "COMPLETED",
-                    result.getResult(),
-                    null
-            );
-
-            future.complete(result.getResult());
-
-            // 记录 metrics
-            recordMetrics(result);
-
-            log.info("Subtask completed via MQ: packageId={}, subTaskId={}",
-                    result.getPackageId(), result.getSubTaskId());
-            log.debug("Branch counter updated: packageId={}, counter={}", result.getPackageId(), branchCounter);
-
-        } else {
-            // 失败或超时 - 检查是否需要重试
-            String errorMsg = result.getErrorMessage() != null
-                    ? result.getErrorMessage()
-                    : "Task failed with status: " + result.getStatus();
-
-            int currentAttempt = result.getAttempt() != null ? result.getAttempt() : 0;
-            int maxRetries = getMaxRetriesFromContext(result);
-
-            if (currentAttempt < maxRetries) {
-                // 需要重试
-                log.warn("Subtask failed, scheduling retry: packageId={}, subTaskId={}, attempt={}/{}, error={}",
-                        result.getPackageId(), result.getSubTaskId(), currentAttempt + 1, maxRetries, errorMsg);
-
-                // 关键修复：重试期间必须保留同一个回调 future，不能 cancel。
-                // 否则上游 executeSubtask 会收到 CancellationException 并立刻触发降级。
-                if (!future.isDone()) {
-                    callbacks.put(callbackKey, future);
-                }
-
-                // 发送重试消息（需要构建 CollabTaskMessage，这里简化处理）
-                scheduleRetry(result);
+            if (future == null) {
+                log.warn("No callback found for result: {}, processing anyway", callbackKey);
+                // 即使没有 callback，也更新状态
+                processResult(result);
                 return;
-            } else {
-                // 达到最大重试次数，标记失败
-                log.error("Subtask failed permanently: packageId={}, subTaskId={}, after {} attempts",
-                        result.getPackageId(), result.getSubTaskId(), currentAttempt);
+            }
 
-                // 失败也写入 branch_result，避免上游轮询长时间超时。
-                redisService.writeBranchResultAndIncrement(
+            if ("COMPLETED".equals(result.getStatus())) {
+                // 成功完成
+                // 并行 fan-in：先原子写入完整分支结果，避免通用状态更新写入的精简 payload 抢占字段。
+                long branchCounter = redisService.writeBranchResultAndIncrement(
                         result.getPackageId(),
                         result.getSubTaskId(),
-                        Map.of(
-                                "status", result.getStatus(),
-                                "errorMessage", errorMsg,
-                                "attempt", currentAttempt
-                        )
+                        buildBranchPayload(result)
                 );
 
-                future.completeExceptionally(new RuntimeException(errorMsg));
-
-                // 更新 subtask 状态为失败（幂等）
+                // 更新 subtask 状态（幂等：重复回执时忽略 COMPLETED->COMPLETED）
                 safeUpdateSubtaskStatus(
                         result.getPackageId(),
                         result.getSubTaskId(),
-                        "FAILED",
-                        null,
-                        errorMsg
+                        "COMPLETED",
+                        result.getResult(),
+                        null
                 );
 
-                // 记录失败 metrics
+                future.complete(result.getResult());
+
+                // 记录 metrics
                 recordMetrics(result);
+
+                log.info("Subtask completed via MQ: packageId={}, subTaskId={}",
+                        result.getPackageId(), result.getSubTaskId());
+                log.debug("Branch counter updated: packageId={}, counter={}", result.getPackageId(), branchCounter);
+
+            } else {
+                // 失败或超时 - 检查是否需要重试
+                String errorMsg = result.getErrorMessage() != null
+                        ? result.getErrorMessage()
+                        : "Task failed with status: " + result.getStatus();
+
+                int currentAttempt = result.getAttempt() != null ? result.getAttempt() : 0;
+                int maxRetries = getMaxRetriesFromContext(result);
+
+                if (currentAttempt < maxRetries) {
+                    // 需要重试
+                    log.warn("Subtask failed, scheduling retry: packageId={}, subTaskId={}, attempt={}/{}, error={}",
+                            result.getPackageId(), result.getSubTaskId(), currentAttempt + 1, maxRetries, errorMsg);
+
+                    // 关键修复：重试期间必须保留同一个回调 future，不能 cancel。
+                    // 否则上游 executeSubtask 会收到 CancellationException 并立刻触发降级。
+                    if (!future.isDone()) {
+                        callbacks.put(callbackKey, future);
+                    }
+
+                    // 发送重试消息（需要构建 CollabTaskMessage，这里简化处理）
+                    scheduleRetry(result);
+                    return;
+                } else {
+                    // 达到最大重试次数，标记失败
+                    log.error("Subtask failed permanently: packageId={}, subTaskId={}, after {} attempts",
+                            result.getPackageId(), result.getSubTaskId(), currentAttempt);
+
+                    // 失败也写入 branch_result，避免上游轮询长时间超时。
+                    redisService.writeBranchResultAndIncrement(
+                            result.getPackageId(),
+                            result.getSubTaskId(),
+                            Map.of(
+                                    "status", result.getStatus(),
+                                    "errorMessage", errorMsg,
+                                    "attempt", currentAttempt
+                            )
+                    );
+
+                    future.completeExceptionally(new RuntimeException(errorMsg));
+
+                    // 更新 subtask 状态为失败（幂等）
+                    safeUpdateSubtaskStatus(
+                            result.getPackageId(),
+                            result.getSubTaskId(),
+                            "FAILED",
+                            null,
+                            errorMsg
+                    );
+
+                    // 记录失败 metrics
+                    recordMetrics(result);
+                }
             }
+        } finally {
+            clearMdc();
         }
     }
 
@@ -229,33 +238,58 @@ public class CollaborationResultListener {
             queues = "${orin.collaboration.dlq.name:collaboration-task-dlq}",
             containerFactory = "collabRabbitListenerContainerFactory"
     )
-    public void handleDeadLetter(CollabTaskMessage message) {
-        String packageId = message.getPackageId();
-        String subTaskId = message.getSubTaskId();
-        String errorMessage = "Message moved to collaboration DLQ";
-        log.error("Collaboration task dead-lettered: packageId={}, subTaskId={}, attempt={}",
-                packageId, subTaskId, message.getAttempt());
+    public void handleDeadLetter(CollabTaskMessage message, Message amqpMessage) {
+        bindMdcFromMessage(amqpMessage);
+        try {
+            String packageId = message.getPackageId();
+            String subTaskId = message.getSubTaskId();
+            String errorMessage = "Message moved to collaboration DLQ";
+            log.error("Collaboration task dead-lettered: packageId={}, subTaskId={}, attempt={}",
+                    packageId, subTaskId, message.getAttempt());
 
-        redisService.writeBranchResultAndIncrement(
-                packageId,
-                subTaskId,
-                Map.of(
-                        "status", "DEAD_LETTER",
-                        "errorMessage", errorMessage,
-                        "attempt", message.getAttempt() != null ? message.getAttempt() : 0,
-                        "traceId", message.getTraceId() != null ? message.getTraceId() : ""
-                )
-        );
-        safeUpdateSubtaskStatus(packageId, subTaskId, "FAILED", null, errorMessage);
-        recordMetrics(CollabTaskResult.builder()
-                .packageId(packageId)
-                .subTaskId(subTaskId)
-                .traceId(message.getTraceId())
-                .attempt(message.getAttempt())
-                .status("DEAD_LETTER")
-                .errorMessage(errorMessage)
-                .metadata(Map.of("expectedRole", message.getExpectedRole() != null ? message.getExpectedRole() : "AGENT"))
-                .build());
+            redisService.writeBranchResultAndIncrement(
+                    packageId,
+                    subTaskId,
+                    Map.of(
+                            "status", "DEAD_LETTER",
+                            "errorMessage", errorMessage,
+                            "attempt", message.getAttempt() != null ? message.getAttempt() : 0,
+                            "traceId", message.getTraceId() != null ? message.getTraceId() : ""
+                    )
+            );
+            safeUpdateSubtaskStatus(packageId, subTaskId, "FAILED", null, errorMessage);
+            recordMetrics(CollabTaskResult.builder()
+                    .packageId(packageId)
+                    .subTaskId(subTaskId)
+                    .traceId(message.getTraceId())
+                    .attempt(message.getAttempt())
+                    .status("DEAD_LETTER")
+                    .errorMessage(errorMessage)
+                    .metadata(Map.of("expectedRole", message.getExpectedRole() != null ? message.getExpectedRole() : "AGENT"))
+                    .build());
+        } finally {
+            clearMdc();
+        }
+    }
+
+    /**
+     * 从入站 AMQP message 的 traceparent header 抽取 traceId/spanId 灌 MDC。
+     * 缺 header 时生成新 traceId；缺 spanId 时新生成。
+     */
+    private static void bindMdcFromMessage(Message amqpMessage) {
+        String header = amqpMessage == null || amqpMessage.getMessageProperties() == null
+                ? null
+                : (String) amqpMessage.getMessageProperties().getHeader(TraceContext.TRACEPARENT_HEADER);
+        TraceContext.Traceparent tp = TraceContext.parse(header);
+        String traceId = tp != null ? tp.traceId() : UUID.randomUUID().toString().replace("-", "");
+        String spanId = tp != null ? tp.spanId() : TraceContext.generateSpanId();
+        MDC.put(TraceContext.TRACE_ID_KEY, traceId);
+        MDC.put(TraceContext.SPAN_ID_KEY, spanId);
+    }
+
+    private static void clearMdc() {
+        MDC.remove(TraceContext.TRACE_ID_KEY);
+        MDC.remove(TraceContext.SPAN_ID_KEY);
     }
 
     private void safeUpdateSubtaskStatus(String packageId,
