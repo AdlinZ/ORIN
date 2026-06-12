@@ -15,6 +15,8 @@ from aio_pika import Message, DeliveryMode
 from aio_pika.abc import AbstractIncomingMessage
 
 from app.core.config import settings
+from app.core.trace_context import bind_from_traceparent, clear
+from app.core.w3c_trace import TRACEPARENT_HEADER
 from app.engine.task_runtime import TaskRuntime
 from app.core.shared_memory import shared_memory
 
@@ -272,34 +274,47 @@ class CollabMQWorker:
     async def _process_message(self, message: AbstractIncomingMessage):
         """Process a single message from the queue"""
         async with message.process(requeue=False):
+            # W3C traceparent inbound：从入站 message header 抽 trace context
+            # 绑到 contextvar（mq_worker 没有 HTTP 中间件层，需要手动
+            # 绑）。aio-pika 9.x headers 是 Mapping[str, Any] | None，大小写
+            # 不敏感。Header 缺 / 非法时自动兜底生成新 trace_id。
+            tp_header = None
+            if message.headers is not None:
+                tp_header = message.headers.get(TRACEPARENT_HEADER)
+            bind_from_traceparent(tp_header)
             try:
-                # Parse message
-                body = json.loads(message.body.decode())
-                task = CollabTaskMessage.from_dict(body)
+                try:
+                    # Parse message
+                    body = json.loads(message.body.decode())
+                    task = CollabTaskMessage.from_dict(body)
 
-                logger.info(
-                    "Processing collab task: package=%s, subtask=%s, attempt=%s",
-                    task.package_id, task.sub_task_id, task.attempt
-                )
-
-                # Idempotency check
-                if await self._is_duplicate(task):
-                    logger.warning(
-                        "Duplicate task ignored: %s:%s:%s",
+                    logger.info(
+                        "Processing collab task: package=%s, subtask=%s, attempt=%s",
                         task.package_id, task.sub_task_id, task.attempt
                     )
-                    return
 
-                # Execute task
-                result = await self._execute_task(task)
+                    # Idempotency check
+                    if await self._is_duplicate(task):
+                        logger.warning(
+                            "Duplicate task ignored: %s:%s:%s",
+                            task.package_id, task.sub_task_id, task.attempt
+                        )
+                        return
 
-                # Write result back
-                await self._write_result(result, task)
+                    # Execute task
+                    result = await self._execute_task(task)
 
-            except json.JSONDecodeError as e:
-                logger.error("Invalid message format: %s", e)
-            except Exception as e:
-                logger.error("Task processing failed: %s", e, exc_info=True)
+                    # Write result back
+                    await self._write_result(result, task)
+
+                except json.JSONDecodeError as e:
+                    logger.error("Invalid message format: %s", e)
+                except Exception as e:
+                    logger.error("Task processing failed: %s", e, exc_info=True)
+            finally:
+                # 作用域结束清空 contextvar，避免 aio-pika 长连接内同 task 复用
+                # 看到上一条消息的 trace context（与后端 MQ listener finally 一致）。
+                clear()
 
     async def _is_duplicate(self, task: CollabTaskMessage) -> bool:
         """Check if task was already processed (idempotency)"""

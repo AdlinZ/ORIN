@@ -608,7 +608,7 @@ TraceID MQ 传播（2d）
   - 现状: 后端裸抛 192 → 0 处 (不含 Setup 3 处字符串契约)
   - 暂不做: 格式统一为 `ORIN-XXXX` 前缀（会全局重命名 40+ 错误码）；Python 端 `task_runtime.py` 结构化错误码
 - [x] `P1` **TraceID 跨 MQ 传播**：RabbitMQ 发布时写入 `traceparent` 头，worker 消费时提取绑定 span，目标是 HTTP → AI Engine 调用链在 Jaeger 中完整可见
-  本轮补齐后端 RabbitMQ 边界：collab/task 共 5 个 send site 通过 MessagePostProcessor 注入 `traceparent` + `X-Trace-Id`；3 个 `@RabbitListener` 从 message property 抽取 `traceparent` 灌 MDC 并在 finally 清。`common/trace/TraceContext` 工具集中放 W3C 编解码。新增 5 个测试 / 扩展 2 个。`mvn test` 664/664 全绿。AI Engine Python inbound 解析与 OTel SDK 跨进程 span 串联待小刀 2。
+  本轮补齐后端 RabbitMQ 边界：collab/task 共 5 个 send site 通过 MessagePostProcessor 注入 `traceparent` + `X-Trace-Id`；3 个 `@RabbitListener` 从 message property 抽取 `traceparent` 灌 MDC 并在 finally 清。`common/trace/TraceContext` 工具集中放 W3C 编解码。新增 5 个测试 / 扩展 2 个。`mvn test` 664/664 全绿。AI Engine Python inbound 解析由 Phase 2 小刀 2 接通（`app/core/w3c_trace.py` + `trace_context.py` + `logging_filter.py` + `trace_middleware.py` + mq_worker 抽 `message.headers`）。AI Engine 出站 httpx 注入 `traceparent` 待小刀 3，OTel SDK 跨进程 span 串联待小刀 4。
 - [ ] `P2` **结构化 JSON 日志**：后端接入 `logstash-logback-encoder`，日志包含 `traceId`、`userId`、`agentId` 字段，为后续 ELK / Grafana Loki 接入做准备
 - [ ] `P2` **测试覆盖补齐**：
   - 后端：`JwtAuthenticationFilter`（roles 缺失拒绝逻辑）、`KnowledgeWorkflowEngine`（AGENT/SKILL/LOGIC 三类步骤）单元测试
