@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.system.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.system.entity.SysRole;
 import com.adlin.orin.modules.system.repository.SysRoleRepository;
 import lombok.RequiredArgsConstructor;
@@ -64,7 +66,7 @@ public class RoleService {
     @Transactional
     public SysRole createRole(SysRole role) {
         if (roleRepository.existsByRoleCode(role.getRoleCode())) {
-            throw new RuntimeException("角色代码已存在: " + role.getRoleCode());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "角色代码已存在: " + role.getRoleCode());
         }
         return roleRepository.save(role);
     }
@@ -75,7 +77,7 @@ public class RoleService {
     @Transactional
     public SysRole updateRole(Long roleId, SysRole role) {
         SysRole existingRole = roleRepository.findById(roleId)
-                .orElseThrow(() -> new RuntimeException("角色不存在"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "角色不存在"));
 
         existingRole.setRoleName(role.getRoleName());
         existingRole.setDescription(role.getDescription());
@@ -89,11 +91,11 @@ public class RoleService {
     @Transactional
     public void deleteRole(Long roleId) {
         SysRole role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new RuntimeException("角色不存在"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "角色不存在"));
 
         // 保护系统预定义角色
         if (SYSTEM_ROLE_CODES.contains(role.getRoleCode())) {
-            throw new RuntimeException("系统预定义角色不可删除");
+            throw new BusinessException(ErrorCode.RESOURCE_LOCKED, "系统预定义角色不可删除");
         }
 
         roleRepository.deleteById(roleId);

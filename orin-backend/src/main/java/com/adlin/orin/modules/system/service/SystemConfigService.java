@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.system.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.system.entity.SystemConfigEntity;
 import com.adlin.orin.modules.system.repository.SystemConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -110,27 +112,27 @@ public class SystemConfigService {
             case "auditLogRetentionDays":
                 int days = Integer.parseInt(value);
                 if (days < 1 || days > 365) {
-                    throw new IllegalArgumentException(key + " 必须介于 1-365 天之间");
+                    throw new BusinessException(ErrorCode.VALIDATION_OUT_OF_RANGE, key + " 必须介于 1-365 天之间");
                 }
                 break;
             case "maxConcurrentRequests":
                 int maxReq = Integer.parseInt(value);
                 if (maxReq < 1 || maxReq > 10000) {
-                    throw new IllegalArgumentException(key + " 必须介于 1-10000 之间");
+                    throw new BusinessException(ErrorCode.VALIDATION_OUT_OF_RANGE, key + " 必须介于 1-10000 之间");
                 }
                 break;
             case "smtpPort":
                 int port = Integer.parseInt(value);
                 if (port < 1 || port > 65535) {
-                    throw new IllegalArgumentException("SMTP 端口必须介于 1-65535 之间");
+                    throw new BusinessException(ErrorCode.VALIDATION_OUT_OF_RANGE, "SMTP 端口必须介于 1-65535 之间");
                 }
                 break;
             case "systemName":
                 if (value == null || value.trim().isEmpty()) {
-                    throw new IllegalArgumentException("系统名称不能为空");
+                    throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "系统名称不能为空");
                 }
                 if (value.length() > 100) {
-                    throw new IllegalArgumentException("系统名称不能超过 100 字符");
+                    throw new BusinessException(ErrorCode.VALIDATION_OUT_OF_RANGE, "系统名称不能超过 100 字符");
                 }
                 break;
         }

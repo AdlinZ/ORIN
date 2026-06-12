@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.entity.GraphBuildState;
 import com.adlin.orin.modules.knowledge.entity.GraphEntity;
 import com.adlin.orin.modules.knowledge.entity.GraphRelation;
@@ -58,7 +60,7 @@ public class KnowledgeGraphService {
     public KnowledgeGraph updateGraph(String graphId, KnowledgeGraph updates) {
         Optional<KnowledgeGraph> existing = knowledgeGraphRepository.findById(graphId);
         if (existing.isEmpty()) {
-            throw new IllegalArgumentException("图谱不存在: " + graphId);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "图谱不存在: " + graphId);
         }
 
         KnowledgeGraph graph = existing.get();
@@ -89,7 +91,7 @@ public class KnowledgeGraphService {
     public KnowledgeGraph triggerBuild(String graphId) {
         Optional<KnowledgeGraph> existing = knowledgeGraphRepository.findById(graphId);
         if (existing.isEmpty()) {
-            throw new IllegalArgumentException("图谱不存在: " + graphId);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "图谱不存在: " + graphId);
         }
 
         KnowledgeGraph graph = existing.get();

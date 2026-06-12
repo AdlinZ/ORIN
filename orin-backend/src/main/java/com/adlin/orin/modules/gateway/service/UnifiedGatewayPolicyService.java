@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.gateway.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayPolicyRequest;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayPolicyResponse;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayPoliciesResponse;
@@ -75,7 +77,7 @@ public class UnifiedGatewayPolicyService {
     @Transactional
     public void deleteRateLimitPolicy(Long id) {
         if (!rateLimitRepository.existsById(id)) {
-            throw new RuntimeException("Rate limit policy not found: " + id);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Rate limit policy not found: " + id);
         }
         rateLimitRepository.deleteById(id);
         log.info("Deleted rate limit policy: {}", id);
@@ -122,7 +124,7 @@ public class UnifiedGatewayPolicyService {
     @Transactional
     public void deleteCircuitBreakerPolicy(Long id) {
         if (!circuitBreakerRepository.existsById(id)) {
-            throw new RuntimeException("Circuit breaker policy not found: " + id);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Circuit breaker policy not found: " + id);
         }
         circuitBreakerRepository.deleteById(id);
         log.info("Deleted circuit breaker policy: {}", id);
@@ -171,7 +173,7 @@ public class UnifiedGatewayPolicyService {
     @Transactional
     public void deleteRetryPolicy(Long id) {
         if (!retryRepository.existsById(id)) {
-            throw new RuntimeException("Retry policy not found: " + id);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Retry policy not found: " + id);
         }
         retryRepository.deleteById(id);
         log.info("Deleted retry policy: {}", id);

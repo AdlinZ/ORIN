@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.workflow.dsl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -140,7 +142,7 @@ public class OrinWorkflowDslValidator {
     public void validateForPublishOrThrow(Map<String, Object> definition) {
         List<String> errors = validateForPublish(definition);
         if (!errors.isEmpty()) {
-            throw new IllegalStateException("Workflow publish validation failed: " + String.join("; ", errors));
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Workflow publish validation failed: " + String.join("; ", errors));
         }
     }
 

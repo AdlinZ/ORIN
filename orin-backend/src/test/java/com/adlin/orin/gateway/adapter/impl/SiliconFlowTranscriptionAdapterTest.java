@@ -1,5 +1,6 @@
 package com.adlin.orin.gateway.adapter.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.gateway.dto.TranscriptionRequest;
 import com.adlin.orin.gateway.dto.TranscriptionResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -142,7 +143,7 @@ class SiliconFlowTranscriptionAdapterTest {
                 .model("m").audioUrl("data:audio/mpeg;base64,AAAA").build()).block());
 
         assertThat(thrown)
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("API key not configured");
     }
 
@@ -152,7 +153,7 @@ class SiliconFlowTranscriptionAdapterTest {
                 .model("m").audioUrl("").build()).block());
 
         assertThat(thrown)
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("audioUrl");
     }
 
@@ -160,7 +161,7 @@ class SiliconFlowTranscriptionAdapterTest {
     void transcribe_nullRequest_throws() {
         Throwable thrown = catchThrowable(() -> adapter.transcribe(null).block());
 
-        assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
+        assertThat(thrown).isInstanceOf(BusinessException.class);
     }
 
     @Test
@@ -169,7 +170,7 @@ class SiliconFlowTranscriptionAdapterTest {
                 .model("").audioUrl("data:audio/mpeg;base64,AAAA").build()).block());
 
         assertThat(thrown)
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("model");
     }
 

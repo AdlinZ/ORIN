@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.config.Neo4jConfig;
 import com.adlin.orin.modules.knowledge.entity.GraphBuildState;
 import com.adlin.orin.modules.knowledge.entity.GraphEntity;
@@ -75,7 +77,7 @@ public class GraphExtractionService {
 
         Optional<KnowledgeGraph> graphOpt = knowledgeGraphRepository.findById(graphId);
         if (graphOpt.isEmpty()) {
-            throw new IllegalArgumentException("图谱不存在: " + graphId);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "图谱不存在: " + graphId);
         }
 
         KnowledgeGraph graph = graphOpt.get();
@@ -109,7 +111,7 @@ public class GraphExtractionService {
             log.error("Graph build failed for graphId={}", graphId, e);
             graph.setBuildStatus(GraphBuildState.FAILED);
             knowledgeGraphRepository.save(graph);
-            throw new RuntimeException("图谱构建失败: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "图谱构建失败: " + e.getMessage(), e);
         }
     }
 
@@ -731,7 +733,7 @@ public class GraphExtractionService {
             return embeddingAdapter.chat(prompt, null);
         } catch (Exception e) {
             log.error("LLM call failed: {}", e.getMessage());
-            throw new RuntimeException("LLM调用失败: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM调用失败: " + e.getMessage(), e);
         }
     }
 

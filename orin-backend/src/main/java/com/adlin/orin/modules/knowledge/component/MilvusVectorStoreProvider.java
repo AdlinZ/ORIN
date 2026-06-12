@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.component;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.grpc.DataType;
@@ -64,7 +66,7 @@ public class MilvusVectorStoreProvider implements VectorStoreProvider {
 
         R<io.milvus.grpc.MutationResult> result = milvusClient.insert(insertParam);
         if (result.getStatus() != R.Status.Success.getCode()) {
-            throw new RuntimeException("Failed to insert into Milvus: " + result.getMessage());
+            throw new BusinessException(ErrorCode.MILVUS_ERROR, "Failed to insert into Milvus: " + result.getMessage());
         }
     }
 

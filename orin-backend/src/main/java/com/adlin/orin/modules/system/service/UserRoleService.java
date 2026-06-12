@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.system.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.system.entity.SysUserRole;
 import com.adlin.orin.modules.system.repository.SysUserRoleRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +41,7 @@ public class UserRoleService {
     @Transactional
     public SysUserRole assignRole(Long userId, Long roleId) {
         if (userRoleRepository.existsByUserIdAndRoleId(userId, roleId)) {
-            throw new RuntimeException("用户已拥有该角色");
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "用户已拥有该角色");
         }
 
         SysUserRole userRole = SysUserRole.builder()

@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +55,7 @@ public class CollaborationMemoryService {
             log.debug("Written to blackboard: packageId={}, key={}", packageId, key);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize value for blackboard: key={}", key, e);
-            throw new RuntimeException("Failed to write to blackboard", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to write to blackboard", e);
         }
     }
 
@@ -299,7 +301,7 @@ public class CollaborationMemoryService {
             log.debug("Saved checkpoint: packageId={}, checkpointId={}", packageId, checkpointId);
         } catch (JsonProcessingException e) {
             log.error("Failed to save checkpoint: {}", checkpointId, e);
-            throw new RuntimeException("Failed to save checkpoint", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to save checkpoint", e);
         }
     }
 

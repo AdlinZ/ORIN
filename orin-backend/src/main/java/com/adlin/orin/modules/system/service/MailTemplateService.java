@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.system.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.system.entity.MailConfigEntity;
 import com.adlin.orin.modules.system.entity.MailSendLog;
 import com.adlin.orin.modules.system.entity.MailTemplate;
@@ -78,7 +80,7 @@ public class MailTemplateService {
     public MailTemplate createTemplate(MailTemplate template) {
         // 检查模板代码是否已存在
         if (templateRepository.existsByCode(template.getCode())) {
-            throw new RuntimeException("模板代码已存在: " + template.getCode());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "模板代码已存在: " + template.getCode());
         }
 
         // 如果设置为默认模板，先取消其他默认
@@ -95,11 +97,11 @@ public class MailTemplateService {
     @Transactional
     public MailTemplate updateTemplate(Long id, MailTemplate template) {
         MailTemplate existing = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("模板不存在: " + id));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "模板不存在: " + id));
 
         // 检查模板代码是否与其他模板冲突
         if (templateRepository.existsByCodeAndIdNot(template.getCode(), id)) {
-            throw new RuntimeException("模板代码已存在: " + template.getCode());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "模板代码已存在: " + template.getCode());
         }
 
         // 如果设置为默认模板，先取消其他默认
@@ -147,10 +149,10 @@ public class MailTemplateService {
         List<Map<String, String>> failedList = new ArrayList<>();
 
         MailTemplate template = templateRepository.findById(templateId)
-                .orElseThrow(() -> new RuntimeException("模板不存在: " + templateId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "模板不存在: " + templateId));
 
         if (!Boolean.TRUE.equals(template.getEnabled())) {
-            throw new RuntimeException("模板已禁用");
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "模板已禁用");
         }
 
         // 处理主题和内容，替换变量

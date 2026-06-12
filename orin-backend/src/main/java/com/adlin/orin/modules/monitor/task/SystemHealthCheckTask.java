@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.monitor.task;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.alert.service.AlertService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -75,7 +77,7 @@ public class SystemHealthCheckTask {
         try {
             String pingResult = redisTemplate.getConnectionFactory().getConnection().ping();
             if (!"PONG".equalsIgnoreCase(pingResult) && pingResult == null) {
-                throw new RuntimeException("Redis ping returned unexpected result: " + pingResult);
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "Redis ping returned unexpected result: " + pingResult);
             }
             if (!redisHealthy) {
                 log.info("Redis health recovered.");

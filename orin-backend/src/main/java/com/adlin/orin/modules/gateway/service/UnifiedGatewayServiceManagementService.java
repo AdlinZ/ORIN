@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.gateway.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayServiceInstanceRequest;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayServiceInstanceResponse;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayServiceRequest;
@@ -96,7 +98,7 @@ public class UnifiedGatewayServiceManagementService {
     @Transactional
     public void deleteService(Long id) {
         if (!serviceRepository.existsById(id)) {
-            throw new RuntimeException("Service not found: " + id);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Service not found: " + id);
         }
         instanceRepository.deleteAll(instanceRepository.findByServiceIdOrderByHost(id));
         serviceRepository.deleteById(id);
@@ -112,7 +114,7 @@ public class UnifiedGatewayServiceManagementService {
     @Transactional
     public UnifiedGatewayServiceInstanceResponse createInstance(Long serviceId, UnifiedGatewayServiceInstanceRequest request) {
         if (!serviceRepository.existsById(serviceId)) {
-            throw new RuntimeException("Service not found: " + serviceId);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Service not found: " + serviceId);
         }
         UnifiedGatewayServiceInstance instance = UnifiedGatewayServiceInstance.builder()
                 .serviceId(serviceId)

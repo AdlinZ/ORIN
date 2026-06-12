@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.agent.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.entity.AgentVersion;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
@@ -53,7 +55,7 @@ public class AgentVersionService {
 
             configSnapshot = objectMapper.writeValueAsString(config);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize agent config", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to serialize agent config", e);
         }
 
         // 将之前的激活版本设置为非激活
@@ -112,7 +114,7 @@ public class AgentVersionService {
                 .orElseThrow(() -> new RuntimeException("Version not found: " + versionId));
 
         if (!targetVersion.getAgentId().equals(agentId)) {
-            throw new RuntimeException("Version does not belong to agent: " + agentId);
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Version does not belong to agent: " + agentId);
         }
 
         // 获取智能体
@@ -124,7 +126,7 @@ public class AgentVersionService {
         try {
             config = objectMapper.readValue(targetVersion.getConfigSnapshot(), Map.class);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to parse version config", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to parse version config", e);
         }
 
         // 应用配置
@@ -184,7 +186,7 @@ public class AgentVersionService {
                 .orElseThrow(() -> new RuntimeException("Version not found: " + versionId));
 
         if (Boolean.TRUE.equals(version.getIsActive())) {
-            throw new RuntimeException("Cannot delete active version");
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Cannot delete active version");
         }
 
         versionRepository.delete(version);

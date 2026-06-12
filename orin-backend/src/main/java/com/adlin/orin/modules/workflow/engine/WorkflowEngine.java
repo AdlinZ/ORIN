@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.workflow.engine;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.service.AgentExecutor;
 import com.adlin.orin.modules.skill.service.SkillService;
 import com.adlin.orin.modules.trace.interceptor.SkillTraceInterceptor;
@@ -140,7 +142,7 @@ public class WorkflowEngine {
         // 获取所有步骤
         List<WorkflowStepEntity> steps = stepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId);
         if (steps.isEmpty()) {
-            throw new IllegalStateException("Workflow has no steps: " + workflowId);
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Workflow has no steps: " + workflowId);
         }
 
         Map<String, Object> stepOutputs = new HashMap<>();
@@ -200,7 +202,7 @@ public class WorkflowEngine {
             if (step.getStepType() == WorkflowStepEntity.StepType.AGENT) {
                 // 执行智能体
                 if (step.getAgentId() == null) {
-                    throw new IllegalStateException("Agent ID is required for AGENT step: " + step.getStepName());
+                    throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Agent ID is required for AGENT step: " + step.getStepName());
                 }
                 log.info("Invoking agent: agentId={}", step.getAgentId());
                 result = agentExecutor.executeAgent(step.getAgentId(), inputs);
@@ -208,7 +210,7 @@ public class WorkflowEngine {
             } else if (step.getStepType() == WorkflowStepEntity.StepType.SKILL) {
                 // 执行技能
                 if (step.getSkillId() == null) {
-                    throw new IllegalStateException("Skill ID is required for SKILL step: " + step.getStepName());
+                    throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Skill ID is required for SKILL step: " + step.getStepName());
                 }
                 log.info("Invoking skill: skillId={}", step.getSkillId());
                 result = skillService.executeSkill(step.getSkillId(), inputs);
@@ -220,7 +222,7 @@ public class WorkflowEngine {
                 result.put("success", true);
 
             } else {
-                throw new IllegalStateException("Unsupported step type: " + step.getStepType());
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Unsupported step type: " + step.getStepType());
             }
 
             // 应用输出映射

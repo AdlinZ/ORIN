@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.knowledge.entity.GraphBuildState;
 import com.adlin.orin.modules.knowledge.entity.GraphEntity;
 import com.adlin.orin.modules.knowledge.entity.GraphRelation;
@@ -172,7 +173,7 @@ class KnowledgeGraphServiceTest {
         when(knowledgeGraphRepository.findById("non-existent")).thenReturn(Optional.empty());
 
         // When & Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(BusinessException.class,
                 () -> knowledgeGraphService.updateGraph("non-existent", new KnowledgeGraph()));
     }
 
@@ -225,7 +226,7 @@ class KnowledgeGraphServiceTest {
         when(knowledgeGraphRepository.findById("non-existent")).thenReturn(Optional.empty());
 
         // When & Then
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(BusinessException.class,
                 () -> knowledgeGraphService.triggerBuild("non-existent"));
     }
 

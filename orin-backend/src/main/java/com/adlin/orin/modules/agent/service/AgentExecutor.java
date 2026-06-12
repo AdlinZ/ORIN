@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.agent.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,13 +38,13 @@ public class AgentExecutor {
             // 1. 获取Agent元数据
             AgentMetadata metadata = agentManageService.getAgentMetadata(agentId.toString());
             if (metadata == null) {
-                throw new IllegalArgumentException("Agent not found: " + agentId);
+                throw new BusinessException(ErrorCode.AGENT_NOT_FOUND, "Agent not found: " + agentId);
             }
 
             // 2. 提取消息内容
             String message = extractMessage(inputs);
             if (message == null || message.trim().isEmpty()) {
-                throw new IllegalArgumentException("Message is required in inputs");
+                throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Message is required in inputs");
             }
 
             // 3. 调用Agent

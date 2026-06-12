@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.collaboration.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.collaboration.dto.CollabSessionDtos;
 import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
@@ -329,7 +331,7 @@ public class CollaborationSessionService {
         CollabTurnEntity turn = turnRepository.findByTurnId(turnId)
                 .orElseThrow(() -> new RuntimeException("Turn not found: " + turnId));
         if (!sessionId.equals(turn.getSessionId())) {
-            throw new RuntimeException("Turn does not belong to session");
+            throw new BusinessException(ErrorCode.COLLABORATION_PACKAGE_INVALID_STATE, "Turn does not belong to session");
         }
         if (turn.getPackageId() == null || turn.getPackageId().isBlank()) {
             return CollabSessionDtos.ActionResponse.builder()
@@ -353,7 +355,7 @@ public class CollaborationSessionService {
         CollabTurnEntity turn = turnRepository.findByTurnId(turnId)
                 .orElseThrow(() -> new RuntimeException("Turn not found: " + turnId));
         if (!sessionId.equals(turn.getSessionId())) {
-            throw new RuntimeException("Turn does not belong to session");
+            throw new BusinessException(ErrorCode.COLLABORATION_PACKAGE_INVALID_STATE, "Turn does not belong to session");
         }
         if (turn.getPackageId() == null || turn.getPackageId().isBlank()) {
             return CollabSessionDtos.ActionResponse.builder()

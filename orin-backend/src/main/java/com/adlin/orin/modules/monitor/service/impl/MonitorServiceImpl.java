@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.monitor.service.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
@@ -1229,7 +1231,7 @@ public class MonitorServiceImpl implements MonitorService {
         @Override
         public void saveRemoteServerHardwareMetric(ServerHardwareMetric metric) {
                 if (metric.getServerId() == null || metric.getServerId().isEmpty()) {
-                        throw new IllegalArgumentException("Server ID is required for remote metrics");
+                        throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Server ID is required for remote metrics");
                 }
                 if (metric.getServerName() == null || metric.getServerName().isEmpty()) {
                         metric.setServerName(metric.getServerId());
@@ -1610,7 +1612,7 @@ public class MonitorServiceImpl implements MonitorService {
         @Override
         public ServerInfo createServerInfo(ServerInfo serverInfo) {
                 if (serverInfoRepository.existsByServerId(serverInfo.getServerId())) {
-                        throw new IllegalArgumentException("Server with id " + serverInfo.getServerId() + " already exists");
+                        throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "Server with id " + serverInfo.getServerId() + " already exists");
                 }
                 return serverInfoRepository.save(serverInfo);
         }
@@ -1624,7 +1626,7 @@ public class MonitorServiceImpl implements MonitorService {
         @Transactional
         public void deleteServerInfo(String serverId) {
                 if (serverId == null || serverId.trim().isEmpty()) {
-                        throw new IllegalArgumentException("serverId 不能为空");
+                        throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "serverId 不能为空");
                 }
 
                 List<String> aliases = buildServerIdAliases(serverId);

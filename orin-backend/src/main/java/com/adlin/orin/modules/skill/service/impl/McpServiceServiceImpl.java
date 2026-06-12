@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.skill.service.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.exception.ValidationException;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
@@ -53,7 +55,7 @@ public class McpServiceServiceImpl implements McpServiceService {
     public McpService createService(McpService service) {
         validateEnvVars(service.getEnvVars());
         if (mcpServiceRepository.existsByName(service.getName())) {
-            throw new RuntimeException("服务名称已存在: " + service.getName());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "服务名称已存在: " + service.getName());
         }
         if (service.getEnabled() == null) {
             service.setEnabled(true);
@@ -73,7 +75,7 @@ public class McpServiceServiceImpl implements McpServiceService {
         // 检查名称冲突（排除自身）
         if (!existing.getName().equals(service.getName()) &&
                 mcpServiceRepository.existsByNameAndIdNot(service.getName(), id)) {
-            throw new RuntimeException("服务名称已存在: " + service.getName());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "服务名称已存在: " + service.getName());
         }
 
         existing.setName(service.getName());
@@ -324,12 +326,12 @@ public class McpServiceServiceImpl implements McpServiceService {
             }
             String secretId = McpEnvSecretRef.extractSecretId(value);
             GatewaySecret secret = gatewaySecretService.findBySecretId(secretId)
-                    .orElseThrow(() -> new IllegalStateException("MCP env 引用的密钥不存在: " + secretId));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "MCP env 引用的密钥不存在: " + secretId));
             if (!secret.isMcpEnv() || !secret.isActive()) {
-                throw new IllegalStateException("MCP env 引用的密钥不可用: " + secretId);
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "MCP env 引用的密钥不可用: " + secretId);
             }
             String plain = gatewaySecretService.revealSecret(secretId)
-                    .orElseThrow(() -> new IllegalStateException("MCP env 引用的密钥无法解密: " + secretId));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.OPERATION_FAILED, "MCP env 引用的密钥无法解密: " + secretId));
             resolved.append(key).append('=').append(plain);
         }
         return resolved.toString();

@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.playground.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import jakarta.annotation.PostConstruct;
@@ -61,7 +63,7 @@ public class PlaygroundRuntimeClient {
             ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
                     primaryUrl, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
             if (response.getBody() == null) {
-                throw new IllegalStateException("ai-engine returned empty response body");
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "ai-engine returned empty response body");
             }
             return response.getBody();
         } catch (Exception primaryError) {
@@ -71,7 +73,7 @@ public class PlaygroundRuntimeClient {
                 ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
                         fallbackUrl, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
                 if (response.getBody() == null) {
-                    throw new IllegalStateException("ai-engine fallback url returned empty response body");
+                    throw new BusinessException(ErrorCode.OPERATION_FAILED, "ai-engine fallback url returned empty response body");
                 }
                 return response.getBody();
             }
@@ -102,7 +104,7 @@ public class PlaygroundRuntimeClient {
             objectMapper.writeValue(request.getBody(), payload);
         }, response -> {
             if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new IllegalStateException("ai-engine stream failed: HTTP " + response.getStatusCode());
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "ai-engine stream failed: HTTP " + response.getStatusCode());
             }
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
                 String eventName = "message";
@@ -131,7 +133,7 @@ public class PlaygroundRuntimeClient {
         });
         Map<String, Object> result = finalResult.get();
         if (result == null) {
-            throw new IllegalStateException("ai-engine stream returned no final result");
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "ai-engine stream returned no final result");
         }
         return result;
     }
@@ -162,7 +164,7 @@ public class PlaygroundRuntimeClient {
             } else if (parsed != null) {
                 message = String.valueOf(parsed);
             }
-            throw new IllegalStateException(message);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, message);
         }
     }
 }

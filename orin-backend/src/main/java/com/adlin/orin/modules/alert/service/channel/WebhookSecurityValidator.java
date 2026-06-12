@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.alert.service.channel;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -13,25 +15,25 @@ public class WebhookSecurityValidator {
 
     public void validate(String url) {
         if (url == null || url.isBlank()) {
-            throw new IllegalArgumentException("Webhook URL 不能为空");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Webhook URL 不能为空");
         }
         URI uri;
         try {
             uri = URI.create(url);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Webhook URL 格式无效: " + url);
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Webhook URL 格式无效: " + url);
         }
         if (!"https".equalsIgnoreCase(uri.getScheme())) {
-            throw new IllegalArgumentException("Webhook URL 必须使用 HTTPS 协议");
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Webhook URL 必须使用 HTTPS 协议");
         }
         String host = uri.getHost();
         if (host == null) {
-            throw new IllegalArgumentException("Webhook URL 缺少合法 Host");
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Webhook URL 缺少合法 Host");
         }
         if (Pattern.matches(
             "(localhost|.*\\.local|127\\..+|10\\..+|172\\.(1[6-9]|2[0-9]|3[01])\\..+|192\\.168\\..+|0\\.0\\.0\\.0|169\\.254\\..+|::1|fc.+|fd.+)",
             host.toLowerCase())) {
-            throw new IllegalArgumentException("Webhook URL 不允许指向内网地址");
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Webhook URL 不允许指向内网地址");
         }
     }
 }

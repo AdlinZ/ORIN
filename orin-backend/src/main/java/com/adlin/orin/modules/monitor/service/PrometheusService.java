@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.monitor.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -680,7 +682,7 @@ public class PrometheusService {
      */
     public Map<String, String> probe(String baseUrl) {
         if (baseUrl == null)
-            throw new IllegalArgumentException("URL cannot be null");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "URL cannot be null");
 
         // Automatically append the standard buildinfo endpoint
         URI url = buildUri(baseUrl, "/api/v1/status/buildinfo", null, null);
@@ -707,14 +709,14 @@ public class PrometheusService {
             result.put("response", response);
 
             if (response == null || !response.contains("success")) {
-                throw new RuntimeException("Invalid response: "
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "Invalid response: "
                         + (response != null && response.length() > 100 ? response.substring(0, 100) + "..."
                                 : response));
             }
             return result;
         } catch (Exception e) {
             log.warn("Probe failed for {}: {}", url, e.getMessage());
-            throw new RuntimeException("Probe failed: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Probe failed: " + e.getMessage(), e);
         }
     }
 }

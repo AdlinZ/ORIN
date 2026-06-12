@@ -72,7 +72,7 @@ public class WorkflowService {
         try {
             return WorkflowEntity.WorkflowStatus.valueOf(status.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid workflow status: " + status);
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Invalid workflow status: " + status);
         }
     }
 
@@ -120,7 +120,7 @@ public class WorkflowService {
 
         WorkflowEntity.WorkflowStatus requestedStatus = parseWorkflowStatus(request.getStatus());
         if (requestedStatus == WorkflowEntity.WorkflowStatus.ACTIVE) {
-            throw new IllegalArgumentException("Use publish endpoint to activate workflow");
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Use publish endpoint to activate workflow");
         }
         WorkflowEntity entity = WorkflowEntity.builder()
                 .workflowName(finalName)
@@ -228,7 +228,7 @@ public class WorkflowService {
         entity.setWorkflowDefinition(normalized);
         workflowDslValidator.validateForPublishOrThrow(normalized);
         if (!workflowEngine.validateWorkflow(entity.getId())) {
-            throw new IllegalStateException("Workflow validation failed: " + entity.getId());
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Workflow validation failed: " + entity.getId());
         }
     }
 
@@ -237,7 +237,7 @@ public class WorkflowService {
         log.info("Adding step to workflow: {}", workflowId);
 
         if (!workflowRepository.existsById(workflowId)) {
-            throw new IllegalArgumentException("Workflow not found: " + workflowId);
+            throw new BusinessException(ErrorCode.WORKFLOW_NOT_FOUND, "Workflow not found: " + workflowId);
         }
 
         WorkflowStepEntity.StepType type = WorkflowStepEntity.StepType.SKILL;
@@ -329,17 +329,17 @@ public class WorkflowService {
         // 资源级 ACL 第 3 刀: 非 owner / 非 admin/operator 拒绝执行
         workflowOwnershipResolver.assertCanManage(workflow);
         if (workflow.getStatus() == WorkflowEntity.WorkflowStatus.ARCHIVED) {
-            throw new IllegalStateException("Workflow is archived and cannot be executed: " + workflowId);
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Workflow is archived and cannot be executed: " + workflowId);
         }
         if (workflow.getStatus() != WorkflowEntity.WorkflowStatus.ACTIVE) {
-            throw new IllegalStateException("Workflow must be published before execution: " + workflowId);
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Workflow must be published before execution: " + workflowId);
         }
         Map<String, Object> normalizedDefinition = workflowDslNormalizer.normalize(workflow.getWorkflowDefinition(), "ORIN");
         workflow.setWorkflowDefinition(normalizedDefinition);
         workflowDslValidator.validateForPublishOrThrow(normalizedDefinition);
         workflowRepository.save(workflow);
         if (!workflowEngine.validateWorkflow(workflowId)) {
-            throw new IllegalStateException("Workflow validation failed: " + workflowId);
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Workflow validation failed: " + workflowId);
         }
 
         Map<String, Object> executionInputs = inputs != null ? inputs : new HashMap<>();
@@ -487,7 +487,7 @@ public class WorkflowService {
     public com.adlin.orin.modules.workflow.dto.WorkflowAccessResponse getWorkflowAccessInfo(Long id) {
         // Validate existence
         if (!workflowRepository.existsById(id)) {
-            throw new IllegalArgumentException("Workflow not found: " + id);
+            throw new BusinessException(ErrorCode.WORKFLOW_NOT_FOUND, "Workflow not found: " + id);
         }
 
         // For now, construct simplified access info

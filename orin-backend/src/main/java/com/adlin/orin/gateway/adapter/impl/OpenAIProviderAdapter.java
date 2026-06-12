@@ -1,5 +1,7 @@
 package com.adlin.orin.gateway.adapter.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
@@ -103,7 +105,7 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
                             Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new RuntimeException("OpenAI API call failed");
+                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "OpenAI API call failed");
             }
 
             // 转换响应并添加provider信息
@@ -195,7 +197,7 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
                             Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new RuntimeException("OpenAI embedding API call failed");
+                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "OpenAI embedding API call failed");
             }
 
             return convertToEmbeddingResponse(response.getBody());

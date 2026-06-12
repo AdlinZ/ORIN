@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.system.controller;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.system.entity.LogConfig;
 import com.adlin.orin.modules.system.service.DynamicLoggerService;
@@ -55,7 +57,7 @@ public class LogConfigController {
     public LogConfig updateConfig(@PathVariable String key, @RequestBody Map<String, String> payload) {
         String value = payload.get("value");
         if (value == null) {
-            throw new IllegalArgumentException("Payload must contain 'value'");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Payload must contain 'value'");
         }
         LogConfig config = logConfigService.updateConfig(key, value);
 
@@ -86,7 +88,7 @@ public class LogConfigController {
             @RequestBody Map<String, String> payload) {
         String level = payload.get("level");
         if (level == null) {
-            throw new IllegalArgumentException("Payload must contain 'level' (TRACE, DEBUG, INFO, WARN, ERROR, OFF)");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Payload must contain 'level' (TRACE, DEBUG, INFO, WARN, ERROR, OFF)");
         }
 
         dynamicLoggerService.setLogLevel(loggerName, level);
@@ -152,7 +154,7 @@ public class LogConfigController {
         Integer duration = (Integer) payload.getOrDefault("durationSeconds", 300); // 默认 5 分钟
 
         if (level == null) {
-            throw new IllegalArgumentException("Payload must contain 'level'");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Payload must contain 'level'");
         }
 
         dynamicLoggerService.temporarySetLogLevel(loggerName, level, duration);

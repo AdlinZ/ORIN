@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.component;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.service.RouterService;
@@ -42,7 +44,7 @@ public class KnowledgeWorkflowEngine {
             JsonNode steps = root.get("steps");
 
             if (steps == null || !steps.isArray()) {
-                throw new RuntimeException("Invalid DSL: 'steps' array missing");
+                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Invalid DSL: 'steps' array missing");
             }
 
             for (JsonNode step : steps) {
@@ -95,10 +97,10 @@ public class KnowledgeWorkflowEngine {
 
         } catch (JsonProcessingException e) {
             log.error("Failed to parse DSL", e);
-            throw new RuntimeException("Invalid Workflow DSL", e);
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Invalid Workflow DSL", e);
         } catch (Exception e) {
             log.error("Workflow execution failed", e);
-            throw new RuntimeException("Execution aborted: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.WORKFLOW_EXECUTION_FAILED, "Execution aborted: " + e.getMessage(), e);
         }
     }
 

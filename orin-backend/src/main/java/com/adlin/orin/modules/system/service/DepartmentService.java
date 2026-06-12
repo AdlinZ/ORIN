@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.system.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.system.entity.SysDepartment;
 import com.adlin.orin.modules.system.repository.SysDepartmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -73,7 +75,7 @@ public class DepartmentService {
         // 检查部门编码是否已存在
         if (department.getDepartmentCode() != null &&
             departmentRepository.existsByDepartmentCode(department.getDepartmentCode())) {
-            throw new RuntimeException("部门编码已存在: " + department.getDepartmentCode());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "部门编码已存在: " + department.getDepartmentCode());
         }
 
         // 设置父部门
@@ -95,13 +97,13 @@ public class DepartmentService {
     @Transactional
     public SysDepartment updateDepartment(Long id, SysDepartment departmentDetails) {
         SysDepartment department = departmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("部门不存在"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "部门不存在"));
 
         // 检查编码冲突
         if (departmentDetails.getDepartmentCode() != null &&
             !departmentDetails.getDepartmentCode().equals(department.getDepartmentCode()) &&
             departmentRepository.existsByDepartmentCode(departmentDetails.getDepartmentCode())) {
-            throw new RuntimeException("部门编码已存在: " + departmentDetails.getDepartmentCode());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "部门编码已存在: " + departmentDetails.getDepartmentCode());
         }
 
         if (departmentDetails.getDepartmentName() != null) {
@@ -138,13 +140,13 @@ public class DepartmentService {
     @Transactional
     public void deleteDepartment(Long id) {
         if (!departmentRepository.existsById(id)) {
-            throw new RuntimeException("部门不存在");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "部门不存在");
         }
 
         // 检查是否有子部门
         long childCount = departmentRepository.countByParentId(id);
         if (childCount > 0) {
-            throw new RuntimeException("该部门下存在子部门，无法删除");
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "该部门下存在子部门，无法删除");
         }
 
         departmentRepository.deleteById(id);

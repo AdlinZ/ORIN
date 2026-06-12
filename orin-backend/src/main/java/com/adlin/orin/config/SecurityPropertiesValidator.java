@@ -1,5 +1,7 @@
 package com.adlin.orin.config;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +81,7 @@ public class SecurityPropertiesValidator {
 
             // 生产环境必须停止启动
             if ("prod".equalsIgnoreCase(activeProfile)) {
-                throw new IllegalStateException("生产环境缺少必需的配置，启动终止");
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "生产环境缺少必需的配置，启动终止");
             }
         }
 

@@ -101,7 +101,7 @@ public class WorkflowGenerationService {
             Map<String, Object> respMap = (Map<String, Object>) response.get();
             List<Map<String, Object>> choices = (List<Map<String, Object>>) respMap.get("choices");
             if (choices == null || choices.isEmpty()) {
-                throw new RuntimeException("AI 返回结果格式错误: missing choices");
+                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "AI 返回结果格式错误: missing choices");
             }
             String content = (String) ((Map<String, Object>) choices.get(0).get("message")).get("content");
 

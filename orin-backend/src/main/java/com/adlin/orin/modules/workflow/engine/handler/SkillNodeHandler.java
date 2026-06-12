@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.workflow.engine.handler;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.skill.service.SkillService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +19,7 @@ public class SkillNodeHandler implements NodeHandler {
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) {
         Long skillId = getLongValue(nodeData, "skillId");
         if (skillId == null) {
-            throw new IllegalArgumentException("Skill ID required for Skill Node");
+            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Skill ID required for Skill Node");
         }
 
         log.info("SkillNode executing skillId={}", skillId);

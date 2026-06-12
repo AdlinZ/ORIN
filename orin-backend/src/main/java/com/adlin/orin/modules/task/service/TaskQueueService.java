@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.task.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.task.entity.TaskQueue;
 import com.adlin.orin.modules.task.repository.TaskQueueRepository;
 import lombok.RequiredArgsConstructor;
@@ -103,7 +105,7 @@ public class TaskQueueService {
                         task.setResult(null);
                         return taskRepository.save(task);
                     } else {
-                        throw new RuntimeException("Max retries exceeded for task: " + id);
+                        throw new BusinessException(ErrorCode.TASK_RETRY_EXHAUSTED, "Max retries exceeded for task: " + id);
                     }
                 })
                 .orElseThrow(() -> new RuntimeException("Task not found: " + id));
@@ -121,7 +123,7 @@ public class TaskQueueService {
                         task.setEndTime(LocalDateTime.now());
                         return taskRepository.save(task);
                     } else {
-                        throw new RuntimeException("Cannot cancel task in status: " + task.getStatus());
+                        throw new BusinessException(ErrorCode.TASK_EXECUTION_FAILED, "Cannot cancel task in status: " + task.getStatus());
                     }
                 })
                 .orElseThrow(() -> new RuntimeException("Task not found: " + id));

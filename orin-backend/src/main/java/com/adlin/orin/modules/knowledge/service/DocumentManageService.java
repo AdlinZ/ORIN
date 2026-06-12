@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
@@ -47,12 +49,12 @@ public class DocumentManageService {
 
         // 验证文件
         if (file.isEmpty()) {
-            throw new IllegalArgumentException("File is empty");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "File is empty");
         }
 
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
-            throw new IllegalArgumentException("Invalid filename");
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Invalid filename");
         }
 
         String fileExtension = getFileExtension(originalFilename);
@@ -180,7 +182,7 @@ public class DocumentManageService {
             log.error("Failed to delete database record for document: {}", documentId, e);
             // 如果数据库删除失败，记录补偿任务
             // 这里可以记录到补偿表，后续重试
-            throw new RuntimeException("Failed to delete document from database: " + documentId, e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to delete document from database: " + documentId, e);
         }
 
         // 3. 最后删除物理文件（原始文件和索引文件）
@@ -1073,7 +1075,7 @@ public class DocumentManageService {
             InputStream in = fileStorageService.openStream(doc.getStoragePath());
             return new org.springframework.core.io.InputStreamResource(in);
         } catch (IOException e) {
-            throw new RuntimeException("Original file not found at " + doc.getStoragePath(), e);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Original file not found at " + doc.getStoragePath(), e);
         }
     }
 

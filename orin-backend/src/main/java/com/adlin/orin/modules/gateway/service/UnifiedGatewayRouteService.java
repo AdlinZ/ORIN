@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.gateway.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayRouteRequest;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayRouteResponse;
 import com.adlin.orin.modules.gateway.entity.UnifiedGatewayRoute;
@@ -96,7 +98,7 @@ public class UnifiedGatewayRouteService {
     @Transactional
     public void deleteRoute(Long id) {
         if (!routeRepository.existsById(id)) {
-            throw new RuntimeException("Route not found: " + id);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Route not found: " + id);
         }
         // 清理路由关联的熔断器和限流器状态，防止内存泄漏
         circuitBreakerService.removeRouteState(id);

@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.exception.VectorizationException;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
@@ -111,7 +113,7 @@ public class MilvusVectorService implements VectorStoreProvider {
                     .build());
 
             if (response.getStatus() != R.Status.Success.getCode()) {
-                throw new IllegalStateException("Milvus hasCollection failed: " + response.getMessage());
+                throw new BusinessException(ErrorCode.MILVUS_ERROR, "Milvus hasCollection failed: " + response.getMessage());
             }
 
             if (response.getData() != null && response.getData()) {

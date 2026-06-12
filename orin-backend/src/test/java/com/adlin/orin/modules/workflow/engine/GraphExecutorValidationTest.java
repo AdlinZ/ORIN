@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.workflow.engine;
 
+import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.workflow.engine.handler.NodeHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class GraphExecutorValidationTest {
                 "edges", List.of(Map.of("source", "start", "target", "missing")));
 
         assertThatThrownBy(() -> graphExecutor.validateGraphDefinition(graph))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("target not found");
     }
 
@@ -47,7 +48,7 @@ class GraphExecutorValidationTest {
                         Map.of("source", "end", "target", "b")));
 
         assertThatThrownBy(() -> graphExecutor.validateGraphDefinition(graph))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("cycle");
     }
 
@@ -60,7 +61,7 @@ class GraphExecutorValidationTest {
                 "edges", List.of());
 
         assertThatThrownBy(() -> graphExecutor.validateGraphDefinition(graph))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Duplicate");
     }
 

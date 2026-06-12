@@ -1,5 +1,7 @@
 package com.adlin.orin.config;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.security.ApiKeyAuthInterceptor;
 import com.adlin.orin.security.ApiRateLimitInterceptor;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +42,7 @@ public class WebConfig implements WebMvcConfigurer {
         // Remove wildcards - CORS with * is not allowed for credentials
         for (String origin : origins) {
             if (origin.trim().equals("*")) {
-                throw new IllegalStateException(
+                throw new BusinessException(ErrorCode.OPERATION_FAILED,
                     "CORS wildcard '*' is not allowed. Please specify explicit origins in orin.security.cors.allowed-origins");
             }
         }

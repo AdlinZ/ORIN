@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.model.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
@@ -53,7 +55,7 @@ public class DeepSeekIntegrationService {
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {
             log.error("DeepSeek connection test failed: {}", e.getMessage());
-            throw new RuntimeException("DeepSeek连接测试失败: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.MODEL_API_ERROR, "DeepSeek连接测试失败: " + e.getMessage(), e);
         }
     }
 

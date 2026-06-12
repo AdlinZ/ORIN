@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.adapter.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
@@ -94,7 +96,7 @@ public class N8nWorkflowAdapter implements ProviderAdapter {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return response.getBody();
             } else {
-                throw new RuntimeException("n8n workflow invocation failed");
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "n8n workflow invocation failed");
             }
         } catch (Exception e) {
             log.error("Error invoking n8n workflow: {}", e.getMessage(), e);

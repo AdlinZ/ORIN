@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.task.consumer;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.task.dto.TaskMessage;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
@@ -68,7 +70,7 @@ public class DeadLetterHandler {
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
 
         if (task.getStatus() != TaskStatus.DEAD) {
-            throw new IllegalStateException("Task is not in dead letter status: " + taskId);
+            throw new BusinessException(ErrorCode.TASK_DEAD_LETTER, "Task is not in dead letter status: " + taskId);
         }
 
         log.info("Replaying task from dead letter: taskId={}", taskId);

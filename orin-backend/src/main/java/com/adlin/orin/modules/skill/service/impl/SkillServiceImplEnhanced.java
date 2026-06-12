@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.skill.service.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.skill.dto.SkillRequest;
 import com.adlin.orin.modules.skill.dto.SkillResponse;
 import com.adlin.orin.modules.skill.entity.SkillEntity;
@@ -57,11 +59,11 @@ public class SkillServiceImplEnhanced implements SkillService {
         log.info("Creating skill: {}", request.getSkillName());
 
         if (skillRepository.existsBySkillName(request.getSkillName())) {
-            throw new IllegalArgumentException("Skill name already exists: " + request.getSkillName());
+            throw new BusinessException(ErrorCode.RESOURCE_ALREADY_EXISTS, "Skill name already exists: " + request.getSkillName());
         }
 
         if (!validateSkillConfig(request)) {
-            throw new IllegalArgumentException("Invalid skill configuration");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Invalid skill configuration");
         }
 
         SkillEntity entity = SkillEntity.builder()
@@ -222,7 +224,7 @@ public class SkillServiceImplEnhanced implements SkillService {
                     result = executeShellSkill(skill, inputs);
                     break;
                 default:
-                    throw new UnsupportedOperationException("Unsupported skill type: " + skill.getSkillType());
+                    throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "Unsupported skill type: " + skill.getSkillType());
             }
             // result.put("success", true);
         } catch (Exception e) {
@@ -320,7 +322,7 @@ public class SkillServiceImplEnhanced implements SkillService {
             Files.createDirectories(skillMdPath.getParent());
             Files.writeString(skillMdPath, content, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to write SKILL.md for skill: " + skill.getId(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to write SKILL.md for skill: " + skill.getId(), e);
         }
     }
 
@@ -328,7 +330,7 @@ public class SkillServiceImplEnhanced implements SkillService {
         try {
             return Files.readString(skillMdPath, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to read SKILL.md: " + skillMdPath, e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to read SKILL.md: " + skillMdPath, e);
         }
     }
 
@@ -344,17 +346,17 @@ public class SkillServiceImplEnhanced implements SkillService {
                             try {
                                 Files.deleteIfExists(path);
                             } catch (IOException e) {
-                                throw new RuntimeException(e);
+                                throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to delete path: " + e.getMessage(), e);
                             }
                         });
             }
         } catch (RuntimeException e) {
             if (e.getCause() instanceof IOException ioException) {
-                throw new IllegalStateException("Failed to delete skill storage for skill: " + skill.getId(), ioException);
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to delete skill storage for skill: " + skill.getId(), ioException);
             }
             throw e;
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to delete skill storage for skill: " + skill.getId(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to delete skill storage for skill: " + skill.getId(), e);
         }
     }
 
@@ -405,7 +407,7 @@ public class SkillServiceImplEnhanced implements SkillService {
                     break;
 
                 default:
-                    throw new UnsupportedOperationException("Unsupported HTTP method: " + method);
+                    throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Unsupported HTTP method: " + method);
             }
 
             // 处理响应
@@ -449,13 +451,13 @@ public class SkillServiceImplEnhanced implements SkillService {
         try {
             Long knowledgeConfigId = skill.getKnowledgeConfigId();
             if (knowledgeConfigId == null) {
-                throw new IllegalStateException("Knowledge config ID is not set for skill: " + skill.getSkillName());
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "Knowledge config ID is not set for skill: " + skill.getSkillName());
             }
 
             // 获取查询文本
             String query = (String) inputs.getOrDefault("query", inputs.getOrDefault("question", ""));
             if (query.isEmpty()) {
-                throw new IllegalArgumentException("Query text is required for knowledge skill");
+                throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Query text is required for knowledge skill");
             }
 
             // 获取检索参数
@@ -562,7 +564,7 @@ public class SkillServiceImplEnhanced implements SkillService {
         try {
             String commandTemplate = skill.getShellCommand();
             if (commandTemplate == null || commandTemplate.trim().isEmpty()) {
-                throw new IllegalStateException("Shell command is empty for skill: " + skill.getSkillName());
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "Shell command is empty for skill: " + skill.getSkillName());
             }
 
             // Simple variable substitution: ${var}

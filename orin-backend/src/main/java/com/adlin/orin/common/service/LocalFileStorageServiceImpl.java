@@ -1,5 +1,7 @@
 package com.adlin.orin.common.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.storage.ObjectStorageProvider;
 import com.adlin.orin.common.storage.StorageBackend;
 import com.adlin.orin.common.storage.StorageProperties;
@@ -29,7 +31,7 @@ public class LocalFileStorageServiceImpl implements ObjectStorageProvider {
         try {
             Files.createDirectories(p);
         } catch (IOException e) {
-            throw new RuntimeException("Could not initialize local storage root: " + p, e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Could not initialize local storage root: " + p, e);
         }
         return p;
     }
@@ -65,7 +67,7 @@ public class LocalFileStorageServiceImpl implements ObjectStorageProvider {
         String key = keyFromLocator(locatorOrKey);
         Path p = root().resolve(key).normalize();
         if (!p.startsWith(root())) {
-            throw new IllegalArgumentException("Invalid local storage key");
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Invalid local storage key");
         }
         return p;
     }

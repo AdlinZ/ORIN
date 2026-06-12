@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.audit.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.system.service.LogConfigService;
@@ -310,7 +312,7 @@ public class AuditLogService {
             return deletedCount;
         } catch (Exception e) {
             log.error("Failed to manually cleanup audit logs: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to cleanup logs: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to cleanup logs: " + e.getMessage(), e);
         }
     }
 

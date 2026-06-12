@@ -589,9 +589,23 @@ TraceID MQ 传播（2d）
   - 小刀 3（`1cd6ea81`）：AgentManageServiceImpl 7 处裸抛（Provider 连接 / 批量导入导出）；修 ACL 1c2318e4 遗留 AgentSmokeTest 2 处盲点；13/13 绿
   - 小刀 4（`ad52752d`）：CollaborationOrchestrator 15 处 + KnowledgeManageService 9 处 = 24 处；54/54 绿
   - 小刀 5（`537b1fa7`）：SetupInitializeService 8 处参数校验裸抛（不含 3 处字符串错误码）；4/4 绿
-  - 累计 5 刀 54 处裸抛改 BusinessException,163+ 个 targeted 单测全绿
+  - 小刀 6（`17efa516`）：SiliconFlowEmbeddingAdapter 6 处；6/6 绿
+  - 小刀 7（`6c036f53`）：VisualAnalysisService 6 处（VLM 视觉分析）；无新测试
+  - 小刀 8（`d83a7d25`）：StructuredServiceImpl 6 处（CSV/SQL 知识库结构化）；无新测试
+  - **大目标**（本次会话，按用户指示"不要小刀，要完整大目标"）：一次性收尾所有剩余裸抛
+    - system 9 处（SystemConfigService 5 / DepartmentService 4 / MailTemplateService 3 / LogConfigController 3 / DynamicLoggerService 2 / RoleService 2 / UserRoleService 1）
+    - skill 14 处（SkillServiceImplEnhanced 10 / McpServiceServiceImpl 5 含 orElseThrow / McpManageController 1）
+    - workflow 14 处（WorkflowService 8 / WorkflowEngine 4 / DifyDslConverter 2 / OrinWorkflowDslValidator 1 / WorkflowGenerationService 1 / SkillNodeHandler 1 / KnowledgeNodeHandler 1 / HttpRequestNodeHandler 1）
+    - knowledge 22 处（DocumentManageService 4 / GraphExtractionService 3 / KnowledgeManageController 3 / KnowledgeWorkflowEngine 3 / UnstructuredServiceImpl 2 / ParsingPipelineService 2 / KnowledgeGraphService 2 / SideClientSyncService 1 / ProceduralServiceImpl 1 / MetaKnowledgeService 1 / MilvusVectorStoreProvider 1 / MilvusVectorService 1 / KnowledgeTaskListener 1）
+    - gateway/adapter 12 处（SiliconFlowTranscriptionAdapter 4 / OpenAIProviderAdapter 2 / OllamaProviderAdapter 2 / DifyProviderAdapter 1 / UnifiedGatewayPolicyService 3 / UnifiedGatewayServiceManagementService 2 / UnifiedGatewayAclService 1 / UnifiedGatewayRouteService 1）
+    - multimodal/playground/runtime 12 处（MultimodalFileService 4 / MultimodalController 4 / PlaygroundRuntimeClient 6 / PlaygroundController 1 / RuntimeManageServiceImpl 1 / WebhookSecurityValidator 5）
+    - collaboration/integration/agent/task 19 处（CollaborationRedisService 3 / CollaborationService 2 / CollaborationMemoryService 2 / CollaborationSessionService 2 / GatewaySecretService 2 / AgentExecutor 2 / AgentVersionService 4 / TaskService 2 / TaskQueueService 2 / DifySyncConnector 2 / CollaborationOrchestratorController 1 / N8nWorkflowAdapter 1 / ZhipuIntegrationService 1 / DeepSeekIntegrationService 1 / SyncDiffService 1 / AgentChatService 2 / AgentChatController 1 / AuditLogService 1 / SystemHealthCheckTask 1 / DeadLetterHandler 1 / MonitorServiceImpl 3 / PrometheusService 3 / SiliconFlowIntegrationService 3 / IntegrationService 1 / LocalFileStorageServiceImpl 2 / EncryptionUtil 1 / JwtService 3）
+    - security/common/config 3 处（WebConfig 1 / SecurityPropertiesValidator 1 / LocalFileStorageServiceImpl 2）
+  - **修 WorkflowServiceTest 资源级 ACL 遗留 mock 缺失**：补 `WorkflowOwnershipResolver` mock + assertCanManage default stub
+  - **统一所有 targeted 单测**：将 `assertThrows(IllegalArgumentException/IllegalStateException.class, ...)` / `assertThatThrownBy...isInstanceOf(IllegalArgumentException/IllegalStateException.class)` 改为 BusinessException；7 个测试文件改 import + 断言
+  - 累计 5+8+大目标 = 全部裸抛已收尾。`mvn compile` exit=0；`mvn test` 636/636 全绿
   - **保留 3 处字符串错误码**（独立调查, 8.2.1 自主决定）: SetupInitializeService L64 `SETUP_DISABLED` / L67 `SETUP_ALREADY_COMPLETED` / L177 `ENCRYPTION_KEY_REQUIRED` — `SetupController.initialize` L72-83 `switch (e.getMessage())` 主动 case 匹配, 部署指南 L26 文档化, 字符串是 SetupController API 内部契约, 改 ErrorCode 超出本小刀范围
-  - 现状: 后端裸抛 192 → 138 处 (含 Setup 3 处字符串), 散落 50+ 文件, 按贡献度分批
+  - 现状: 后端裸抛 192 → 0 处 (不含 Setup 3 处字符串契约)
   - 暂不做: 格式统一为 `ORIN-XXXX` 前缀（会全局重命名 40+ 错误码）；Python 端 `task_runtime.py` 结构化错误码
 - [ ] `P1` **TraceID 跨 MQ 传播**：RabbitMQ 发布时写入 `traceparent` 头，worker 消费时提取绑定 span，目标是 HTTP → AI Engine 调用链在 Jaeger 中完整可见
 - [ ] `P2` **结构化 JSON 日志**：后端接入 `logstash-logback-encoder`，日志包含 `traceId`、`userId`、`agentId` 字段，为后续 ELK / Grafana Loki 接入做准备

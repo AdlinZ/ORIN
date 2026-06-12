@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
@@ -36,7 +38,7 @@ public class UnstructuredServiceImpl implements UnstructuredService {
             stored = fileStorageService.storeFileDetailed(file, "knowledge");
         } catch (Exception e) {
             log.error("Failed to store physical file", e);
-            throw new RuntimeException("Failed to store file", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to store file", e);
         }
 
         // 1. Save metadata (Fixed Builder Fields)
@@ -84,7 +86,7 @@ public class UnstructuredServiceImpl implements UnstructuredService {
                         content = stripper.getText(document);
                     } else {
                         log.warn("Encrypted PDF not supported yet: {}", fileName);
-                        throw new RuntimeException("Encrypted PDF not supported");
+                        throw new BusinessException(ErrorCode.OPERATION_FAILED, "Encrypted PDF not supported");
                     }
                 }
             } else if (fileName.endsWith(".txt") || fileName.endsWith(".md") || fileName.endsWith(".json")) {

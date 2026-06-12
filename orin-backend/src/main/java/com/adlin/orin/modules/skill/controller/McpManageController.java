@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.skill.controller;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.service.McpServiceService;
 import com.adlin.orin.modules.skill.util.McpEnvSecretRef;
@@ -191,7 +193,7 @@ public class McpManageController {
                 .filter(t -> toolKey.equals(t.get("key")))
                 .findFirst();
         if (templateOpt.isEmpty()) {
-            throw new IllegalArgumentException("未找到工具模板: " + toolKey);
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "未找到工具模板: " + toolKey);
         }
 
         Map<String, Object> template = templateOpt.get();

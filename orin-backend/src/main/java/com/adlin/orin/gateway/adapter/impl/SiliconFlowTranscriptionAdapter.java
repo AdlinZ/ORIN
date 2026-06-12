@@ -1,5 +1,7 @@
 package com.adlin.orin.gateway.adapter.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
@@ -122,13 +124,13 @@ public class SiliconFlowTranscriptionAdapter implements ProviderAdapter {
     public Mono<TranscriptionResponse> transcribe(TranscriptionRequest request) {
         return Mono.fromCallable(() -> {
             if (apiKey.isEmpty()) {
-                throw new IllegalStateException("SiliconFlow ASR API key not configured");
+                throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "SiliconFlow ASR API key not configured");
             }
             if (request == null || request.getAudioUrl() == null || request.getAudioUrl().isBlank()) {
-                throw new IllegalArgumentException("audioUrl is required");
+                throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "audioUrl is required");
             }
             if (request.getModel() == null || request.getModel().isBlank()) {
-                throw new IllegalArgumentException("model is required");
+                throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "model is required");
             }
 
             String endpoint = baseUrl + "/audio/transcriptions";
@@ -147,7 +149,7 @@ public class SiliconFlowTranscriptionAdapter implements ProviderAdapter {
 
             ResponseEntity<String> response = restTemplate.postForEntity(endpoint, entity, String.class);
             if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
-                throw new RuntimeException("SiliconFlow ASR unexpected response: "
+                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "SiliconFlow ASR unexpected response: "
                         + response.getStatusCode());
             }
 

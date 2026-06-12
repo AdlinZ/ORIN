@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.conversation.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.service.AgentManageService;
@@ -203,7 +205,7 @@ public class AgentChatService {
 
         Object rawMessages = body != null ? body.get("messages") : null;
         if (!(rawMessages instanceof List<?> rawList)) {
-            throw new IllegalArgumentException("messages must be an array");
+            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "messages must be an array");
         }
 
         List<Map<String, Object>> messages = new ArrayList<>();
@@ -238,7 +240,7 @@ public class AgentChatService {
             }
             sessionRepository.save(session);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("序列化消息历史失败", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "序列化消息历史失败", e);
         }
     }
 

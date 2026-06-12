@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.integrationsync.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +29,7 @@ public class SyncDiffService {
                     .getBytes(StandardCharsets.UTF_8);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(payload));
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to calculate sync hash", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to calculate sync hash", e);
         }
     }
 

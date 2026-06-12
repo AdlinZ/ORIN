@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.model.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -47,7 +49,7 @@ public class ZhipuIntegrationService {
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {
             log.error("Zhipu AI connection test failed: {}", e.getMessage());
-            throw new RuntimeException("智谱AI连接测试失败: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.MODEL_API_ERROR, "智谱AI连接测试失败: " + e.getMessage(), e);
         }
     }
 

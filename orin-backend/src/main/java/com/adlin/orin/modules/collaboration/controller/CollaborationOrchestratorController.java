@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.collaboration.controller;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.collaboration.dto.CollaborationPackage;
 import com.adlin.orin.modules.collaboration.entity.CollabSubtaskEntity;
 import com.adlin.orin.modules.collaboration.consumer.CollaborationResultListener;
@@ -542,7 +544,7 @@ public class CollaborationOrchestratorController {
                 .orElseThrow(() -> new RuntimeException("Subtask not found: " + subTaskId));
 
         if (!"PENDING".equals(subtask.getStatus()) && !"FAILED".equals(subtask.getStatus())) {
-            throw new IllegalStateException("Only PENDING or FAILED subtasks can be skipped");
+            throw new BusinessException(ErrorCode.SUBTASK_INVALID_TRANSITION, "Only PENDING or FAILED subtasks can be skipped");
         }
 
         CollabSubtaskEntity skipped = orchestrator.updateSubtaskStatus(packageId, subTaskId, "SKIPPED", null, "Skipped by user");

@@ -1,5 +1,7 @@
 package com.adlin.orin.security;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -46,7 +48,7 @@ public class EncryptionUtil {
             return Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
             log.error("Encryption failed: {}", e.getMessage());
-            throw new RuntimeException("Failed to encrypt data", e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to encrypt data", e);
         }
     }
 

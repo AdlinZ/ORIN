@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeParsingTask;
@@ -212,7 +214,7 @@ public class ParsingPipelineService {
         try {
             DocumentParser parser = parserFactory.getParserByTaskType(task.getTaskType());
             if (parser == null) {
-                throw new RuntimeException("No parser found for task type: " + task.getTaskType());
+                throw new BusinessException(ErrorCode.OPERATION_FAILED, "No parser found for task type: " + task.getTaskType());
             }
 
             String outputPath = task.getInputPath().replaceFirst("data/", "parsed/");
@@ -299,7 +301,7 @@ public class ParsingPipelineService {
                 .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
 
         if (!STATUS_FAILED.equals(task.getStatus())) {
-            throw new IllegalStateException("只能重试失败的任务");
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "只能重试失败的任务");
         }
 
         task.incrementRetry();

@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.task.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.task.dto.TaskMessage;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
@@ -200,7 +202,7 @@ public class TaskService {
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
 
         if (task.getStatus() != TaskStatus.FAILED && task.getStatus() != TaskStatus.DEAD) {
-            throw new IllegalStateException("Only FAILED or DEAD tasks can be replayed. Current status: " + task.getStatus());
+            throw new BusinessException(ErrorCode.TASK_EXECUTION_FAILED, "Only FAILED or DEAD tasks can be replayed. Current status: " + task.getStatus());
         }
 
         log.info("Replaying task: taskId={}, originalStatus={}", taskId, task.getStatus());
@@ -264,7 +266,7 @@ public class TaskService {
         }
 
         log.warn("Cannot cancel task in status: taskId={}, status={}", taskId, task.getStatus());
-        throw new IllegalStateException("Only QUEUED tasks can be cancelled. Current status: " + task.getStatus());
+        throw new BusinessException(ErrorCode.TASK_EXECUTION_FAILED, "Only QUEUED tasks can be cancelled. Current status: " + task.getStatus());
     }
 
     private TaskEntity sendTaskAfterCommitOrNow(TaskEntity task, TaskMessage message) {

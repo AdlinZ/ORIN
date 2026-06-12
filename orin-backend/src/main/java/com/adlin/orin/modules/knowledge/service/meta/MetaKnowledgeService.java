@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service.meta;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.entity.meta.AgentMemory;
 import com.adlin.orin.modules.knowledge.entity.meta.PromptTemplate;
 import com.adlin.orin.modules.knowledge.repository.meta.AgentMemoryRepository;
@@ -362,7 +364,7 @@ public class MetaKnowledgeService implements com.adlin.orin.modules.knowledge.se
                         }
                 } catch (Exception e) {
                         log.error("Failed to extract memory: {}", e.getMessage());
-                        throw new RuntimeException("Memory extraction failed", e);
+                        throw new BusinessException(ErrorCode.OPERATION_FAILED, "Memory extraction failed", e);
                 }
         }
 }

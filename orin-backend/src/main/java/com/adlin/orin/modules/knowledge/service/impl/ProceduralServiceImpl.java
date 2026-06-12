@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.knowledge.service.impl;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.component.KnowledgeWorkflowEngine;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeSkill;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeSkillRepository;
@@ -61,7 +63,7 @@ public class ProceduralServiceImpl implements ProceduralService {
 
         String dsl = skill.getDefinition();
         if (dsl == null || dsl.isEmpty()) {
-            throw new RuntimeException("Skill has no definition logic");
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Skill has no definition logic");
         }
 
         // Delegate execution to Engine

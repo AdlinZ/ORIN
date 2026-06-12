@@ -1,6 +1,8 @@
 package com.adlin.orin.modules.knowledge.controller;
 
 import com.adlin.orin.common.enums.TaskStatus;
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
@@ -264,7 +266,7 @@ public class KnowledgeManageController {
     public KnowledgeBase updateStatus(@PathVariable String kbId, @RequestBody Map<String, Boolean> payload) {
         Boolean enabled = payload.get("enabled");
         if (enabled == null) {
-            throw new IllegalArgumentException("Payload must contain 'enabled' boolean field");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Payload must contain 'enabled' boolean field");
         }
         return knowledgeManageService.updateStatus(kbId, enabled);
     }
@@ -337,7 +339,7 @@ public class KnowledgeManageController {
                     null, null, null, true, null, null, null);
             return result;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to upload document: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to upload document: " + e.getMessage(), e);
         }
     }
 
@@ -854,7 +856,7 @@ public class KnowledgeManageController {
             @RequestBody Map<String, String> payload) {
         String content = payload.get("content");
         if (content == null || content.isEmpty()) {
-            throw new IllegalArgumentException("Content cannot be empty");
+            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Content cannot be empty");
         }
 
         var metadata = agentManageService.getAgentMetadata(agentId);

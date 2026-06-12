@@ -1,6 +1,8 @@
 package com.adlin.orin.modules.knowledge.listener;
 
 import com.adlin.orin.common.enums.TaskStatus;
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeTask;
@@ -216,7 +218,7 @@ public class KnowledgeTaskListener {
             }
 
             if (textContent.isEmpty()) {
-                throw new IllegalStateException("No content found for graph building");
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "No content found for graph building");
             }
 
             // 构建图谱

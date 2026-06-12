@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.task.service;
 
+import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.task.dto.TaskMessage;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.producer.TaskQueueProducer;
@@ -102,7 +103,7 @@ class TaskServiceTest {
         when(taskRepository.findByTaskId("task-completed")).thenReturn(Optional.of(completedTask));
 
         assertThatThrownBy(() -> taskService.replayTask("task-completed"))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Only FAILED or DEAD tasks can be replayed");
 
         assertThat(completedTask.getStatus()).isEqualTo(TaskEntity.TaskStatus.COMPLETED);
@@ -143,7 +144,7 @@ class TaskServiceTest {
         when(taskRepository.findByTaskId("task-running")).thenReturn(Optional.of(runningTask));
 
         assertThatThrownBy(() -> taskService.cancelTask("task-running"))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Current status: RUNNING");
 
         assertThat(runningTask.getStatus()).isEqualTo(TaskEntity.TaskStatus.RUNNING);

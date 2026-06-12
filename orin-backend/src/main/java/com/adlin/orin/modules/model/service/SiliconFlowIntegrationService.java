@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.model.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -788,14 +790,14 @@ public class SiliconFlowIntegrationService {
                 return Optional.of(response.getBody());
             } else {
                 log.error("Audio generation failed with status: {}", response.getStatusCode());
-                throw new RuntimeException("Audio generation failed with status: " + response.getStatusCode());
+                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "Audio generation failed with status: " + response.getStatusCode());
             }
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             log.error("SiliconFlow audio speech client error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException("SiliconFlow API Error: " + e.getResponseBodyAsString());
+            throw new BusinessException(ErrorCode.MODEL_API_ERROR, "SiliconFlow API Error: " + e.getResponseBodyAsString());
         } catch (Exception e) {
             log.error("Failed to generate speech with SiliconFlow: ", e);
-            throw new RuntimeException("Failed to generate speech: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to generate speech: " + e.getMessage(), e);
         }
     }
 
