@@ -8,15 +8,20 @@ from app.api.collaboration import ensure_worker_started, ensure_worker_stopped
 from app.api.playground_runtime import router as playground_runtime_router
 from app.api.mcp import router as mcp_router
 from app.core.config import settings
-from app.core.logging_filter import TraceContextFilter
+from app.core.logging_formatter import configure_logging
 from app.core.trace_middleware import TraceContextMiddleware
 from app.engine.mq_worker import get_mq_dependency_status
 
 app = FastAPI(title="ORIN AI Engine", version="0.1.0")
 
-# 全局 logging filter：让每条 LogRecord 自带 traceId/spanId 字段（来自当前
-# contextvar）。在 root logger 上挂一次即可，子 logger 自动继承。
-logging.getLogger().addFilter(TraceContextFilter())
+# 启动期根据 ORIN_LOG_JSON_FORMAT 选 JSON / 文本 formatter；幂等，
+# 重复 import（pytest reload / uvicorn --reload）不会累加 handler。
+# TraceContextFilter 在 `configure_logging` 内部挂到 handler 上（不挂 logger
+# 自身 —— Python `callHandlers` 在 propagate 链上只调 handler.filter）。
+configure_logging(
+    json_format=settings.LOG_JSON_FORMAT,
+    level=settings.LOG_LEVEL,
+)
 
 app.include_router(workflow_router, prefix="/api/v1")
 app.include_router(collaboration_router)

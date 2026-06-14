@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     # （local dev / 旧测试）。环境变量：ORIN_OUTBOUND_TRACEPARENT_DISABLED=1
     OUTBOUND_TRACEPARENT_DISABLED: bool = False
 
+    # 结构化 JSON 日志开关。False（默认）= 文本 formatter，与历史 dev 输出
+    # 兼容；True = 走 `app.core.logging_formatter.JsonFormatter` 单行 JSON，
+    # 字段含 traceId/spanId（来自 TraceContextFilter），对齐后端
+    # logstash-logback-encoder 的字段名，便于 ELK / Loki 统一查询。
+    # 环境变量：ORIN_LOG_JSON_FORMAT=1
+    LOG_JSON_FORMAT: bool = False
+    # root logger 级别，默认 INFO。环境变量：ORIN_LOG_LEVEL=DEBUG
+    LOG_LEVEL: str = "INFO"
+
     # Playground runtime tuning
     PLAYGROUND_SUBTASK_POLL_TIMEOUT_SECONDS: float = 420.0
     PLAYGROUND_SUBTASK_POLL_INTERVAL_SECONDS: float = 1.0
