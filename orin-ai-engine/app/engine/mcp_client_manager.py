@@ -13,6 +13,7 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
 
 from app.core.config import settings
+from app.core.trace_httpx import httpx_client
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class MCPClientManager:
     async def _load_service_config(self, service_id: int) -> dict[str, Any]:
         backend_base = (settings.ORIN_BACKEND_URL or "http://localhost:8080").rstrip("/")
         url = f"{backend_base}/api/system/mcp/internal/enabled/{service_id}"
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+        async with httpx_client(timeout=self.timeout_seconds) as client:
             response = await client.get(url)
             response.raise_for_status()
             return response.json()

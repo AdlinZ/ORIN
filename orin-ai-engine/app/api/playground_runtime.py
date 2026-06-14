@@ -13,6 +13,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from app.core.collab_state import poll_branch_result, read_collab_ctx
+from app.core.trace_httpx import httpx_client
 from app.core.config import settings
 from app.engine.task_runtime import TaskRuntime
 
@@ -123,7 +124,10 @@ async def post_json_with_context(
     timeout_seconds: float = 20.0,
 ) -> httpx.Response:
     try:
-        async with httpx.AsyncClient(timeout=runtime_timeout(timeout_seconds)) as client:
+        # httpx_client 预装 traceparent request event_hook，从当前 contextvar
+        # 抽 trace_id 生成新 span-id 注入 header（W3C 主路径）。caller 传的
+        # `headers` 仍生效但不包含 legacy `X-Trace-Id`。
+        async with httpx_client(timeout=runtime_timeout(timeout_seconds)) as client:
             return await client.post(url, json=payload, headers=headers)
     except httpx.ReadTimeout as exc:
         raise RuntimeError(f"{step} timeout after {int(timeout_seconds)}s: POST {url}") from exc
@@ -1118,7 +1122,9 @@ async def _trigger_subtask(package_id: str, subtask: dict[str, Any], trace_id: s
             "ephemeral_agents": subtask.get("_ephemeral_agents") if isinstance(subtask.get("_ephemeral_agents"), list) else [],
         },
     }
-    headers = {"X-Trace-Id": trace_id}
+    # W3C `traceparent` 由 `app.core.trace_httpx.httpx_client` 注入；
+    # 不再手设 `X-Trace-Id` legacy header。
+    headers: dict[str, str] = {}
 
     response = await post_json_with_context(
         step=f"execute_subtask:{subtask_id}",

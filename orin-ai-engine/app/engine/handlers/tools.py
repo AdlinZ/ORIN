@@ -1,6 +1,7 @@
 import httpx
 import re
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from app.core.trace_httpx import httpx_client
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
 
@@ -67,7 +68,7 @@ class HTTPRequestNodeHandler(BaseNodeHandler):
         if json_data is not None:
             request_kwargs["json"] = json_data
 
-        async with httpx.AsyncClient(follow_redirects=True) as client:
+        async with httpx_client(follow_redirects=True) as client:
             try:
                 response = await client.request(**request_kwargs)
                 

@@ -2,6 +2,7 @@ import re
 import json
 import httpx
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from app.core.trace_httpx import httpx_client
 from jinja2 import Template, Environment
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
@@ -139,7 +140,7 @@ class KnowledgeRetrievalNodeHandler(BaseNodeHandler):
             if authorization:
                 headers["Authorization"] = authorization
 
-            async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+            async with httpx_client(follow_redirects=True, timeout=30.0) as client:
                 response = await client.post(
                     retrieve_url,
                     json={

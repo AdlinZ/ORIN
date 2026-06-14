@@ -260,20 +260,21 @@ class DelegateNodeHandler(BaseNodeHandler):
         """调用后端 Agent API"""
         import httpx
         from app.core.config import settings
+        from app.core.trace_httpx import httpx_client
 
         backend_url = settings.ORIN_BACKEND_URL
-        url = f"{backend_url}/api/v1/agent/{agent_id}/chat"
+        url = f"{backend_url}/api/v1/agents/{agent_id}/chat"
 
         headers = {"Content-Type": "application/json"}
-        if trace_id:
-            headers["X-Trace-Id"] = trace_id
+        # W3C `traceparent` 由 `app.core.trace_httpx.httpx_client` 注入；
+        # 不再手设 `X-Trace-Id` legacy header。
 
         payload = {"message": message}
         if trace_id:
             payload["traceId"] = trace_id
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx_client(timeout=60.0) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
 
@@ -294,20 +295,21 @@ class DelegateNodeHandler(BaseNodeHandler):
         """调用后端 Workflow API"""
         import httpx
         from app.core.config import settings
+        from app.core.trace_httpx import httpx_client
 
         backend_url = settings.ORIN_BACKEND_URL
-        url = f"{backend_url}/api/v1/workflow/{workflow_id}/execute"
+        url = f"{backend_url}/api/workflows/{workflow_id}/execute"
 
         headers = {"Content-Type": "application/json"}
-        if trace_id:
-            headers["X-Trace-Id"] = trace_id
+        # W3C `traceparent` 由 `app.core.trace_httpx.httpx_client` 注入；
+        # 不再手设 `X-Trace-Id` legacy header。
 
         payload = {"inputs": {"query": inputs}}
         if trace_id:
             payload["traceId"] = trace_id
 
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx_client(timeout=120.0) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
 
@@ -478,20 +480,21 @@ class ParallelForkNodeHandler(BaseNodeHandler):
         """调用后端 Agent API"""
         import httpx
         from app.core.config import settings
+        from app.core.trace_httpx import httpx_client
 
         backend_url = settings.ORIN_BACKEND_URL
-        url = f"{backend_url}/api/v1/agent/{agent_id}/chat"
+        url = f"{backend_url}/api/v1/agents/{agent_id}/chat"
 
         headers = {"Content-Type": "application/json"}
-        if trace_id:
-            headers["X-Trace-Id"] = trace_id
+        # W3C `traceparent` 由 `app.core.trace_httpx.httpx_client` 注入；
+        # 不再手设 `X-Trace-Id` legacy header。
 
         payload = {"message": message}
         if trace_id:
             payload["traceId"] = trace_id
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx_client(timeout=60.0) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
 
@@ -511,20 +514,21 @@ class ParallelForkNodeHandler(BaseNodeHandler):
         """调用后端 Workflow API"""
         import httpx
         from app.core.config import settings
+        from app.core.trace_httpx import httpx_client
 
         backend_url = settings.ORIN_BACKEND_URL
-        url = f"{backend_url}/api/v1/workflow/{workflow_id}/execute"
+        url = f"{backend_url}/api/workflows/{workflow_id}/execute"
 
         headers = {"Content-Type": "application/json"}
-        if trace_id:
-            headers["X-Trace-Id"] = trace_id
+        # W3C `traceparent` 由 `app.core.trace_httpx.httpx_client` 注入；
+        # 不再手设 `X-Trace-Id` legacy header。
 
         payload = {"inputs": {"query": inputs}}
         if trace_id:
             payload["traceId"] = trace_id
 
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx_client(timeout=120.0) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
 

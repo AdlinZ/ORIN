@@ -17,7 +17,7 @@
 
     <el-row :gutter="16" class="dev-grid">
       <!-- 我的智能体 -->
-      <el-col :xs="24" :lg="12">
+      <el-col :xs="24">
         <el-card shadow="never" class="panel-card">
           <template #header>
             <div class="panel-header">
@@ -30,9 +30,9 @@
           <OrinAsyncState :status="agentsState.status" empty-text="暂无智能体">
             <OrinDataTable compact>
               <el-table :data="summary.myAgents?.agents || []" stripe size="small">
-                <el-table-column prop="name" label="名称" min-width="120" />
-                <el-table-column prop="providerType" label="Provider" width="100" />
-                <el-table-column prop="modelName" label="模型" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="name" label="名称" min-width="150" />
+                <el-table-column prop="providerType" label="Provider" width="120" />
+                <el-table-column prop="modelName" label="模型" min-width="180" show-overflow-tooltip />
                 <el-table-column prop="mcpExposed" label="MCP 暴露" width="100">
                   <template #default="{ row }">
                     <el-tag size="small" :type="row.mcpExposed ? 'success' : 'info'">
@@ -40,7 +40,7 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="80" fixed="right">
+                <el-table-column label="操作" width="100" fixed="right">
                   <template #default="{ row }">
                     <el-button link type="primary" size="small" @click="router.push(ROUTES.AGENTS.WORKSPACE)">
                       对话
@@ -54,7 +54,7 @@
       </el-col>
 
       <!-- 我的 API Key -->
-      <el-col :xs="24" :lg="12">
+      <el-col :xs="24">
         <el-card shadow="never" class="panel-card">
           <template #header>
             <div class="panel-header">
@@ -67,20 +67,20 @@
           <OrinAsyncState :status="keysState.status" empty-text="暂无 API Key">
             <OrinDataTable compact>
               <el-table :data="summary.myApiKeys?.keys || []" stripe size="small">
-                <el-table-column prop="name" label="名称" min-width="120" />
-                <el-table-column prop="keyPrefix" label="前缀" width="130">
+                <el-table-column prop="name" label="名称" min-width="150" />
+                <el-table-column prop="keyPrefix" label="前缀" width="150">
                   <template #default="{ row }">
                     <code class="key-prefix">{{ row.keyPrefix }}***</code>
                   </template>
                 </el-table-column>
-                <el-table-column prop="enabled" label="状态" width="80">
+                <el-table-column prop="enabled" label="状态" width="100">
                   <template #default="{ row }">
                     <el-tag size="small" :type="row.enabled ? 'success' : 'danger'">
                       {{ row.enabled ? '启用' : '禁用' }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="usedTokens" label="已用 Token" width="100">
+                <el-table-column prop="usedTokens" label="已用 Token" width="120">
                   <template #default="{ row }">
                     {{ formatTokens(row.usedTokens) }}
                   </template>
@@ -112,15 +112,15 @@
                     </el-button>
                   </template>
                 </el-table-column>
-                <el-table-column prop="operationName" label="操作" min-width="180" show-overflow-tooltip />
-                <el-table-column prop="status" label="状态" width="90">
+                <el-table-column prop="operationName" label="操作" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="status" label="状态" width="100">
                   <template #default="{ row }">
                     <el-tag size="small" :type="row.status === 'SUCCESS' ? 'success' : 'danger'">
                       {{ row.status || '-' }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="durationMs" label="耗时" width="90">
+                <el-table-column prop="durationMs" label="耗时" width="100">
                   <template #default="{ row }">
                     {{ row.durationMs ? row.durationMs + 'ms' : '-' }}
                   </template>
@@ -279,7 +279,6 @@ onMounted(() => {
 }
 
 .panel-card {
-  height: 100%;
   margin-bottom: 16px;
 }
 
@@ -291,7 +290,11 @@ onMounted(() => {
 
 .key-prefix {
   font-size: 12px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
   color: #64748b;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 3px;
 }
 
 .quick-links {

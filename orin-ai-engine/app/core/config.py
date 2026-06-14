@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     MQ_CONNECTION_TIMEOUT_SECONDS: float = 5.0
     MQ_WORKER_LOG_THROTTLE_SECONDS: float = 60.0
 
+    # Outbound W3C traceparent injection. False (default) = 每个
+    # `app.core.trace_httpx.httpx_client()` 构造的 AsyncClient 都预装
+    # 注入 contextvar trace_id 的 request hook。True 跳过注入
+    # （local dev / 旧测试）。环境变量：ORIN_OUTBOUND_TRACEPARENT_DISABLED=1
+    OUTBOUND_TRACEPARENT_DISABLED: bool = False
+
     # Playground runtime tuning
     PLAYGROUND_SUBTASK_POLL_TIMEOUT_SECONDS: float = 420.0
     PLAYGROUND_SUBTASK_POLL_INTERVAL_SECONDS: float = 1.0
