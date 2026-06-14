@@ -90,11 +90,22 @@ services:
       ORIN_RABBITMQ_URL: ${ORIN_RABBITMQ_URL:-}
       ORIN_MQ_WORKER_DISABLED: ${ORIN_MQ_WORKER_DISABLED:-true}
       ORIN_MQ_WORKER_AUTO_START: ${ORIN_MQ_WORKER_AUTO_START:-false}
+      # OTel（Phase 2 小刀 5a/5b/5c）：OTLP HTTP exporter → jaeger。
+      # - 5a/5b 引入 opentelemetry-api/sdk/exporter-otlp-proto-http（1.42.x）
+      # - 5b 切换 propagator / 业务 span 影子化
+      # - 5c 加 jaeger service，HTTP 4318 与 Python SDK 默认对齐（CI / docker bridge
+      #   更稳，gRPC 4317 留给后端 Java）。`ORIN_TRACING_ENABLED=true` 启用。
+      OTEL_SERVICE_NAME: orin-ai-engine
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      ORIN_TRACING_ENABLED: ${ORIN_TRACING_ENABLED:-true}
     depends_on:
       redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     ports:
       - "${AI_ENGINE_PORT:-8000}:8000"
     healthcheck:
@@ -144,6 +155,15 @@ services:
       COLLAB_LISTENERS_AUTO_STARTUP: ${COLLAB_LISTENERS_AUTO_STARTUP:-false}
       COLLAB_MODE: ${COLLAB_MODE:-JAVA_NATIVE}
       LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+      # OTel（Phase 2 小刀 5c）：OTLP gRPC exporter → jaeger。
+      # - 后端 Java 用 opentelemetry 1.32.0 + gRPC OTLP（pom.xml 已加）
+      # - 4317 gRPC 与 Java 默认对齐；4318 HTTP 留给 Python AI Engine
+      # - OTEL_SERVICE_NAME 需与 OpenTelemetryConfig.java Resource 默认值
+      #   `orin-backend` 对齐
+      OTEL_SERVICE_NAME: orin-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      ORIN_TRACING_ENABLED: ${ORIN_TRACING_ENABLED:-true}
     depends_on:
       mysql:
         condition: service_healthy
@@ -151,6 +171,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
@@ -159,6 +181,31 @@ services:
       timeout: 5s
       retries: 9
       start_period: 45s
+    restart: unless-stopped
+    networks:
+      - orin-network
+
+  # Jaeger all-in-one（Phase 2 小刀 5c：OTel/Jaeger 运行态联调）
+  # - 16686: Jaeger UI（http://localhost:16686 选 service 查 trace）
+  # - 4317: OTLP gRPC（与后端 Java OTel 默认对齐）
+  # - 4318: OTLP HTTP（AI Engine Python OTel 默认对齐，HTTP exporter 更稳）
+  # COLLECTOR_OTLP_ENABLED=true 显式开启 OTLP receiver（all-in-one 默认开，
+  # 但 1.62 起部分镜像要显式 flag）。
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: orin-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${JAEGER_OTLP_GRPC_PORT:-4317}:4317"
+      - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:16686/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 9
+      start_period: 10s
     restart: unless-stopped
     networks:
       - orin-network
