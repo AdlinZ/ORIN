@@ -9,6 +9,7 @@ from app.api.playground_runtime import router as playground_runtime_router
 from app.api.mcp import router as mcp_router
 from app.core.config import settings
 from app.core.logging_formatter import configure_logging
+from app.core.otel_setup import setup_tracing, shutdown_tracing
 from app.core.trace_middleware import TraceContextMiddleware
 from app.engine.mq_worker import get_mq_dependency_status
 
@@ -22,6 +23,11 @@ configure_logging(
     json_format=settings.LOG_JSON_FORMAT,
     level=settings.LOG_LEVEL,
 )
+
+# OTel SDK init（Phase 2 小刀 5a）。`OTEL_SDK_DISABLED=true` 走 no-op；未设
+# `OTEL_EXPORTER_OTLP_ENDPOINT` 时降级 ConsoleSpanExporter（stdout，方便本地
+# 启动看 span）。setup_tracing 内部幂等，uvicorn --reload 双 import 安全。
+setup_tracing()
 
 app.include_router(workflow_router, prefix="/api/v1")
 app.include_router(collaboration_router)
@@ -43,6 +49,10 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     await ensure_worker_stopped()
+    # 强制 flush OTel BatchSpanProcessor 队列里未导出的 span，再 shutdown
+    # provider。K8s rolling upgrade / SIGTERM 时不调会丢尾段 spans
+    # （OTel SDK 默认后台 schedule thread，进程退出不保证 join）。
+    shutdown_tracing()
 
 def build_health_response():
     rabbitmq = get_mq_dependency_status()

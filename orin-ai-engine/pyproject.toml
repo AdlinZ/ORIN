@@ -21,6 +21,15 @@ langchain-core = "^0.3.0"
 jinja2 = "^3.1.0"
 mcp = "1.27.1"
 
+# OpenTelemetry 接入（Phase 2 小刀 5a：基础设施 + 幂等 init + conftest disable）。
+# 选 HTTP OTLP exporter 而非 gRPC —— CI / 本地 / docker bridge 更稳；
+# 后端 Java 用 gRPC 4317，AI Engine 仍可走 4318，Jaeger 同一 all-in-one 接收。
+# instrumentation 包（fastapi/httpx/aio-pika/logging）留到 5b/5c 引入。
+opentelemetry-api = ">=1.42,<1.43"
+opentelemetry-sdk = ">=1.42,<1.43"
+opentelemetry-exporter-otlp-proto-http = ">=1.42,<1.43"
+opentelemetry-semantic-conventions = ">=0.63b1,<0.64"
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
