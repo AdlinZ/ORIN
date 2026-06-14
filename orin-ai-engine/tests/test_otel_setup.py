@@ -158,6 +158,12 @@ def test_full_lifecycle_init_console_then_shutdown(monkeypatch, caplog) -> None:
 
     这是本文件**唯一**真 init 一次。其它测试都用 mock 隔离，不污染 OTel
     global state。
+
+    注：OTel 1.42.x 进程级 TracerProvider 不可 reset（第二次 set 破坏
+    `_TRACER_PROVIDER` 全局状态）。`test_otel_z_bridge_5b.py` 内也有 lifecycle
+    test，二者只一个能真 init —— pytest collection 字母序 `s < z`，本文件先
+    跑真 init，5b 的 lifecycle test **不**调 setup_tracing，沿用本文件留下的
+    global TracerProvider。
     """
     monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
@@ -179,11 +185,13 @@ def test_full_lifecycle_init_console_then_shutdown(monkeypatch, caplog) -> None:
     otel_setup.shutdown_tracing()  # 不应抛
 
 
-def test_lifecycle_get_tracer_returns_real_otlp_tracer(monkeypatch) -> None:
-    """init 后 get_tracer 返 OTel 真实 Tracer。"""
-    # 这条**不**调 setup_tracing（避免第二次 init 破坏 OTel state），
-    # 直接验证：上一条 test lifecycle 留下的 global provider 是 TracerProvider。
-    # pytest 顺序：test_full_lifecycle 跑过后 global 是真 TracerProvider。
+def test_lifecycle_get_tracer_returns_real_otlp_tracer() -> None:
+    """init 后 get_tracer 返 OTel 真实 Tracer。
+
+    依赖 test_full_lifecycle_init_console_then_shutdown 先跑（pytest 字母序
+    s < z 保证）。如果 lifecycle 还没跑，OTel 仍为 ProxyTracerProvider，
+    get_tracer 返 NoOp tracer（非真实 Tracer），这里用 pytest.skip 跳过。
+    """
     from opentelemetry import trace as otel_trace
     provider = otel_trace.get_tracer_provider()
     if type(provider).__name__ != "TracerProvider":

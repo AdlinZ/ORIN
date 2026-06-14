@@ -62,7 +62,10 @@ class TestMqWorkerWorkflowSmoke:
         assert call_args.args[0] == "http://backend.test/api/workflows/42/execute"
         assert call_args.kwargs["params"] == {"triggeredBy": "collab_mq_worker"}
         assert call_args.kwargs["headers"]["Authorization"] == "Bearer worker-token"
-        assert call_args.kwargs["headers"]["X-Trace-Id"] == "trace-smoke-001"
+        # `X-Trace-Id` legacy header 已于 Phase 2 小刀 3（commit 423838f4）
+        # 移除 —— W3C `traceparent` 由 `app.core.trace_httpx.httpx_client`
+        # 工厂的 request hook 注入；这里只断言 Authorization 与 params 不变。
+        assert "X-Trace-Id" not in call_args.kwargs["headers"]
         assert call_args.kwargs["json"]["description"] == "run workflow"
         assert call_args.kwargs["json"]["packageId"] == "pkg-smoke-001"
         assert call_args.kwargs["json"]["subTaskId"] == "sub-workflow-001"
