@@ -27,6 +27,17 @@ jobs:
       - name: Check schema snapshot baseline
         run: bash scripts/check-schema-baseline.sh
 
+      - name: Backup scripts syntax + pattern check
+        run: |
+          for s in backup.sh restore.sh rollback.sh backup-smoke.sh; do
+            bash -n "scripts/$s" || { echo "bash -n scripts/$s failed"; exit 1; }
+          done
+          # 关键模式抽检（防脚本被无意改坏）
+          for pat in 'set -e' 'docker exec' 'mysqldump' 'orindb' 'BGSAVE' 'list_exchanges' 'list_queues' 'rabbitmqctl'; do
+            grep -qF "$pat" scripts/backup.sh || { echo "backup.sh 缺 $pat"; exit 1; }
+          done
+          echo "Backup scripts OK"
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
