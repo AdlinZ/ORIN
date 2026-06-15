@@ -50,6 +50,9 @@ jobs:
       - name: Coverage summary
         run: python ../scripts/coverage-summary.py backend target/site/jacoco/jacoco.xml >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Coverage gate
+        run: python ../scripts/coverage-gate.py backend target/site/jacoco/jacoco.xml
+
       - name: Upload backend test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,6 +99,9 @@ jobs:
 
       - name: Coverage summary
         run: python ../scripts/coverage-summary.py frontend coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Coverage gate
+        run: python ../scripts/coverage-gate.py frontend coverage/coverage-summary.json
 
       - name: Build
         run: npm run build
@@ -146,6 +152,9 @@ jobs:
 
       - name: Coverage summary
         run: python ../scripts/coverage-summary.py ai-engine coverage.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Coverage gate
+        run: python ../scripts/coverage-gate.py ai-engine coverage.xml
 
       - name: Upload AI Engine coverage
         if: always()

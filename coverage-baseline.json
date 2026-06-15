@@ -1,0 +1,18 @@
+{
+  "_comment": "覆盖率门槛（Phase 2 收尾：小刀 6）。修改后请同步更新 docs/路线图.md '0. 当前状态' 段。门槛值基于 2026-06 实际跑出的基线：ai-engine 56% / backend 17.63% / frontend 61.92% statements（路线图 §0.1）。各端 threshold 比基线低 1-2pp 留缓冲，避免一次微调就撞墙。",
+  "ai-engine": {
+    "metric": "statements",
+    "threshold_pct": 55.0,
+    "last_observed_pct": 56.0
+  },
+  "backend": {
+    "metric": "instruction",
+    "threshold_pct": 17.0,
+    "last_observed_pct": 17.63
+  },
+  "frontend": {
+    "metric": "statements",
+    "threshold_pct": 60.0,
+    "last_observed_pct": 61.92
+  }
+}
