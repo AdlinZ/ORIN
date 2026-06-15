@@ -155,6 +155,10 @@ This project follows the spirit of [Keep a Changelog](https://keepachangelog.com
 - **移除 `X-Trace-Id` legacy header**（小刀 3）：W3C `traceparent` 主路径取代
 - **删除 3 家云厂商 OCR / ASR stub**（OcrService / AsrService 迁移到 ProviderAdapter 时清理）
 - **TraceContextFilter 移至 handler 挂载点**（小刀 4 顺手）：与 Python `logging` callHandlers 语义对齐
+- **`.gitignore` 收尾（v0.2.0 收手 commit）**：
+  - 加 `artifacts/` / `outputs/` 顶层 ignore —— 用户自留临时目录（论文草稿、演示产物）不入库
+  - 加 `.coverage` / `coverage.xml` / `.coverage.*` ignore —— pytest-coverage 中间产物，CI 重新生成
+  - **`git rm --cached` untrack** `orin-ai-engine/.coverage` + `coverage.xml`（5/14 误加 commit 的数据文件；本地文件保留，git 索引移除）
 
 **Documentation:**
 
