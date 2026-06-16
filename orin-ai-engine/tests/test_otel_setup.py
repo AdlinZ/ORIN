@@ -42,6 +42,23 @@ def test_is_disabled_parses_truthy_values(monkeypatch, val: str) -> None:
 
 def test_is_disabled_false_when_unset(monkeypatch) -> None:
     monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
+    monkeypatch.delenv("ORIN_TRACING_ENABLED", raising=False)
+    assert otel_setup.is_disabled() is False
+
+
+@pytest.mark.parametrize("val", ["0", "false", "no", "off", "FALSE"])
+def test_is_disabled_when_orin_tracing_explicitly_disabled(
+    monkeypatch,
+    val: str,
+) -> None:
+    monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
+    monkeypatch.setenv("ORIN_TRACING_ENABLED", val)
+    assert otel_setup.is_disabled() is True
+
+
+def test_is_disabled_false_when_orin_tracing_enabled(monkeypatch) -> None:
+    monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
+    monkeypatch.setenv("ORIN_TRACING_ENABLED", "true")
     assert otel_setup.is_disabled() is False
 
 

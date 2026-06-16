@@ -1,9 +1,24 @@
 package com.adlin.orin.modules.audit.controlleur;
 
 import com.adlin.orin.modules.audit.entity.AuditLog;
+import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.ByteArrayOutputStream;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -112,5 +127,48 @@ class AuditLogExportControllerTest {
     void max_export_rows_constant() {
         assertEquals(100_000L, AuditLogExportController.MAX_EXPORT_ROWS,
                 "MAX_EXPORT_ROWS 上限应明示 100k 防拖库");
+    }
+
+    @Test
+    void export_pages_through_repository_and_pushes_filters_to_query() throws Exception {
+        AuditLogRepository repository = mock(AuditLogRepository.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        AuditLogExportController controller =
+                new AuditLogExportController(repository, new ObjectMapper());
+        AuditLog first = AuditLog.builder().id("log-1").userId("user-1").endpoint("/one").build();
+        AuditLog second = AuditLog.builder().id("log-2").userId("user-1").endpoint("/two").build();
+
+        when(repository.findForExport(
+                any(LocalDateTime.class),
+                any(LocalDateTime.class),
+                eq("user-1"),
+                eq("key-1"),
+                any(PageRequest.class)
+        )).thenReturn(
+                new PageImpl<>(List.of(first), PageRequest.of(0, 1_000), 1_001),
+                new PageImpl<>(List.of(second), PageRequest.of(1, 1_000), 1_001)
+        );
+
+        StreamingResponseBody body = controller.export(
+                "csv",
+                "2026-06-01T00:00:00",
+                "2026-06-15T00:00:00",
+                "user-1",
+                "key-1",
+                response
+        );
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        body.writeTo(output);
+
+        verify(repository, times(2)).findForExport(
+                any(LocalDateTime.class),
+                any(LocalDateTime.class),
+                eq("user-1"),
+                eq("key-1"),
+                any(PageRequest.class)
+        );
+        String csv = output.toString(java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(csv.contains("log-1"), csv);
+        assertTrue(csv.contains("log-2"), csv);
     }
 }

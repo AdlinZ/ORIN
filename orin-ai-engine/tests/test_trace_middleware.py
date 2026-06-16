@@ -102,6 +102,31 @@ def test_middleware_clearsBetweenRequests(client: TestClient) -> None:
     assert t1 != t2
 
 
+def test_middleware_clears_otel_context_after_inbound_request(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    from opentelemetry import trace as otel_trace
+    from app.core import trace_middleware
+
+    observed_after_clear: list[bool] = []
+    real_clear = trace_context.clear
+
+    def clear_and_capture() -> None:
+        real_clear()
+        observed_after_clear.append(
+            otel_trace.get_current_span().get_span_context().is_valid
+        )
+
+    monkeypatch.setattr(trace_middleware, "clear", clear_and_capture)
+    client.get(
+        "/probe",
+        headers={"traceparent": "00-" + "3" * 32 + "-" + "4" * 16 + "-01"},
+    )
+
+    assert observed_after_clear == [False]
+
+
 # ---- 4. /health 跳过 ----
 
 

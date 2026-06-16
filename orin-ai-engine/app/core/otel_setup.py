@@ -59,8 +59,14 @@ def is_otel_available() -> bool:
 
 
 def is_disabled() -> bool:
-    """环境变量 `OTEL_SDK_DISABLED=true` 时直接 no-op。"""
-    return os.getenv("OTEL_SDK_DISABLED", "").lower() in ("1", "true", "yes")
+    """标准 OTel 开关或 ORIN 总开关显式关闭时直接 no-op。"""
+    sdk_disabled = os.getenv("OTEL_SDK_DISABLED", "").lower() in ("1", "true", "yes")
+    orin_enabled = os.getenv("ORIN_TRACING_ENABLED")
+    orin_disabled = (
+        orin_enabled is not None
+        and orin_enabled.lower() in ("0", "false", "no", "off")
+    )
+    return sdk_disabled or orin_disabled
 
 
 def _service_name() -> str:

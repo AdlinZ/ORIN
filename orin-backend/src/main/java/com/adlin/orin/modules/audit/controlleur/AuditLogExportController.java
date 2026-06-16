@@ -9,6 +9,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +25,6 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 /**
  * 审计日志导出控制器（Phase 3 起步 · 小刀 9a）。
@@ -42,7 +43,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/v1/audit/logs/export")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'PLATFORM_ADMIN')")
 @Tag(name = "Phase 5: Audit Logs", description = "审计日志导出（CSV / JSON，admin 限定）")
 public class AuditLogExportController {
 
@@ -53,6 +54,7 @@ public class AuditLogExportController {
      * filename 含 "truncated" 提示。
      */
     static final long MAX_EXPORT_ROWS = 100_000L;
+    private static final int EXPORT_PAGE_SIZE = 1_000;
 
     /** CSV 表头 —— 顺序与 `writeCsvRow` 一一对应。 */
     private static final String[] CSV_HEADERS = {
@@ -103,6 +105,8 @@ public class AuditLogExportController {
 
         final LocalDateTime fromFinal = fromTime;
         final LocalDateTime toFinal = toTime;
+        final String userIdFilter = normalizeFilter(userId);
+        final String apiKeyIdFilter = normalizeFilter(apiKeyId);
         logger.info("[audit-export] start format={} from={} to={} userId={} apiKeyId={}",
                 fmt, fromFinal, toFinal, userId, apiKeyId);
 
@@ -115,13 +119,17 @@ public class AuditLogExportController {
                     writer.write(String.join(",", CSV_HEADERS));
                     writer.write("\r\n");
                 }
-                // 暂时只按时间区间拉数据（userId / apiKeyId 过滤 repository
-                // 没现成组合方法；为避免复杂 SQL 拼接，本刀仅暴露时间区间过滤；
-                // userId / apiKeyId 留给后续小刀扩）
-                List<AuditLog> batch = auditLogRepository
-                        .findByCreatedAtBetween(fromFinal, toFinal);
-                for (AuditLog log : batch) {
-                    if (matches(log, userId, apiKeyId)) {
+                int pageNumber = 0;
+                boolean hasMore;
+                do {
+                    Page<AuditLog> page = auditLogRepository.findForExport(
+                            fromFinal,
+                            toFinal,
+                            userIdFilter,
+                            apiKeyIdFilter,
+                            PageRequest.of(pageNumber, EXPORT_PAGE_SIZE)
+                    );
+                    for (AuditLog log : page.getContent()) {
                         if (written >= MAX_EXPORT_ROWS) {
                             truncated = true;
                             break;
@@ -133,7 +141,9 @@ public class AuditLogExportController {
                         }
                         written++;
                     }
-                }
+                    hasMore = page.hasNext();
+                    pageNumber++;
+                } while (!truncated && hasMore);
                 writer.flush();
             }
             logger.info("[audit-export] done format={} written={} truncated={}",
@@ -141,20 +151,8 @@ public class AuditLogExportController {
         };
     }
 
-    /**
-     * 字段级 userId / apiKeyId 过滤（内存过滤避免动态 SQL 拼接）。
-     * 空字符串 / null 视为"不过滤"。
-     */
-    private static boolean matches(AuditLog log, String userId, String apiKeyId) {
-        if (userId != null && !userId.isBlank()
-                && !userId.equals(log.getUserId())) {
-            return false;
-        }
-        if (apiKeyId != null && !apiKeyId.isBlank()
-                && !apiKeyId.equals(log.getApiKeyId())) {
-            return false;
-        }
-        return true;
+    private static String normalizeFilter(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private LocalDateTime parseTime(String s, String name) {

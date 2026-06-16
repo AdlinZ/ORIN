@@ -36,6 +36,20 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
          */
         List<AuditLog> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
+        @Query("""
+                        SELECT a FROM AuditLog a
+                        WHERE a.createdAt BETWEEN :start AND :end
+                          AND (:userId IS NULL OR a.userId = :userId)
+                          AND (:apiKeyId IS NULL OR a.apiKeyId = :apiKeyId)
+                        ORDER BY a.createdAt ASC, a.id ASC
+                        """)
+        Page<AuditLog> findForExport(
+                        @org.springframework.data.repository.query.Param("start") LocalDateTime start,
+                        @org.springframework.data.repository.query.Param("end") LocalDateTime end,
+                        @org.springframework.data.repository.query.Param("userId") String userId,
+                        @org.springframework.data.repository.query.Param("apiKeyId") String apiKeyId,
+                        Pageable pageable);
+
         /**
          * 统计用户的总Token使用量
          */

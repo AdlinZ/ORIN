@@ -136,7 +136,7 @@ def _detach_otel() -> None:
 # ---- 绑定 / 清理 / 读取 ----
 
 
-def bind_raw(trace_id: str, span_id: str) -> None:
+def bind_raw(trace_id: str, span_id: str, *, remote: bool = False) -> None:
     """显式写入 trace_id / span_id + attach OTel NonRecordingSpan。
 
     同步双写：contextvar 给 logging filter / 旧调用方用，OTel Context 给
@@ -144,8 +144,7 @@ def bind_raw(trace_id: str, span_id: str) -> None:
     """
     trace_id_var.set(trace_id)
     span_id_var.set(span_id)
-    # 标记 remote=False —— 这是本进程生成的（典型如 mq_worker 兜底）
-    _attach_otel(trace_id, span_id, remote=False)
+    _attach_otel(trace_id, span_id, remote=remote)
 
 
 def bind_from_traceparent(header_value: Optional[str]) -> Traceparent:
