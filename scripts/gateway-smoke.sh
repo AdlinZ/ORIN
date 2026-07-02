@@ -889,6 +889,94 @@ check_disabled_key_rejected() {
     esac
 }
 
+check_embeddings() {
+    # Gateway-1d: /v1/embeddings smoke (默认关闭，501 → skip)
+    local body="$TMP_DIR/embedding-request.json"
+    local out="$TMP_DIR/embedding-response.json"
+    local header_out="$TMP_DIR/embedding-headers.txt"
+    local code
+    local live_status
+
+    if [ -z "$SMOKE_USED_MODEL" ]; then
+        skip "/v1/embeddings skipped because no usable model resolved from /v1/models"
+        return 0
+    fi
+
+    # embeddings payload
+    python3 - "$body" "$SMOKE_USED_MODEL" <<'PY'
+import json, sys
+payload = {"model": sys.argv[2], "input": "hello world"}
+with open(sys.argv[1], "w", encoding="utf-8") as fh:
+    json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
+PY
+
+    set +e
+    code=$(curl -sS --connect-timeout 5 --max-time "$HTTP_TIMEOUT" \
+        --noproxy "*" \
+        -D "$header_out" \
+        -o "$out" -w "%{http_code}" \
+        -X POST "$ORIN_BASE_URL/v1/embeddings" \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $SMOKE_API_KEY_SECRET" \
+        --data-binary "@$body" 2>/dev/null)
+    local rc=$?
+    set -e
+    if [ "$rc" -ne 0 ] || [ -z "$code" ]; then
+        code="000"
+    fi
+
+    case "$code" in
+        200)
+            if [ -z "$(json_value "$out" data.0.embedding)" ]; then
+                warn "/v1/embeddings returned 200 but data[0].embedding was empty"
+                return 0
+            fi
+            SMOKE_EMBEDDING_OK=1
+            pass "/v1/embeddings returned 200 with embedding data (model=$SMOKE_USED_MODEL)"
+            return 0
+            ;;
+        401)
+            fail "/v1/embeddings returned 401 with valid sk-orin key (key validation chain broken)"
+            ;;
+        429)
+            warn "/v1/embeddings returned 429 (rate-limited or quota); key auth worked"
+            return 0
+            ;;
+        501)
+            skip "/v1/embeddings returned 501 (embeddings endpoint disabled)"
+            return 0
+            ;;
+        503)
+            live_status="$(json_value "$out" error.message)"
+            case "$live_status" in
+                *"No available provider"*|*"no available provider"*)
+                    warn "/v1/embeddings returned 503 (no available provider)"
+                    return 0
+                    ;;
+                *)
+                    warn "/v1/embeddings returned 503 — message: ${live_status:-<empty>}"
+                    return 0
+                    ;;
+            esac
+            ;;
+        000)
+            warn "/v1/embeddings curl failed (exit=$rc)"
+            return 0
+            ;;
+        *)
+            live_status="$(json_value "$out" error.message)"
+            live_status="${live_status:-<none>}"
+            if require_live_mode 1; then
+                fail "/v1/embeddings returned HTTP $code (message: $live_status)"
+            else
+                warn "/v1/embeddings returned HTTP $code, require-live=0 — warn only (message: $live_status)"
+                return 0
+            fi
+            ;;
+    esac
+}
+
 echo "=== ORIN Gateway MVP Smoke ==="
 echo "Backend: $ORIN_BASE_URL"
 echo "RequireLive: $ORIN_GATEWAY_SMOKE_REQUIRE_LIVE"
@@ -899,6 +987,7 @@ login
 create_smoke_api_key
 call_v1_models
 call_v1_chat_completions
+check_embeddings
 check_usage_summary
 check_gateway_audit_fields
 check_gateway_audit_writes_after_chat

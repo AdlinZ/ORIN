@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -49,6 +50,13 @@ public class UnifiedGatewayApiController {
 
     /** Gateway-1c: Maximum chat request body size in bytes (1 MiB) */
     private static final long MAX_CHAT_REQUEST_BODY_BYTES = 1_048_576;
+
+    /** Gateway-1d: Maximum embedding request body size in bytes (1 MiB) */
+    private static final long MAX_EMBEDDING_REQUEST_BODY_BYTES = 1_048_576;
+
+    /** Gateway-1d: Embeddings endpoint toggle (default off for public demo safety) */
+    @Value("${orin.gateway.endpoints.embeddings-enabled:false}")
+    private boolean embeddingsEnabled;
 
     /**
      * 统一API入口索引
@@ -300,28 +308,133 @@ public class UnifiedGatewayApiController {
     @PostMapping("/embeddings")
     public Mono<ResponseEntity<Object>> embeddings(
             @RequestBody EmbeddingRequest request,
-            @RequestHeader(value = "X-Provider-Id", required = false) String providerId) {
-        log.info("Embedding request: model={}, providerId={}", request.getModel(), providerId);
+            @RequestHeader(value = "X-Provider-Id", required = false) String providerId,
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId,
+            HttpServletRequest httpRequest) {
 
-        // 选择Provider（优先OpenAI类型）
+        // Gateway-1d: Embeddings 默认关闭，需显式配置才启用
+        if (!embeddingsEnabled) {
+            return Mono.just(ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                    .body((Object) createError("Embeddings endpoint is disabled. "
+                            + "Set orin.gateway.endpoints.embeddings-enabled=true to enable.",
+                            "not_implemented")));
+        }
+
+        // trace_id
+        final String finalTraceId;
+        if (traceId == null || traceId.isEmpty()) {
+            finalTraceId = UUID.randomUUID().toString();
+        } else {
+            finalTraceId = traceId;
+        }
+
+        // 鉴权上下文
+        final GatewaySecret gs = httpRequest != null
+                ? (GatewaySecret) httpRequest.getAttribute("apiKey") : null;
+        final String userId = gs != null ? gs.getUserId() : null;
+        final String apiKeyId = gs != null ? gs.getSecretId() : null;
+        final String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : null;
+        final String userAgent = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
+
+        // Body size check
+        if (httpRequest != null && httpRequest.getContentLengthLong() > MAX_EMBEDDING_REQUEST_BODY_BYTES) {
+            return Mono.just(ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .header(TRACE_ID_HEADER, finalTraceId)
+                    .body((Object) createError(
+                            "Request body too large. Maximum: "
+                                    + (MAX_EMBEDDING_REQUEST_BODY_BYTES / 1024 / 1024) + " MB",
+                            "payload_too_large")));
+        }
+
+        final long start = System.currentTimeMillis();
+
+        log.info("Embedding request: model={}, providerId={}, traceId={}",
+                request.getModel(), providerId, finalTraceId);
+
+        // Provider 选择
         Mono<ProviderAdapter> providerMono;
         if (providerId != null && !providerId.isEmpty()) {
             providerMono = Mono.justOrEmpty(routerService.selectProviderById(providerId));
+        } else if (request.getModel() != null) {
+            providerMono = Mono.justOrEmpty(routerService.selectProviderByModel(request.getModel(), null));
         } else {
-            // 默认选择OpenAI Provider
             providerMono = Mono.justOrEmpty(
                     providerRegistry.getHealthyProvidersByType("openai").stream().findFirst());
         }
 
         return providerMono
-                .flatMap(provider -> provider.embedding(request).map(response -> ResponseEntity.ok((Object) response)))
-                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body((Object) createError("No available provider for embeddings", "service_unavailable"))))
+                .flatMap(provider -> {
+                    log.info("Selected provider for embedding: {} (type: {})",
+                            provider.getProviderName(), provider.getProviderType());
+
+                    final String providerName = provider.getProviderName();
+                    final String providerType = provider.getProviderType();
+                    final String alias = request.getModel();
+
+                    return provider.embedding(request)
+                            .doOnSuccess(response -> {
+                                if (response == null) {
+                                    return;
+                                }
+                                long latency = System.currentTimeMillis() - start;
+                                Integer pt = response.getUsage() != null
+                                        ? response.getUsage().getPromptTokens() : null;
+                                Integer tt = response.getUsage() != null
+                                        ? response.getUsage().getTotalTokens() : null;
+                                // embeddings 无 completion tokens，传 null
+                                GatewayAuditContext ctx = GatewayAuditContext.builder()
+                                        .userId(userId).apiKeyId(apiKeyId)
+                                        .providerId(providerName).providerType(providerType)
+                                        .modelAlias(alias).providerModel(alias)
+                                        .traceId(finalTraceId).latencyMs(latency)
+                                        .promptTokens(pt).totalTokens(tt)
+                                        .ipAddress(ipAddress).userAgent(userAgent)
+                                        .build();
+                                gatewayAuditRecorder.recordSuccess(ctx);
+
+                                if (apiKeyId != null && tt != null && tt > 0) {
+                                    try {
+                                        gatewaySecretService.updateTokenUsage(apiKeyId, tt.longValue());
+                                    } catch (Exception ex) {
+                                        log.warn("Failed to update token usage for apiKey={}: {}",
+                                                apiKeyId, ex.getMessage());
+                                    }
+                                }
+                            })
+                            .map(response -> ResponseEntity.ok()
+                                    .header(TRACE_ID_HEADER, finalTraceId)
+                                    .body((Object) response));
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    long latency = System.currentTimeMillis() - start;
+                    String errCode = GatewayErrorMapper.fromHttpStatus(503);
+                    GatewayAuditContext ctx = GatewayAuditContext.builder()
+                            .userId(userId).apiKeyId(apiKeyId)
+                            .providerId(null).providerType(null)
+                            .modelAlias(request.getModel()).providerModel(null)
+                            .traceId(finalTraceId).latencyMs(latency)
+                            .ipAddress(ipAddress).userAgent(userAgent)
+                            .build();
+                    gatewayAuditRecorder.recordError(ctx, 503, "No available provider for embeddings", errCode);
+                    return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .header(TRACE_ID_HEADER, finalTraceId)
+                            .body((Object) createError("No available provider for embeddings", "service_unavailable")));
+                }))
                 .onErrorResume(e -> {
+                    long latency = System.currentTimeMillis() - start;
+                    String errCode = GatewayErrorMapper.fromThrowable(e);
+                    GatewayAuditContext ctx = GatewayAuditContext.builder()
+                            .userId(userId).apiKeyId(apiKeyId)
+                            .providerId(null).providerType(null)
+                            .modelAlias(request.getModel()).providerModel(null)
+                            .traceId(finalTraceId).latencyMs(latency)
+                            .ipAddress(ipAddress).userAgent(userAgent)
+                            .build();
+                    gatewayAuditRecorder.recordError(ctx, 500, e.getMessage(), errCode);
                     log.error("Embedding error: {}", e.getMessage(), e);
-                    ResponseEntity<Object> response = ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body((Object) createError(e.getMessage(), "internal_error"));
-                    return Mono.just(response);
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .header(TRACE_ID_HEADER, finalTraceId)
+                            .body((Object) createError(e.getMessage(), "internal_error")));
                 });
     }
 
@@ -331,8 +444,12 @@ public class UnifiedGatewayApiController {
      */
     @Operation(summary = "获取模型列表", description = "获取所有可用Provider的模型列表")
     @GetMapping("/models")
-    public Mono<ResponseEntity<Map<String, Object>>> getModels() {
-        log.info("Get models request");
+    public Mono<ResponseEntity<Map<String, Object>>> getModels(HttpServletRequest httpRequest) {
+        // Gateway-1d: 读鉴权上下文（供未来模型过滤使用；GatewaySecret 暂无 model allowlist）
+        final GatewaySecret gs = httpRequest != null
+                ? (GatewaySecret) httpRequest.getAttribute("apiKey") : null;
+        final String userId = gs != null ? gs.getUserId() : null;
+        log.info("Get models request, userId={}", userId);
 
         return Flux.fromIterable(providerRegistry.getHealthyProviders())
                 .flatMap(ProviderAdapter::getModels)

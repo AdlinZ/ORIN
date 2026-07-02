@@ -121,6 +121,54 @@ curl http://localhost:8080/v1/models \
   --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")"
 ```
 
+### 4.4.1 网关端点 Public Demo 开放范围
+
+| Endpoint | Public Demo | 说明 |
+|----------|------------|------|
+| `/v1/chat/completions` | ✅ 开放 | auth + rate limit + audit + quota |
+| `/v1/models` | ✅ 开放 | API Key 鉴权后的可用模型列表 |
+| `/v1/embeddings` | ❌ 默认关闭 | 需 `orin.gateway.endpoints.embeddings-enabled=true` |
+| `/v1/health` | ✅ 公开 | 健康检查 |
+| `/v1/capabilities` | ✅ 公开 | 能力清单 |
+
+### 4.4.2 OpenAI SDK 集成
+
+ORIN 统一网关兼容 OpenAI SDK，只需替换 `base_url` 和 `api_key`。
+
+**Python:**
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-orin-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    base_url="https://your-orin-instance/v1",
+)
+
+completion = client.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello, ORIN!"}],
+)
+print(completion.choices[0].message.content)
+```
+
+**Node.js:**
+```javascript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: "sk-orin-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  baseURL: "https://your-orin-instance/v1",
+});
+
+const completion = await client.chat.completions.create({
+  model: "gpt-4",
+  messages: [{ role: "user", content: "Hello, ORIN!" }],
+});
+console.log(completion.choices[0].message.content);
+```
+
+> **注意:** `base_url` / `baseURL` 必须以 `/v1` 结尾，与 OpenAI 官方 API 路径约定一致。
+
 ### 4.5 智能体管理
 
 ```bash
