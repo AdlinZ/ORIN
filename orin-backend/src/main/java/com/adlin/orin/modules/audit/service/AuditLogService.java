@@ -189,6 +189,99 @@ public class AuditLogService {
         }
     }
 
+    /**
+     * Gateway MVP 扩展重载：补齐 modelAlias / providerModel / errorCode 三字段。
+     * 其余 5 个 overload 仍兼容现有 30 个调用点；新重载只用于 Gateway 链路新接线。
+     *
+     * <p>modelAlias 与老字段 model 一同写入（model = alias 用于历史兼容）。
+     * providerModel 多数情况下 == alias（OpenAI/SiliconFlow/Ollama 透传场景）；
+     * Dify 等不透传场景下 controller 可分别给出。
+     */
+    @Async
+    public void logApiCall(String userId, String apiKeyId, String providerId, String providerType,
+            String endpoint, String method, String modelAlias, String providerModel,
+            String ipAddress, String userAgent, String requestParams, String responseContent,
+            Integer statusCode, Long responseTime, Integer promptTokens, Integer completionTokens,
+            Double estimatedCost, Boolean success, String errorMessage, String errorCode,
+            String workflowId, String conversationId, String fileId, String downloadUrl, String traceId) {
+
+        // Check config (复用第 5 重载的 enable/logLevel 决策)
+        boolean auditEnabled = logConfigService.isAuditEnabled();
+        if (!auditEnabled) {
+            log.info("Audit log skipped: audit not enabled");
+            return;
+        }
+        String logLevel = logConfigService.getLogLevel();
+        boolean forceLog = workflowId != null && logConfigService.isWorkflowDebugEnabled(workflowId);
+        if (!forceLog) {
+            if ("NONE".equalsIgnoreCase(logLevel)) {
+                log.info("Audit log skipped: logLevel is NONE");
+                return;
+            }
+            if ("ERROR_ONLY".equalsIgnoreCase(logLevel) && Boolean.TRUE.equals(success)) {
+                log.info("Audit log skipped: logLevel is ERROR_ONLY and success is true");
+                return;
+            }
+        }
+
+        try {
+            AuditLog auditLog = AuditLog.builder()
+                    .userId(userId)
+                    .apiKeyId(apiKeyId)
+                    .providerId(providerId)
+                    .providerType(providerType)
+                    .traceId(traceId)
+                    .endpoint(endpoint)
+                    .method(method)
+                    .model(modelAlias)
+                    .modelAlias(modelAlias)
+                    .providerModel(providerModel)
+                    .ipAddress(ipAddress)
+                    .userAgent(userAgent)
+                    .requestParams(requestParams)
+                    .responseContent(responseContent)
+                    .statusCode(statusCode)
+                    .responseTime(responseTime)
+                    .promptTokens(promptTokens != null ? promptTokens : 0)
+                    .completionTokens(completionTokens != null ? completionTokens : 0)
+                    .totalTokens((promptTokens != null ? promptTokens : 0)
+                            + (completionTokens != null ? completionTokens : 0))
+                    .success(success)
+                    .errorMessage(errorMessage)
+                    .errorCode(errorCode)
+                    .workflowId(workflowId)
+                    .conversationId(conversationId)
+                    .fileId(fileId)
+                    .downloadUrl(downloadUrl)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            try {
+                var pricingResult = pricingService.calculate(auditLog);
+                auditLog.setInternalCost(pricingResult.getInternalCost());
+                auditLog.setExternalPrice(pricingResult.getExternalPrice());
+                auditLog.setProfit(pricingResult.getProfit());
+                auditLog.setEstimatedCost(
+                        pricingResult.getExternalPrice() != null ? pricingResult.getExternalPrice().doubleValue()
+                                : 0.0);
+            } catch (Exception e) {
+                log.warn("Pricing calculation failed for gateway audit {}: {}", auditLog.getId(), e.getMessage());
+            }
+
+            auditLogRepository.save(auditLog);
+            log.info("Gateway audit log saved: id={}, alias={}, providerModel={}, errorCode={}, traceId={}",
+                    auditLog.getId(), modelAlias, providerModel, errorCode, traceId);
+
+            if (Boolean.FALSE.equals(success) && providerId != null && !"SYSTEM".equals(providerId)) {
+                String errorMsg = errorMessage != null ? errorMessage : "未知API调用错误";
+                alertService.triggerErrorRateAlert(providerId, "API调用失败: " + errorMsg, traceId,
+                        windowMinutes -> buildErrorRateContext(providerId, windowMinutes));
+            }
+        } catch (Exception e) {
+            log.error("Failed to save gateway audit log: {}", e.getMessage(), e);
+        }
+    }
+
     private Map<String, Object> buildErrorRateContext(String providerId, Integer windowMinutes) {
         int minutes = windowMinutes != null && windowMinutes > 0 ? windowMinutes : 5;
         LocalDateTime windowStart = LocalDateTime.now().minusMinutes(minutes);

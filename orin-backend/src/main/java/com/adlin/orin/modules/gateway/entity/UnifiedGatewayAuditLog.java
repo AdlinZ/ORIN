@@ -36,6 +36,20 @@ public class UnifiedGatewayAuditLog {
     @Column(name = "path", length = 500)
     private String path;
 
+    /**
+     * 用户请求里写的 model 字符串（路由前）。
+     * 网关场景下多数 provider 透传，因此 model_alias == provider_model。
+     * Dify 等不透传场景保留 alias 用以定位"用户写了什么"。
+     */
+    @Column(name = "model_alias", length = 100)
+    private String modelAlias;
+
+    /**
+     * 实际转发到上游 provider 的 model 字符串（路由后）。
+     */
+    @Column(name = "provider_model", length = 100)
+    private String providerModel;
+
     @Column(name = "target_service", length = 100)
     private String targetService;
 
@@ -62,6 +76,12 @@ public class UnifiedGatewayAuditLog {
 
     @Column(name = "error_message", length = 1000)
     private String errorMessage;
+
+    /**
+     * 结构化错误码（来自 GatewayErrorMapper 映射 ErrorCode 枚举或 HTTP status）。
+     */
+    @Column(name = "error_code", length = 32)
+    private String errorCode;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

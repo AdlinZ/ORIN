@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.gateway.filter;
 
+import com.adlin.orin.common.exception.GatewayErrorMapper;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.gateway.config.UnifiedGatewayStatsService;
@@ -592,6 +593,15 @@ public class UnifiedGatewayProxyFilter implements Filter {
                                String targetUrl, String targetService,
                                Integer statusCode, String result,
                                String errorMessage, long latencyMs) {
+        // Gateway MVP: 旧调用点全部走这里，重载分发到新版，自动给 errorCode 字段从 freeText 反查。
+        saveAuditLog(request, route, targetUrl, targetService, statusCode, result,
+                errorMessage, GatewayErrorMapper.fromAuditReason(errorMessage), latencyMs);
+    }
+
+    private void saveAuditLog(HttpServletRequest request, UnifiedGatewayRoute route,
+                               String targetUrl, String targetService,
+                               Integer statusCode, String result,
+                               String errorMessage, String errorCode, long latencyMs) {
         try {
             GatewaySecret apiKey = null;
             Object apiKeyObj = request.getAttribute("apiKey");
@@ -611,6 +621,7 @@ public class UnifiedGatewayProxyFilter implements Filter {
                     .apiKeyId(apiKey != null ? apiKey.getSecretId() : null)
                     .result(result)
                     .errorMessage(errorMessage)
+                    .errorCode(errorCode)
                     .createdAt(LocalDateTime.now())
                     .build();
             auditLogRepository.save(logEntity);

@@ -89,6 +89,8 @@ class AuditLogExportControllerTest {
                 .endpoint("/v1/chat/completions")
                 .method("POST")
                 .model("gpt-4")
+                .modelAlias("gpt-4-alias")
+                .providerModel("gpt-4-actual")
                 .ipAddress("10.0.0.1")
                 .userAgent("curl/7.85")
                 .requestParams("{\"messages\":[]}")
@@ -96,6 +98,7 @@ class AuditLogExportControllerTest {
                 .statusCode(200)
                 .responseTime(123L)
                 .promptTokens(10)
+                .errorCode("70005")
                 .build();
 
         AuditLogExportController.AuditLogRow row = new AuditLogExportController.AuditLogRow(log);
@@ -109,6 +112,49 @@ class AuditLogExportControllerTest {
         assertTrue(json.contains("\"statusCode\":200"), json);
         assertTrue(json.contains("\"promptTokens\":10"), json);
         assertTrue(json.contains("\"createdAt\":null"), json);
+        // Gateway MVP: 三新字段 (V93)
+        assertTrue(json.contains("\"modelAlias\":\"gpt-4-alias\""), json);
+        assertTrue(json.contains("\"providerModel\":\"gpt-4-actual\""), json);
+        assertTrue(json.contains("\"errorCode\":\"70005\""), json);
+    }
+
+    @Test
+    void audit_log_row_csv_header_includes_gateway_fields() throws Exception {
+        // 验证 CSV 导出表头含 modelAlias / providerModel / errorCode
+        AuditLogRepository repository = mock(AuditLogRepository.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        AuditLogExportController controller =
+                new AuditLogExportController(repository, new ObjectMapper());
+        AuditLog log = AuditLog.builder()
+                .id("log-csv")
+                .userId("user-1")
+                .endpoint("/one")
+                .modelAlias("gpt-4-alias")
+                .providerModel("gpt-4-actual")
+                .errorCode("100003")
+                .build();
+        when(repository.findForExport(
+                any(LocalDateTime.class),
+                any(LocalDateTime.class),
+                eq((String) null),
+                eq((String) null),
+                any(PageRequest.class)
+        )).thenReturn(new PageImpl<>(List.of(log), PageRequest.of(0, 1_000), 1));
+
+        StreamingResponseBody body = controller.export("csv", null, null, null, null, response);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        body.writeTo(output);
+
+        String csv = output.toString(java.nio.charset.StandardCharsets.UTF_8);
+        // 表头应含 3 个新列；顺序在 model 之后、createdAt 之前
+        String header = csv.split("\r\n", 2)[0];
+        assertTrue(header.contains("modelAlias"), header);
+        assertTrue(header.contains("providerModel"), header);
+        assertTrue(header.contains("errorCode"), header);
+        // 数据行也应填上
+        assertTrue(csv.contains("gpt-4-alias"), csv);
+        assertTrue(csv.contains("gpt-4-actual"), csv);
+        assertTrue(csv.contains("100003"), csv);
     }
 
     @Test

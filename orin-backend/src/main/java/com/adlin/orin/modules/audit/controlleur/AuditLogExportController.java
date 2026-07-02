@@ -59,9 +59,9 @@ public class AuditLogExportController {
     /** CSV 表头 —— 顺序与 `writeCsvRow` 一一对应。 */
     private static final String[] CSV_HEADERS = {
             "id", "userId", "apiKeyId", "providerId", "conversationId", "workflowId",
-            "providerType", "traceId", "endpoint", "method", "model", "ipAddress",
-            "userAgent", "requestParams", "responseContent", "statusCode", "responseTime",
-            "promptTokens", "createdAt"
+            "providerType", "traceId", "endpoint", "method", "model", "modelAlias",
+            "providerModel", "ipAddress", "userAgent", "requestParams", "responseContent",
+            "statusCode", "responseTime", "promptTokens", "errorCode", "createdAt"
     };
 
     private final AuditLogRepository auditLogRepository;
@@ -206,6 +206,8 @@ public class AuditLogExportController {
                 nullToEmpty(log.getEndpoint()),
                 nullToEmpty(log.getMethod()),
                 nullToEmpty(log.getModel()),
+                nullToEmpty(log.getModelAlias()),
+                nullToEmpty(log.getProviderModel()),
                 nullToEmpty(log.getIpAddress()),
                 nullToEmpty(log.getUserAgent()),
                 nullToEmpty(log.getRequestParams()),
@@ -213,6 +215,7 @@ public class AuditLogExportController {
                 log.getStatusCode() == null ? "" : log.getStatusCode().toString(),
                 log.getResponseTime() == null ? "" : log.getResponseTime().toString(),
                 log.getPromptTokens() == null ? "" : log.getPromptTokens().toString(),
+                nullToEmpty(log.getErrorCode()),
                 log.getCreatedAt() == null ? "" : log.getCreatedAt().toString(),
         };
         for (int i = 0; i < cells.length; i++) {
@@ -267,6 +270,8 @@ public class AuditLogExportController {
         public String endpoint;
         public String method;
         public String model;
+        public String modelAlias;
+        public String providerModel;
         public String ipAddress;
         public String userAgent;
         public String requestParams;
@@ -274,6 +279,7 @@ public class AuditLogExportController {
         public Integer statusCode;
         public Long responseTime;
         public Integer promptTokens;
+        public String errorCode;
         public LocalDateTime createdAt;
 
         public AuditLogRow(AuditLog log) {
@@ -288,6 +294,8 @@ public class AuditLogExportController {
             this.endpoint = log.getEndpoint();
             this.method = log.getMethod();
             this.model = log.getModel();
+            this.modelAlias = log.getModelAlias();
+            this.providerModel = log.getProviderModel();
             this.ipAddress = log.getIpAddress();
             this.userAgent = log.getUserAgent();
             this.requestParams = log.getRequestParams();
@@ -295,6 +303,7 @@ public class AuditLogExportController {
             this.statusCode = log.getStatusCode();
             this.responseTime = log.getResponseTime();
             this.promptTokens = log.getPromptTokens();
+            this.errorCode = log.getErrorCode();
             this.createdAt = log.getCreatedAt();
         }
     }

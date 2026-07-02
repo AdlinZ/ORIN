@@ -12,6 +12,9 @@
             <div><strong>ID：</strong>{{ row.id || '-' }}</div>
             <div><strong>Provider：</strong>{{ row.providerType || '-' }}</div>
             <div><strong>模型：</strong>{{ row.model || '-' }}</div>
+            <div><strong>模型别名：</strong>{{ row.modelAlias || '-' }}</div>
+            <div><strong>Provider 模型：</strong>{{ row.providerModel || '-' }}</div>
+            <div><strong>错误码：</strong>{{ row.errorCode || '-' }}</div>
             <div><strong>方法：</strong>{{ row.method || '-' }}</div>
             <div><strong>耗时(ms)：</strong>{{ row.responseTime ?? '-' }}</div>
             <div><strong>会话ID：</strong>{{ row.conversationId || '-' }}</div>
@@ -45,6 +48,9 @@
       </template>
     </el-table-column>
     <el-table-column prop="statusCode" label="状态码" width="100" />
+    <el-table-column prop="modelAlias" label="模型别名" width="140" show-overflow-tooltip />
+    <el-table-column prop="providerModel" label="Provider 模型" width="140" show-overflow-tooltip />
+    <el-table-column prop="errorCode" label="错误码" width="120" show-overflow-tooltip />
     <el-table-column prop="errorMessage" label="错误信息" min-width="220" show-overflow-tooltip />
     <el-table-column
       prop="traceId"

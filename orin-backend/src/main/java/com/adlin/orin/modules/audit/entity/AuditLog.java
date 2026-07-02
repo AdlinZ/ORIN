@@ -88,6 +88,20 @@ public class AuditLog {
     private String model;
 
     /**
+     * 用户请求里写的 model 字符串（路由前的别名）。
+     * 与 model/resolvedModel 区别在于：alias = 用户原始字符串，providerModel = 实际发往下游的字符串。
+     * 多数 provider 透传 → alias == providerModel；Dify 等不透传场景下两者不同。
+     */
+    @Column(name = "model_alias", length = 100)
+    private String modelAlias;
+
+    /**
+     * 实际转发到 Provider 的模型名称（路由后）。
+     */
+    @Column(name = "provider_model", length = 100)
+    private String providerModel;
+
+    /**
      * 请求IP
      */
     @Column(length = 50)
@@ -180,6 +194,13 @@ public class AuditLog {
      */
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
+
+    /**
+     * 结构化错误码（来自 ErrorCode 枚举或 HTTP status 映射，如 70005/100003/50003）。
+     * 与 errorMessage 互为补充：errorCode 便于统计与告警，errorMessage 保留自由文本定位上下文。
+     */
+    @Column(name = "error_code", length = 32)
+    private String errorCode;
 
     /**
      * 生成文件的ID (用于音频、图片、视频等)

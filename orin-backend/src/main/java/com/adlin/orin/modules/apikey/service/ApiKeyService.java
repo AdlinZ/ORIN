@@ -230,6 +230,10 @@ public class ApiKeyService {
                         .statusCode(log.getStatusCode())
                         .success("SUCCESS".equalsIgnoreCase(log.getResult()))
                         .latencyMs(log.getLatencyMs())
+                        .model(log.getModelAlias())
+                        .modelAlias(log.getModelAlias())
+                        .providerModel(log.getProviderModel())
+                        .errorCode(log.getErrorCode())
                         .errorSummary(truncate(log.getErrorMessage(), 160))
                         .createdAt(log.getCreatedAt())
                         .build()));
@@ -244,6 +248,9 @@ public class ApiKeyService {
                         .latencyMs(log.getResponseTime())
                         .tokens(log.getTotalTokens())
                         .model(log.getModel())
+                        .modelAlias(log.getModelAlias())
+                        .providerModel(log.getProviderModel())
+                        .errorCode(log.getErrorCode())
                         .errorSummary(truncate(log.getErrorMessage(), 160))
                         .createdAt(log.getCreatedAt())
                         .build()));
@@ -367,6 +374,19 @@ public class ApiKeyService {
         private Long latencyMs;
         private Integer tokens;
         private String model;
+        /**
+         * Gateway MVP：用户请求里写的 model 字符串（仅 AuditLog 源 / UnifiedGatewayAuditLog 源）。
+         * 与老字段 model 的差异：alias = 请求原始字符串；model 在 Dify 等场景下未必等于 alias。
+         */
+        private String modelAlias;
+        /**
+         * Gateway MVP：实际转发到上游 provider 的 model 字符串。
+         */
+        private String providerModel;
+        /**
+         * Gateway MVP：结构化错误码（来自 GatewayErrorMapper.fromAuditReason 或 ErrorCode 枚举）。
+         */
+        private String errorCode;
         private String errorSummary;
         private LocalDateTime createdAt;
     }

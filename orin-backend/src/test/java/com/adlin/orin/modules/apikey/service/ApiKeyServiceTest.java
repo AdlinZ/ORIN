@@ -126,6 +126,9 @@ class ApiKeyServiceTest {
                         .statusCode(200)
                         .result("SUCCESS")
                         .latencyMs(120L)
+                        .modelAlias("gpt-4-alias")
+                        .providerModel("gpt-4-actual")
+                        .errorCode("100003")
                         .createdAt(LocalDateTime.now())
                         .build())));
         when(auditLogRepository.findByApiKeyIdOrderByCreatedAtDesc(eq("gsec_client"), any(Pageable.class)))
@@ -140,6 +143,9 @@ class ApiKeyServiceTest {
                         .requestParams("{\"message\":\"secret\"}")
                         .responseContent("{\"token\":\"secret\"}")
                         .errorMessage("provider failed")
+                        .modelAlias("gpt-4-alias")
+                        .providerModel("gpt-4-actual")
+                        .errorCode("50003")
                         .createdAt(LocalDateTime.now())
                         .build())));
 
@@ -157,6 +163,17 @@ class ApiKeyServiceTest {
                 .doesNotContain("requestParams")
                 .doesNotContain("responseContent")
                 .doesNotContain("message");
+        // Gateway MVP: recentEvents 暴露 modelAlias / providerModel / errorCode (V93)
+        assertThat(usage.getRecentEvents())
+                .allSatisfy(event -> {
+                    assertThat(event.getModelAlias()).isEqualTo("gpt-4-alias");
+                    assertThat(event.getProviderModel()).isEqualTo("gpt-4-actual");
+                    assertThat(event.getErrorCode()).isNotBlank();
+                });
+        // GATEWAY 源对应 100003（限流），AUDIT 源对应 50003（模型错误）
+        assertThat(usage.getRecentEvents())
+                .extracting(ApiKeyService.ApiKeyUsageEvent::getErrorCode)
+                .containsExactlyInAnyOrder("100003", "50003");
     }
 
     @Test
