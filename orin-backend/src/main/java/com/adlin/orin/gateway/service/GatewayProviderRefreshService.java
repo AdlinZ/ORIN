@@ -30,7 +30,17 @@ public class GatewayProviderRefreshService {
     private final ProviderRegistry providerRegistry;
     private final DifyIntegrationService difyIntegrationService;
     private final GatewaySecretService gatewaySecretService;
-    private final RestTemplate restTemplate = new RestTemplate();
+    // Gateway-1c: sync chatCompletion 路径的 RestTemplate 需要合理超时
+    // connect 30s / read 300s，避免上游 provider 阻塞时无限等待
+    private static RestTemplate createProviderRestTemplate() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(30_000);
+        factory.setReadTimeout(300_000);
+        return new RestTemplate(factory);
+    }
+
+    private final RestTemplate restTemplate = createProviderRestTemplate();
 
     public void refreshFromConfig(ModelConfig config) {
         if (config == null) {

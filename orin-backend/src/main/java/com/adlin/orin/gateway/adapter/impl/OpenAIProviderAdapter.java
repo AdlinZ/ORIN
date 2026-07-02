@@ -13,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.*;
 
 /**
@@ -45,6 +46,9 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
                 .baseUrl(this.baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", "application/json")
+                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(
+                        reactor.netty.http.client.HttpClient.create()
+                                .responseTimeout(Duration.ofSeconds(120))))
                 .build();
     }
 

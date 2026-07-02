@@ -63,7 +63,8 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         // 添加API密钥验证拦截器
         registry.addInterceptor(apiKeyAuthInterceptor)
-                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**")
+                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
+                        "/v1/chat/completions", "/v1/embeddings")
                 .excludePathPatterns(
                         // 公开端点
                         "/v1",
@@ -89,7 +90,8 @@ public class WebConfig implements WebMvcConfigurer {
 
         // 添加速率限制拦截器(在API密钥验证之后)
         registry.addInterceptor(apiRateLimitInterceptor)
-                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**")
+                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
+                        "/v1/chat/completions", "/v1/embeddings")
                 .excludePathPatterns(
                         // 公开端点
                         "/v1",

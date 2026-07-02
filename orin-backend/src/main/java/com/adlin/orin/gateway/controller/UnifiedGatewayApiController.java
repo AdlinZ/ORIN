@@ -10,6 +10,7 @@ import com.adlin.orin.gateway.dto.EmbeddingRequest;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import com.adlin.orin.gateway.service.RouterService;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,8 +43,12 @@ public class UnifiedGatewayApiController {
     private final ProviderRegistry providerRegistry;
     private final RouterService routerService;
     private final GatewayAuditRecorder gatewayAuditRecorder;
+    private final GatewaySecretService gatewaySecretService;
 
     private static final String TRACE_ID_HEADER = "X-Trace-Id";
+
+    /** Gateway-1c: Maximum chat request body size in bytes (1 MiB) */
+    private static final long MAX_CHAT_REQUEST_BODY_BYTES = 1_048_576;
 
     /**
      * 统一API入口索引
@@ -126,16 +131,24 @@ public class UnifiedGatewayApiController {
             finalTraceId = traceId;
         }
 
-        // Gateway-1b: 解析 userId / apiKeyId —— UnifiedGatewayProxyFilter 在 servlet filter
-        // 阶段已 `request.setAttribute("apiKey", GatewaySecret)`；这里从 attribute 取。
-        // ApiKeyAuthInterceptor 不服务 /v1/chat/completions（仅 /api/v1/** + /v1/mcp*），
-        // 不能走 SecurityContextHolder。
+        // Gateway-1c: ApiKeyAuthInterceptor 现覆盖 /v1/chat/completions（WebConfig 注册），
+        // 在此从 request attribute 读取已验证的 GatewaySecret。
         final GatewaySecret gs = httpRequest != null
                 ? (GatewaySecret) httpRequest.getAttribute("apiKey") : null;
         final String userId = gs != null ? gs.getUserId() : null;
         final String apiKeyId = gs != null ? gs.getSecretId() : null;
         final String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : null;
         final String userAgent = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
+
+        // Gateway-1c: Reject oversized request bodies before any processing
+        if (httpRequest != null && httpRequest.getContentLengthLong() > MAX_CHAT_REQUEST_BODY_BYTES) {
+            return Mono.just(ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .header(TRACE_ID_HEADER, finalTraceId)
+                    .body((Object) createError(
+                            "Request body too large. Maximum: "
+                                    + (MAX_CHAT_REQUEST_BODY_BYTES / 1024 / 1024) + " MB",
+                            "payload_too_large")));
+        }
 
         // Gateway-1b: 入口 startTime 给所有 reactive lambda 捕获算 latency
         final long start = System.currentTimeMillis();
@@ -200,6 +213,16 @@ public class UnifiedGatewayApiController {
                                             .ipAddress(ipAddress).userAgent(userAgent)
                                             .build();
                                     gatewayAuditRecorder.recordSuccess(ctx);
+
+                                    // Gateway-1c: 累加 usedTokens 使配额消耗生效
+                                    if (apiKeyId != null && tt != null && tt > 0) {
+                                        try {
+                                            gatewaySecretService.updateTokenUsage(apiKeyId, tt.longValue());
+                                        } catch (Exception ex) {
+                                            log.warn("Failed to update token usage for apiKey={}: {}",
+                                                    apiKeyId, ex.getMessage());
+                                        }
+                                    }
                                 })
                                 .map(response -> ResponseEntity.ok()
                                         .header(TRACE_ID_HEADER, finalTraceId)

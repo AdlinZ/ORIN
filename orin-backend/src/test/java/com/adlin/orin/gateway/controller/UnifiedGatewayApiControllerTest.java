@@ -8,6 +8,7 @@ import com.adlin.orin.gateway.dto.ChatCompletionResponse;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import com.adlin.orin.gateway.service.RouterService;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.audit.service.AuditLogService;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,11 +54,13 @@ class UnifiedGatewayApiControllerTest {
     @Mock
     private RouterService routerService;
     @Mock
-    private WorkflowService workflowService;
-    @Mock
     private ProviderAdapter provider;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private GatewaySecretService gatewaySecretService;
+    @Mock
+    private WorkflowService workflowService;
     @Mock
     private HttpServletRequest httpRequest;
     @Mock
@@ -70,6 +73,7 @@ class UnifiedGatewayApiControllerTest {
         controller = new UnifiedGatewayApiController(
                 providerRegistry, routerService,
                 new GatewayAuditRecorder(auditLogService),  // 真实 recorder + mock service
+                gatewaySecretService,
                 workflowService);
     }
 
