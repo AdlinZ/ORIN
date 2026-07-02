@@ -1,14 +1,19 @@
 package com.adlin.orin.gateway.controller;
 
+import com.adlin.orin.common.exception.GatewayErrorMapper;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
+import com.adlin.orin.gateway.audit.GatewayAuditContext;
+import com.adlin.orin.gateway.audit.GatewayAuditRecorder;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
 import com.adlin.orin.gateway.dto.EmbeddingRequest;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import com.adlin.orin.gateway.service.RouterService;
+import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -36,6 +41,7 @@ public class UnifiedGatewayApiController {
 
     private final ProviderRegistry providerRegistry;
     private final RouterService routerService;
+    private final GatewayAuditRecorder gatewayAuditRecorder;
 
     private static final String TRACE_ID_HEADER = "X-Trace-Id";
 
@@ -109,7 +115,8 @@ public class UnifiedGatewayApiController {
             @RequestBody ChatCompletionRequest request,
             @RequestHeader(value = "X-Provider-Id", required = false) String providerId,
             @RequestHeader(value = "X-Routing-Strategy", required = false) String routingStrategy,
-            @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId,
+            HttpServletRequest httpRequest) {
 
         // 生成或使用传入的 trace_id
         final String finalTraceId;
@@ -118,6 +125,20 @@ public class UnifiedGatewayApiController {
         } else {
             finalTraceId = traceId;
         }
+
+        // Gateway-1b: 解析 userId / apiKeyId —— UnifiedGatewayProxyFilter 在 servlet filter
+        // 阶段已 `request.setAttribute("apiKey", GatewaySecret)`；这里从 attribute 取。
+        // ApiKeyAuthInterceptor 不服务 /v1/chat/completions（仅 /api/v1/** + /v1/mcp*），
+        // 不能走 SecurityContextHolder。
+        final GatewaySecret gs = httpRequest != null
+                ? (GatewaySecret) httpRequest.getAttribute("apiKey") : null;
+        final String userId = gs != null ? gs.getUserId() : null;
+        final String apiKeyId = gs != null ? gs.getSecretId() : null;
+        final String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : null;
+        final String userAgent = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
+
+        // Gateway-1b: 入口 startTime 给所有 reactive lambda 捕获算 latency
+        final long start = System.currentTimeMillis();
 
         log.info("Chat completion request: model={}, stream={}, providerId={}, traceId={}",
                 request.getModel(), request.getStream(), providerId, finalTraceId);
@@ -143,6 +164,7 @@ public class UnifiedGatewayApiController {
                             provider.getProviderType());
 
                     if (Boolean.TRUE.equals(request.getStream())) {
+                        // Gateway-1b: 流式路径显式 no audit hook (Gateway-2a 再做)
                         Flux<ServerSentEvent<ChatCompletionResponse>> stream = provider.chatCompletionStream(request)
                                 .map(response -> ServerSentEvent.builder(response).build());
                         return Mono.just(ResponseEntity.ok()
@@ -150,22 +172,72 @@ public class UnifiedGatewayApiController {
                                 .contentType(MediaType.TEXT_EVENT_STREAM)
                                 .body((Object) stream));
                     } else {
-                        // 非流式响应 - 透传 trace_id 到下游
+                        // 非流式响应 - 透传 trace_id 到下游；写 audit_logs 在 doOnSuccess
+                        final String providerName = provider.getProviderName();
+                        final String providerType = provider.getProviderType();
+                        final String alias = request.getModel();
                         return provider.chatCompletion(request, finalTraceId)
+                                .doOnSuccess(response -> {
+                                    // Gateway-1b: 成功路径写 audit_logs
+                                    // 仅非空 response 写入；Mono.empty() 会走到 switchIfEmpty(503)
+                                    if (response == null) {
+                                        return;
+                                    }
+                                    long latency = System.currentTimeMillis() - start;
+                                    Integer pt = response.getUsage() != null
+                                            ? response.getUsage().getPromptTokens() : null;
+                                    Integer ct = response.getUsage() != null
+                                            ? response.getUsage().getCompletionTokens() : null;
+                                    Integer tt = response.getUsage() != null
+                                            ? response.getUsage().getTotalTokens() : null;
+
+                                    GatewayAuditContext ctx = GatewayAuditContext.builder()
+                                            .userId(userId).apiKeyId(apiKeyId)
+                                            .providerId(providerName).providerType(providerType)
+                                            .modelAlias(alias).providerModel(alias)   // 1b 简化: 透传
+                                            .traceId(finalTraceId).latencyMs(latency)
+                                            .promptTokens(pt).completionTokens(ct).totalTokens(tt)
+                                            .ipAddress(ipAddress).userAgent(userAgent)
+                                            .build();
+                                    gatewayAuditRecorder.recordSuccess(ctx);
+                                })
                                 .map(response -> ResponseEntity.ok()
                                         .header(TRACE_ID_HEADER, finalTraceId)
                                         .body((Object) response));
                     }
                 })
-                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .header(TRACE_ID_HEADER, finalTraceId)
-                        .body((Object) createError("No available provider", "service_unavailable"))))
-                .onErrorResume(e -> {
-                    log.error("Chat completion error: {}", e.getMessage(), e);
-                    ResponseEntity<Object> response = ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .switchIfEmpty(Mono.defer(() -> {
+                    // Gateway-1b: 503 路径（无 provider 可用）写 audit_logs
+                    long latency = System.currentTimeMillis() - start;
+                    String errCode = GatewayErrorMapper.fromHttpStatus(503);
+                    GatewayAuditContext ctx = GatewayAuditContext.builder()
+                            .userId(userId).apiKeyId(apiKeyId)
+                            .providerId(null).providerType(null)
+                            .modelAlias(request.getModel()).providerModel(null)
+                            .traceId(finalTraceId).latencyMs(latency)
+                            .ipAddress(ipAddress).userAgent(userAgent)
+                            .build();
+                    gatewayAuditRecorder.recordError(ctx, 503, "No available provider", errCode);
+                    return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                             .header(TRACE_ID_HEADER, finalTraceId)
-                            .body((Object) createError(e.getMessage(), "internal_error"));
-                    return Mono.just(response);
+                            .body((Object) createError("No available provider", "service_unavailable")));
+                }))
+                .onErrorResume(e -> {
+                    // Gateway-1b: 500 路径（provider 抛异常）写 audit_logs
+                    long latency = System.currentTimeMillis() - start;
+                    String errCode = GatewayErrorMapper.fromThrowable(e);
+                    GatewayAuditContext ctx = GatewayAuditContext.builder()
+                            .userId(userId).apiKeyId(apiKeyId)
+                            .providerId(null).providerType(null)
+                            .modelAlias(request.getModel()).providerModel(null)
+                            .traceId(finalTraceId).latencyMs(latency)
+                            .ipAddress(ipAddress).userAgent(userAgent)
+                            .build();
+                    gatewayAuditRecorder.recordError(ctx, 500, e.getMessage(), errCode);
+                    log.error("Chat completion error: {}", e.getMessage(), e);
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .header(TRACE_ID_HEADER, finalTraceId)
+                            .body((Object) createError(e.getMessage(), "internal_error")));
                 });
     }
 

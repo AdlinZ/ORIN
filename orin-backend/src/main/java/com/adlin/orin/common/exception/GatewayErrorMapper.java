@@ -70,7 +70,7 @@ public final class GatewayErrorMapper {
             case 502:
                 return ErrorCode.MODEL_API_ERROR.getCode();
             case 503:
-                return ErrorCode.RESOURCE_NOT_FOUND.getCode();
+                return ErrorCode.SERVICE_UNAVAILABLE.getCode();
             case 504:
                 return ErrorCode.TASK_TIMEOUT.getCode();
             default:

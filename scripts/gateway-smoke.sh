@@ -40,6 +40,7 @@ SMOKE_API_KEY_ID=""
 SMOKE_API_KEY_SECRET=""
 SMOKE_TRACE_ID=""
 SMOKE_USED_MODEL=""
+SMOKE_CHAT_OK=""
 WARN_COUNT=0
 SKIP_COUNT=0
 
@@ -553,6 +554,7 @@ call_v1_chat_completions() {
                 warn "/v1/chat/completions returned 200 but choices[0] was empty"
                 return 0
             fi
+            SMOKE_CHAT_OK=1
             pass "/v1/chat/completions returned 200 with non-empty choices (model=$SMOKE_USED_MODEL)"
             return 0
             ;;
@@ -691,6 +693,104 @@ PY
     fi
 }
 
+check_gateway_audit_writes_after_chat() {
+    # Gateway-1b 硬断言：chat 200 后 audit_logs 必须有 traceId 命中行，且新字段齐
+    # 仅当 SMOKE_CHAT_OK=1 时跑；provider 503 路径或 trace 异步未到时降级 WARN
+    if [ "$SMOKE_CHAT_OK" != "1" ]; then
+        skip "audit-writes-after-chat skipped (no live chat success in this run)"
+        return 0
+    fi
+    if [ -z "$SMOKE_TRACE_ID" ]; then
+        skip "audit-writes-after-chat skipped (SMOKE_TRACE_ID is empty)"
+        return 0
+    fi
+
+    # AuditLogService.@Async 写盘可能滞后，最多等 5s
+    local out="$TMP_DIR/audit-logs-by-trace.json"
+    local code
+    local found=0
+    for _ in 1 2 3 4 5; do
+        sleep 1
+        code=$(request GET "$ORIN_BASE_URL/api/v1/audit/logs?page=0&size=20" "$out" --auth)
+        if ! is_2xx "$code"; then
+            continue
+        fi
+        if python3 - "$out" "$SMOKE_TRACE_ID" <<'PY'
+import json, sys
+target = sys.argv[2]
+def walk(o):
+    if isinstance(o, dict):
+        yield o
+        for v in o.values(): yield from walk(v)
+    elif isinstance(o, list):
+        for v in o: yield from walk(v)
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh: rows = json.load(fh)
+except Exception:
+    sys.exit(1)
+sys.exit(0 if any(r.get("traceId") == target for r in walk(rows)) else 2)
+PY
+        then
+            found=1
+            break
+        fi
+    done
+
+    if [ "$found" -ne 1 ]; then
+        if [ "${ORIN_GATEWAY_SMOKE_STRICT_AUDIT:-0}" = "1" ]; then
+            fail "audit_logs by-trace not found within 5s (strict audit mode)"
+        else
+            warn "audit_logs by-trace not found within 5s (async lag, expected if chat was 200 with live provider)"
+        fi
+        return 0
+    fi
+
+    # 找到行后做硬断言
+    if python3 - "$out" "$SMOKE_TRACE_ID" <<'PY'
+import json, sys
+target = sys.argv[2]
+def walk(o):
+    if isinstance(o, dict):
+        yield o
+        for v in o.values(): yield from walk(v)
+    elif isinstance(o, list):
+        for v in o: yield from walk(v)
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh: rows = json.load(fh)
+except Exception:
+    sys.exit(1)
+matches = [r for r in walk(rows) if r.get("traceId") == target]
+if not matches:
+    sys.exit(2)
+row = matches[0]
+# modelAlias / providerModel / traceId / apiKeyId / userId 全有
+if not row.get("modelAlias"):
+    sys.exit(3)
+if not row.get("providerModel"):
+    sys.exit(4)
+if row.get("traceId") != target:
+    sys.exit(5)
+if not row.get("apiKeyId"):
+    sys.exit(6)
+if not row.get("userId"):
+    sys.exit(7)
+# errorCode 必须为 null（成功路径）
+if row.get("errorCode"):
+    sys.exit(8)
+sys.exit(0)
+PY
+    then
+        pass "audit_logs row for traceId=$SMOKE_TRACE_ID contains gateway fields (modelAlias/providerModel/apiKeyId/userId) with errorCode=null"
+    else
+        local rc=$?
+        if [ "${ORIN_GATEWAY_SMOKE_STRICT_AUDIT:-0}" = "1" ]; then
+            fail "audit_logs by-trace hard check failed rc=$rc (strict audit mode, traceId=$SMOKE_TRACE_ID)"
+        else
+            warn "audit_logs by-trace hard check failed rc=$rc (some gateway field missing for traceId=$SMOKE_TRACE_ID)"
+        fi
+    fi
+}
+
 check_trace_summary() {
     if [ -z "$SMOKE_TRACE_ID" ]; then
         skip "trace summary skipped because traceId is empty (chat was not invoked)"
@@ -801,6 +901,7 @@ call_v1_models
 call_v1_chat_completions
 check_usage_summary
 check_gateway_audit_fields
+check_gateway_audit_writes_after_chat
 check_trace_summary
 check_audit_logs_reachable
 check_disabled_key_rejected

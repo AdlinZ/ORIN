@@ -114,7 +114,12 @@ public enum ErrorCode {
     COLLABORATION_PACKAGE_INVALID_STATE("120003", "协作包状态非法"),
     SUBTASK_NOT_FOUND("120004", "子任务未找到"),
     SUBTASK_EXECUTION_FAILED("120005", "子任务执行失败"),
-    SUBTASK_INVALID_TRANSITION("120006", "子任务状态流转非法");
+    SUBTASK_INVALID_TRANSITION("120006", "子任务状态流转非法"),
+
+    // ============================================
+    // 服务可用性 (13xxxx) - Gateway MVP 专用
+    // ============================================
+    SERVICE_UNAVAILABLE("130001", "服务暂不可用");
 
     /**
      * 错误代码
