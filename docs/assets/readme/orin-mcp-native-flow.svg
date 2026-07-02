@@ -1,0 +1,72 @@
+<svg width="1200" height="620" viewBox="0 0 1200 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">ORIN MCP native flow</title>
+  <desc id="desc">ORIN can consume external MCP servers and expose ORIN agents or workflows as MCP tools.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#F3F4F6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#111827" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow-blue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 2 2 L 10 6 L 2 10 z" fill="#2563EB"/>
+    </marker>
+    <marker id="arrow-pink" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 2 2 L 10 6 L 2 10 z" fill="#DB2777"/>
+    </marker>
+    <style>
+      .title{font:700 34px Inter,Arial,sans-serif;fill:#111827}
+      .sub{font:500 16px Inter,Arial,sans-serif;fill:#4B5563}
+      .label{font:700 21px Inter,Arial,sans-serif;fill:#111827}
+      .meta{font:500 14px Inter,Arial,sans-serif;fill:#6B7280}
+      .chip{font:700 13px Inter,Arial,sans-serif;fill:#374151}
+      .blue{stroke:#2563EB;stroke-width:3;fill:none;marker-end:url(#arrow-blue)}
+      .pink{stroke:#DB2777;stroke-width:3;fill:none;marker-end:url(#arrow-pink)}
+      .dash{stroke-dasharray:8 8}
+    </style>
+  </defs>
+  <rect width="1200" height="620" rx="32" fill="url(#bg)"/>
+  <text x="60" y="74" class="title">MCP-Native Integration</text>
+  <text x="60" y="106" class="sub">ORIN works both as an MCP client and as an MCP server for external agent tools.</text>
+
+  <rect x="75" y="176" width="280" height="270" rx="22" fill="#FFFFFF" filter="url(#shadow)"/>
+  <text x="107" y="222" class="label">External MCP Servers</text>
+  <text x="107" y="254" class="meta">filesystem · GitHub · fetch</text>
+  <text x="107" y="276" class="meta">sqlite · time · custom tools</text>
+  <rect x="108" y="318" width="96" height="34" rx="17" fill="#DBEAFE"/>
+  <text x="132" y="340" class="chip">stdio</text>
+  <rect x="214" y="318" width="96" height="34" rx="17" fill="#E0F2FE"/>
+  <text x="239" y="340" class="chip">HTTP</text>
+  <rect x="108" y="364" width="202" height="34" rx="17" fill="#DCFCE7"/>
+  <text x="143" y="386" class="chip">masked env + secrets</text>
+
+  <rect x="460" y="146" width="280" height="330" rx="24" fill="#111827" filter="url(#shadow)"/>
+  <text x="500" y="208" class="label" fill="#FFFFFF">ORIN</text>
+  <text x="500" y="240" class="meta" fill="#D1D5DB">Agent registry</text>
+  <text x="500" y="262" class="meta" fill="#D1D5DB">Workflow registry</text>
+  <text x="500" y="284" class="meta" fill="#D1D5DB">MCP service manager</text>
+  <text x="500" y="306" class="meta" fill="#D1D5DB">API Key isolation</text>
+  <rect x="500" y="352" width="200" height="40" rx="20" fill="#F9FAFB"/>
+  <text x="545" y="378" class="chip">/v1/mcp</text>
+
+  <rect x="845" y="176" width="280" height="270" rx="22" fill="#FFFFFF" filter="url(#shadow)"/>
+  <text x="877" y="222" class="label">MCP Clients</text>
+  <text x="877" y="254" class="meta">Codex · Claude Desktop</text>
+  <text x="877" y="276" class="meta">Cursor · Windsurf · scripts</text>
+  <rect x="878" y="318" width="214" height="34" rx="17" fill="#FCE7F3"/>
+  <text x="926" y="340" class="chip">tools/list</text>
+  <rect x="878" y="364" width="214" height="34" rx="17" fill="#FEF3C7"/>
+  <text x="926" y="386" class="chip">tools/call</text>
+
+  <path d="M355 290 C405 250 415 240 452 240" class="blue"/>
+  <path d="M452 382 C408 394 396 395 355 388" class="blue dash"/>
+  <text x="360" y="214" class="chip" fill="#2563EB">ORIN consumes tools</text>
+
+  <path d="M740 240 C788 238 802 250 845 288" class="pink"/>
+  <path d="M845 390 C796 420 782 418 740 382" class="pink dash"/>
+  <text x="746" y="214" class="chip" fill="#DB2777">ORIN exposes tools</text>
+
+  <rect x="164" y="505" width="872" height="58" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+  <text x="206" y="540" class="sub">One governance layer for API keys, audit logs, trace IDs, owner isolation, and tool execution records.</text>
+</svg>
