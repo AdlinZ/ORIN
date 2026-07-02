@@ -9,6 +9,7 @@
 | [功能完成度.md](./功能完成度.md) | 项目评估 | 模块成熟度、可验收能力、待补清单 |
 | [开发规范.md](./开发规范.md) | 贡献者 | 架构约束、编码规范、提交流程、PR 必检 |
 | [路线图.md](./路线图.md) | 项目维护者 | 走向开源项目平均水平的阶段计划与里程碑 |
+| [Gateway-MVP-开发方向.md](./Gateway-MVP-开发方向.md) | 项目维护者 / 开发 agent | 统一网关作为第一阶段可上线能力的产品边界、架构、阶段与验收 |
 | [角色矩阵.md](./角色矩阵.md) | 开发者 / 运营 | 角色默认入口、菜单可见性、后端权限边界 |
 | [mcp-client-setup.md](./mcp-client-setup.md) | 接入方 / 演示 | Codex、Claude Desktop、Cursor、Windsurf 调用 ORIN MCP 的配置 |
 | [open-demo-checklist.md](./open-demo-checklist.md) | 项目维护者 | MCP API smoke、Codex 客户端验收、外部客户端展示完成口径 |
