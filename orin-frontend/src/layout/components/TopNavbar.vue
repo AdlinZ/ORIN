@@ -30,7 +30,11 @@
             @mouseleave="handleMenuLeave"
           >
             <template v-for="child in menu.children" :key="child.path || child.title">
+              <div v-if="isMenuSection(child)" class="dropdown-section">
+                {{ child.title }}
+              </div>
               <router-link
+                v-else
                 :to="child.path"
                 class="dropdown-item"
                 @click="closeDropdown"
@@ -159,7 +163,11 @@
           <span>{{ menu.title }}</span>
         </div>
         <template v-for="child in menu.children" :key="child.path || child.title">
+          <div v-if="isMenuSection(child)" class="mobile-menu-section">
+            {{ child.title }}
+          </div>
           <router-link
+            v-else
             :to="child.path"
             class="mobile-menu-item"
             @click="closeMobileMenu"
@@ -343,6 +351,8 @@ const userInfo = computed(() => {
 
 const visibleMenus = computed(() => getVisibleMenus(userStore.roles || []))
 const activeMenuId = computed(() => getActiveMenuId(route.path))
+
+const isMenuSection = (item = {}) => item.type === 'section' || item.divider
 
 // Methods
 const goHome = () => router.push(getDefaultHomeByRoles(userStore.roles || []))
@@ -754,6 +764,19 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.dropdown-section {
+  padding: 8px 12px 4px;
+  color: var(--neutral-gray-500);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dropdown-section:not(:first-child) {
+  margin-top: 6px;
+  border-top: 1px solid var(--neutral-gray-100);
+}
+
 .dropdown-item:hover {
   background: var(--neutral-gray-50);
   color: var(--orin-primary);
@@ -924,6 +947,13 @@ onMounted(() => {
   transition: all 0.2s;
 }
 
+.mobile-menu-section {
+  padding: 10px 16px 4px 48px;
+  color: var(--neutral-gray-500);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .mobile-menu-item:hover {
   background: var(--neutral-gray-50);
   color: var(--orin-primary);
@@ -1051,6 +1081,11 @@ html.dark .dropdown-item {
   color: #e0e0e0;
 }
 
+html.dark .dropdown-section {
+  color: #94a3b8;
+  border-top-color: rgba(148, 163, 184, 0.18);
+}
+
 html.dark .dropdown-item:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
@@ -1082,6 +1117,10 @@ html.dark .drawer-title {
 
 html.dark .mobile-menu-title {
   color: #e0e0e0;
+}
+
+html.dark .mobile-menu-section {
+  color: #94a3b8;
 }
 
 html.dark .mobile-menu-item {

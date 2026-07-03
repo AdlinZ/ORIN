@@ -149,6 +149,15 @@ describe('unified frontend 1.0 guardrails', () => {
     expect(router).toContain("getSetupStatusCached")
     expect(router).toContain("'/setup'")
     expect(router).toContain("next(ROUTES.SETUP)")
+    expect(router).toContain("hasCompletedSetupSession")
+    expect(router).toContain("window.sessionStorage.getItem(SETUP_COMPLETED_SESSION_KEY)")
+  })
+
+  it('keeps query-only tab switches from remounting dashboard pages', () => {
+    const layout = read('src/layout/MainLayout.vue')
+    expect(layout).toContain('const routeViewKey = computed(() => $route.path)')
+    expect(layout).toContain(':key="routeViewKey"')
+    expect(layout).not.toContain(':key="$route.fullPath"')
   })
 
   it('keeps setup wizard on the unified request client', () => {

@@ -20,7 +20,7 @@
       <div class="content-inner">
         <router-view v-slot="{ Component }">
           <transition name="fade-transform">
-            <component :is="Component" :key="$route.fullPath" />
+            <component :is="Component" :key="routeViewKey" />
           </transition>
         </router-view>
       </div>
@@ -51,6 +51,7 @@ import { DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 
 const $route = useRoute()
 const appStore = useAppStore()
+const routeViewKey = computed(() => $route.path)
 const WORKSPACE_ROUTE_NAMES = new Set([
   'ApplicationWorkspace',
   'AgentConsole',

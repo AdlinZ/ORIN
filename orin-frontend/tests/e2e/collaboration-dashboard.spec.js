@@ -395,33 +395,33 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     ]))
   })
 
-  test('filters dashboard navigation by role and redirects unauthorized direct access', async ({ page }) => {
+  test('shows the full dashboard navigation for admins and redirects regular users', async ({ page }) => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
-    await authenticate(page, ['ROLE_OPERATOR'])
+    await authenticate(page, ['ROLE_ADMIN'])
     await page.goto('/dashboard')
 
-    await expect(page).toHaveURL(/\/dashboard\/applications\/agents/)
-    const operatorNav = page.locator('.navbar-menu')
-    await expect(operatorNav.getByText('智能体管理')).toBeVisible()
-    await expect(operatorNav.getByText('工作流管理')).toBeVisible()
-    await expect(operatorNav.getByText('知识库管理')).toBeVisible()
-    await expect(operatorNav.getByText('运行监控')).toHaveCount(0)
-    await expect(operatorNav.getByText('系统设置')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/dashboard\/control\/admin-overview/)
+    const adminNav = page.locator('.navbar-menu')
+    await expect(adminNav.getByText('平台控制')).toBeVisible()
+    await expect(adminNav.getByText('运行观测')).toBeVisible()
+    await expect(adminNav.getByText('应用构建')).toBeVisible()
+    await expect(adminNav.getByText('资源知识')).toBeVisible()
 
+    await authenticate(page, ['ROLE_USER'])
     await page.goto('/dashboard/control/users')
-    await expect(page).toHaveURL(/\/dashboard\/applications\/agents/)
+    await expect(page).toHaveURL(/\/portal\/api-keys/)
   })
 
-  test('keeps regular users on the service portal instead of dashboard modules', async ({ page }) => {
+  test('keeps regular users on the API relay station instead of dashboard modules', async ({ page }) => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_USER'])
     await page.goto('/dashboard')
 
-    await expect(page).toHaveURL(/\/portal/)
+    await expect(page).toHaveURL(/\/portal\/api-keys/)
     await page.goto('/dashboard/applications/agents')
-    await expect(page).toHaveURL(/\/portal/)
+    await expect(page).toHaveURL(/\/portal\/api-keys/)
   })
 
   test('lets regular users manage only self-service API keys from the portal route', async ({ page }) => {
@@ -431,6 +431,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await authenticate(page, ['ROLE_USER'])
     await page.goto('/portal/api-keys')
 
+    await expect(page.getByText('API 中转站').first()).toBeVisible()
     await expect(page.getByText('API Key 自助').first()).toBeVisible()
     await expect(page.getByText('个人 MCP Key')).toBeVisible()
     await expect(page.getByText('外部供应商密钥')).toHaveCount(0)

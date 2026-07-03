@@ -96,7 +96,7 @@ test.describe('Phase 1D: Real-backend collaboration E2E', () => {
     }, token)
     // Inject roles so the route guard allows access
     await page.addInitScript(() => {
-      document.cookie = `orin_roles=${encodeURIComponent(JSON.stringify(['ROLE_ADMIN', 'ROLE_SUPER_ADMIN']))}; path=/`
+      document.cookie = `orin_roles=${encodeURIComponent(JSON.stringify(['ROLE_ADMIN']))}; path=/`
       document.cookie = `orin_userInfo=${encodeURIComponent(JSON.stringify({ userId: 1, username: 'admin' }))}; path=/`
     })
   }

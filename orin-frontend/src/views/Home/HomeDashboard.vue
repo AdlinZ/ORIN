@@ -1128,17 +1128,14 @@ const loadDashboardData = async () => {
   loading.value = true
   isRefreshing.value = true
   try {
-    const [dashboardSummaryRes, summaryRes, agentsRes, tokenHistoryRes, latencyRes, hardwareRes, healthRes, distributionRes, nodesRes, integrationStatusRes] = await Promise.all([
+    const [dashboardSummaryRes, summaryRes, agentsRes, tokenHistoryRes, latencyRes, healthRes, distributionRes] = await Promise.all([
       getDashboardSummary({ silentError: true }).catch(() => ({})),
       getGlobalSummary(),
       getAgentList(),
       getTokenHistory({ size: 200 }),
       getLatencyStats().catch(() => ({})),
-      getServerHardware().catch(() => ({})),
       getSystemHealth().catch(() => ({})),
       getTokenDistribution().catch(() => ([])),
-      getServerNodes().catch(() => ([])),
-      getIntegrationStatus().catch(() => ({})),
     ])
 
     const dashboardSummary = toDashboardSummaryViewModel(unwrapResponse(dashboardSummaryRes, {}) || {})
@@ -1152,11 +1149,8 @@ const loadDashboardData = async () => {
         : []
 
     const latencyData = unwrapResponse(latencyRes, {}) || {}
-    const hardware = unwrapResponse(hardwareRes, {}) || {}
     const health = unwrapResponse(healthRes, {}) || {}
     const distributionData = unwrapResponse(distributionRes, []) || []
-    const nodesData = unwrapResponse(nodesRes, []) || []
-    const integrationStatus = unwrapResponse(integrationStatusRes, {}) || {}
 
     const activeAgents = agents.filter((item) => item.enabled !== false && item.status !== 'OFFLINE').length || dashboardSummary.metrics.agents
     const todayCalls = safeNumber(summary.daily_requests, historyList.filter((item) => dayjs(item.createdAt || item.timestamp).isSame(dayjs(), 'day')).length)
@@ -1164,8 +1158,6 @@ const loadDashboardData = async () => {
     const alertCount = safeNumber(summary.alertCount, safeNumber(summary.highLoadAgents, dashboardSummary.metrics.failedTasks))
 
     summaryData.value = summary
-    serverNodes.value = Array.isArray(nodesData) ? nodesData : []
-    await hydrateHardwareSnapshot(hardware)
 
     const healthRaw = String(health?.status || health?.code || dashboardSummary.systemHealth.aiEngine.status || '').toUpperCase()
     if (healthRaw.includes('UP') || healthRaw.includes('OK') || healthRaw.includes('SUCCESS')) {
@@ -1196,7 +1188,7 @@ const loadDashboardData = async () => {
     buildTrendData(historyList)
     buildLatencyTrendData(historyList)
     buildTopLists(historyList)
-    buildExternalDependencies(integrationStatus)
+    buildExternalDependencies({})
     buildBasicServices({
       health,
       prometheus: {},
@@ -1205,22 +1197,33 @@ const loadDashboardData = async () => {
       maintenance: {},
     })
 
-    // Prometheus/Milvus/存储巡检改为后台更新，不阻塞主刷新
+    // 慢探测统一后台更新，避免 Prometheus / Milvus / 外部集成不可达时阻塞首屏刷新。
     void Promise.allSettled([
-      testPrometheusConnection(),
-      testMilvusConnection(),
-      getStorageHealthSnapshot(),
-      getSystemMaintenanceHealth(),
-    ]).then((results) => {
+      getServerHardware({ timeout: 5000, noRetry: true, silentError: true }),
+      getServerNodes({ timeout: 3000, noRetry: true, silentError: true }),
+      getIntegrationStatus({ timeout: 5000, noRetry: true, silentError: true }),
+      testPrometheusConnection({ timeout: 5000, noRetry: true, silentError: true }),
+      testMilvusConnection(undefined, undefined, undefined, { timeout: 5000, noRetry: true, silentError: true }),
+      getStorageHealthSnapshot({ timeout: 5000, noRetry: true, silentError: true }),
+      getSystemMaintenanceHealth({ timeout: 5000, noRetry: true, silentError: true }),
+    ]).then(async (results) => {
       if (loadSeq !== dashboardLoadSeq) return
-      const [prometheusRes, milvusRes, storageHealthRes, maintenanceHealthRes] = results.map((item) => {
+      const [hardwareRes, nodesRes, integrationStatusRes, prometheusRes, milvusRes, storageHealthRes, maintenanceHealthRes] = results.map((item) => {
         if (item.status === 'fulfilled') return item.value
         return {}
       })
+      const hardware = unwrapResponse(hardwareRes, {}) || {}
+      const nodesData = unwrapResponse(nodesRes, []) || []
+      const integrationStatus = unwrapResponse(integrationStatusRes, {}) || {}
       const prometheusHealth = unwrapResponse(prometheusRes, {}) || {}
       const milvusHealth = unwrapResponse(milvusRes, {}) || {}
       const storageHealth = unwrapResponse(storageHealthRes, {}) || {}
       const maintenanceHealth = unwrapResponse(maintenanceHealthRes, {}) || {}
+
+      serverNodes.value = Array.isArray(nodesData) ? nodesData : []
+      await hydrateHardwareSnapshot(hardware)
+      if (loadSeq !== dashboardLoadSeq) return
+      buildExternalDependencies(integrationStatus)
       buildBasicServices({
         health,
         prometheus: prometheusHealth,

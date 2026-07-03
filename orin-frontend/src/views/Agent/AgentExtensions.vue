@@ -1,22 +1,6 @@
 <template>
   <div class="agent-extensions-page">
     <section class="extensions-console">
-      <div class="extensions-summary">
-        <button
-          v-for="item in tabSummaries"
-          :key="item.key"
-          type="button"
-          :class="['summary-card', { active: activeTab === item.key }]"
-          @click="activeTab = item.key"
-        >
-          <el-icon><component :is="item.icon" /></el-icon>
-          <span>
-            <strong>{{ item.title }}</strong>
-            <small>{{ item.description }}</small>
-          </span>
-        </button>
-      </div>
-
       <section
         ref="contentPanelRef"
         class="content-panel"
@@ -44,7 +28,6 @@
 import { computed, nextTick, onErrorCaptured, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { MagicStick, Service, Setting } from '@element-plus/icons-vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import SkillManagementPanel from '@/views/Skill/SkillManagement.vue'
 import McpServicePanel from '@/views/System/McpService.vue'
@@ -74,27 +57,6 @@ const tabComponentMap = {
   mcp: McpServicePanel,
   bindings: AgentToolsBindingPanel
 }
-
-const tabSummaries = [
-  {
-    key: 'skills',
-    title: 'Skills',
-    description: '脚本、API 与知识检索能力',
-    icon: MagicStick
-  },
-  {
-    key: 'mcp',
-    title: 'MCP 服务',
-    description: '外部服务连接与工具安装',
-    icon: Service
-  },
-  {
-    key: 'bindings',
-    title: '模型工具',
-    description: 'Function calling 工具目录',
-    icon: Setting
-  }
-]
 
 const currentTabComponent = computed(() => tabComponentMap[activeTab.value] || tabComponentMap[TAB_DEFAULT])
 
@@ -246,62 +208,6 @@ onErrorCaptured((error) => {
   color: #64748b;
   font-size: 14px;
   line-height: 1.6;
-}
-
-.extensions-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  margin: 0 0 12px;
-  padding: 6px;
-  border: 1px solid var(--orin-border, #e2e8f0);
-  border-radius: var(--orin-card-radius, 8px);
-  background: #ffffff;
-}
-
-.summary-card {
-  min-width: 0;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
-}
-
-.summary-card:hover,
-.summary-card.active {
-  border-color: rgba(15, 118, 110, 0.22);
-  background: rgba(240, 253, 250, 0.72);
-  box-shadow: none;
-}
-
-.summary-card .el-icon {
-  margin-top: 0;
-  color: var(--orin-primary);
-}
-
-.summary-card span {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-
-.summary-card strong {
-  color: #0f172a;
-  font-size: 14px;
-  line-height: 1.2;
-}
-
-.summary-card small {
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.35;
 }
 
 .content-panel {
@@ -562,12 +468,8 @@ onErrorCaptured((error) => {
     padding: 14px 14px 16px;
   }
 
-  .extensions-summary {
-    grid-template-columns: 1fr;
-  }
-
   .content-panel {
-    padding: 10px;
+    padding: 0;
   }
 
   .tab-content :deep(.embedded-toolbar-main),
@@ -602,26 +504,12 @@ html.dark .extensions-hero {
   background: var(--neutral-gray-900, #0f172a);
 }
 
-html.dark .extensions-title-block h1,
-html.dark .summary-card strong {
+html.dark .extensions-title-block h1 {
   color: #f8fafc;
 }
 
-html.dark .extensions-title-block p,
-html.dark .summary-card small {
+html.dark .extensions-title-block p {
   color: #94a3b8;
-}
-
-html.dark .summary-card {
-  border-color: rgba(148, 163, 184, 0.16);
-  background: rgba(15, 23, 42, 0.66);
-}
-
-html.dark .summary-card:hover,
-html.dark .summary-card.active {
-  border-color: rgba(45, 212, 191, 0.32);
-  background: rgba(15, 23, 42, 0.9);
-  box-shadow: none;
 }
 
 html.dark .tab-content :deep(.embedded-toolbar),

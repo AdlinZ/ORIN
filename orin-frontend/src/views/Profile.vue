@@ -273,7 +273,7 @@ const isAdmin = computed(() => {
 
 const roleDisplay = computed(() => {
   if (isAdmin.value) {
-    return '超级管理员';
+    return '管理员';
   }
   return '普通用户';
 });

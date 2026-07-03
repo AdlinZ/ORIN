@@ -4,6 +4,7 @@ export function getSetupStatus(config = {}) {
   return request({
     url: '/setup/status',
     method: 'get',
+    timeout: 2000,
     noRetry: true,
     silentError: true,
     skipAuthRefresh: true,

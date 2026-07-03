@@ -264,7 +264,7 @@ const filteredRoles = computed(() => {
 
 // 判断是否为系统预定义角色
 const isSystemRole = (roleCode) => {
-  return ['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_OPERATOR', 'ROLE_ADMIN', 'ROLE_USER'].includes(roleCode)
+  return ['ROLE_ADMIN', 'ROLE_USER'].includes(roleCode)
 }
 
 const roleStats = computed(() => {
@@ -290,11 +290,8 @@ const paginationLayout = computed(() => (
 
 const getRoleScope = (roleCode) => {
   const scopeMap = {
-    ROLE_SUPER_ADMIN: '全平台与最高权限',
-    ROLE_PLATFORM_ADMIN: '平台配置与组织治理',
-    ROLE_OPERATOR: '业务运营与运行监控',
-    ROLE_ADMIN: '系统管理与基础配置',
-    ROLE_USER: '普通业务访问'
+    ROLE_ADMIN: '系统管理与全部管理台入口',
+    ROLE_USER: 'API 中转站与个人访问密钥'
   }
   return scopeMap[roleCode] || '自定义权限范围'
 }

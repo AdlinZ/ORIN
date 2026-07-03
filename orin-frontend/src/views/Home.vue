@@ -9,6 +9,7 @@
         <div class="nav-center">
           <button type="button" @click="scrollToSection('roles')">角色入口</button>
           <button type="button" @click="scrollToSection('platform')">平台能力</button>
+          <button type="button" @click="scrollToSection('github')">GitHub</button>
           <button type="button" @click="openApiDocs">API 文档</button>
         </div>
 
@@ -47,16 +48,16 @@
       <section class="hero-section">
         <a class="release-pill" href="#roles" @click.prevent="scrollToSection('roles')">
           <span>ORIN Platform</span>
-          <strong>智能体接入、知识资产、流程协作与运行观测的统一中枢</strong>
+          <strong>面向中小企业与个人的 AI 管理中枢</strong>
           <el-icon><ArrowRight /></el-icon>
         </a>
 
         <h1 class="hero-title">
-          <span>构建企业智能体的</span>
-          <span class="title-accent">管理与运行中枢</span>
+          <span>让团队和个人都有</span>
+          <span class="title-accent">自己的 AI 管理中枢</span>
         </h1>
         <p class="hero-subtitle">
-          ORIN 连接智能体、知识库、工作流与观测链路，帮助团队接入 AI 应用、沉淀知识资产、编排协作流程，并逐步形成可治理、可追踪、可运营的平台闭环。
+          ORIN 连接智能体、知识库、工作流、MCP 工具与观测链路，帮助中小型企业和个人把 AI 应用接入、知识沉淀、流程编排和运行治理放在同一个开源平台里逐步闭环。
         </p>
 
         <div class="hero-actions">
@@ -66,6 +67,10 @@
           </el-button>
           <el-button size="large" class="secondary-button" @click="goAdminConsole">
             我是平台管理者
+          </el-button>
+          <el-button size="large" class="github-button" @click="openGithub">
+            <GithubIcon :size="18" />
+            查看 GitHub
           </el-button>
         </div>
 
@@ -118,7 +123,7 @@
               <div class="preview-panel">
                 <div class="panel-copy">
                   <span>Workspace</span>
-                  <strong>业务使用侧与平台治理侧共享同一套底层能力</strong>
+                  <strong>个人工作台与团队治理台共享同一套底层能力</strong>
                 </div>
                 <div class="panel-lines">
                   <i />
@@ -139,7 +144,7 @@
         <div class="section-heading">
           <span>Platform entry</span>
           <h2>同一平台，面向不同使用场景</h2>
-          <p>业务侧关注可用的智能体和知识服务，治理侧关注应用接入、资源配置、权限边界和运行状态。</p>
+          <p>个人侧关注可用的智能体、知识检索和自动化流程，团队侧关注应用接入、资源配置、权限边界和运行状态。</p>
         </div>
 
         <div class="role-row">
@@ -170,6 +175,37 @@
           </article>
         </div>
       </section>
+
+      <section id="github" class="github-section">
+        <div class="github-copy">
+          <span>Open source</span>
+          <h2>在 GitHub 上持续建设 ORIN</h2>
+          <p>
+            ORIN 以开源项目方式推进，当前聚焦让中小型企业和个人可以本地部署、接入模型与工具、管理知识资产，并通过 Workflow / MCP / Trace 把 AI 使用流程变得可复现、可治理。
+          </p>
+        </div>
+
+        <div class="github-panel" aria-label="ORIN GitHub 仓库">
+          <div class="github-meta">
+            <GithubIcon :size="32" />
+            <div>
+              <strong>AdlinZ/ORIN</strong>
+              <span>Spring Boot · Vue 3 · FastAPI · LangGraph · MCP</span>
+            </div>
+          </div>
+
+          <div class="github-actions">
+            <a class="github-link" href="https://github.com/AdlinZ/ORIN" target="_blank" rel="noopener noreferrer">
+              打开仓库
+              <ExternalLinkIcon :size="16" />
+            </a>
+            <a class="github-link secondary" href="https://github.com/AdlinZ/ORIN/issues" target="_blank" rel="noopener noreferrer">
+              反馈问题
+              <ExternalLinkIcon :size="16" />
+            </a>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="landing-footer">
@@ -195,6 +231,7 @@ import {
   SwitchButton,
   User as UserIcon,
 } from '@element-plus/icons-vue'
+import { ExternalLink as ExternalLinkIcon, Github as GithubIcon } from 'lucide-vue-next'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -202,9 +239,6 @@ const isLoggedIn = ref(false)
 const defaultAvatar = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
 const roleMap = {
-  ROLE_SUPER_ADMIN: '超级管理员',
-  ROLE_PLATFORM_ADMIN: '平台管理员',
-  ROLE_OPERATOR: '业务运营',
   ROLE_ADMIN: '管理员',
   ROLE_USER: '普通用户',
   ADMIN: '管理员',
@@ -305,6 +339,10 @@ const openApiDocs = () => {
   window.open('/unified-docs', '_blank')
 }
 
+const openGithub = () => {
+  window.open('https://github.com/AdlinZ/ORIN', '_blank', 'noopener,noreferrer')
+}
+
 const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -325,7 +363,7 @@ const handlePointerMove = (event) => {
 
 const initScrollEffects = () => {
   const targets = document.querySelectorAll(
-    '.product-stage, .roles-section, .platform-section, .role-link, .capability-card',
+    '.product-stage, .roles-section, .platform-section, .github-section, .role-link, .capability-card, .github-panel',
   )
 
   revealObserver = new IntersectionObserver(
@@ -584,6 +622,15 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 
+.github-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-color: rgba(16, 24, 40, 0.14);
+  color: #101828;
+  background: #fff;
+}
+
 .hero-proof {
   display: flex;
   justify-content: center;
@@ -829,7 +876,8 @@ onBeforeUnmount(() => {
 }
 
 .roles-section,
-.platform-section {
+.platform-section,
+.github-section {
   padding: 92px 0 0;
   scroll-margin-top: 92px;
 }
@@ -937,8 +985,10 @@ onBeforeUnmount(() => {
 .product-stage,
 .roles-section,
 .platform-section,
+.github-section,
 .role-link,
-.capability-card {
+.capability-card,
+.github-panel {
   opacity: 0;
   transform: translateY(34px);
   transition: opacity 0.72s ease, transform 0.72s cubic-bezier(.16, 1, .3, 1);
@@ -947,8 +997,10 @@ onBeforeUnmount(() => {
 .product-stage.is-visible,
 .roles-section.is-visible,
 .platform-section.is-visible,
+.github-section.is-visible,
 .role-link.is-visible,
-.capability-card.is-visible {
+.capability-card.is-visible,
+.github-panel.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -1051,6 +1103,101 @@ onBeforeUnmount(() => {
   line-height: 1.7;
 }
 
+.github-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1fr);
+  align-items: center;
+  gap: 26px;
+}
+
+.github-copy span {
+  color: var(--home-primary-dark);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.github-copy h2 {
+  margin: 10px 0;
+  color: #0f172a;
+  font-size: 36px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.github-copy p {
+  margin: 0;
+  color: var(--home-muted);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.github-panel {
+  padding: 26px;
+  border: 1px solid rgba(16, 24, 40, 0.12);
+  border-radius: 8px;
+  background: #101828;
+  color: #fff;
+  box-shadow: 0 26px 70px rgba(16, 24, 40, 0.16);
+}
+
+.github-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.github-meta strong,
+.github-meta span {
+  display: block;
+}
+
+.github-meta strong {
+  font-size: 22px;
+}
+
+.github-meta span {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.github-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  color: #101828;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 820;
+  text-decoration: none;
+  transition: transform 0.24s ease, border-color 0.24s ease, background 0.24s ease;
+}
+
+.github-link:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.48);
+}
+
+.github-link.secondary {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .landing-footer {
   max-width: 1180px;
   margin: 0 auto;
@@ -1112,8 +1259,13 @@ onBeforeUnmount(() => {
 
   .role-row,
   .capability-list,
-  .preview-metrics {
+  .preview-metrics,
+  .github-section {
     grid-template-columns: 1fr;
+  }
+
+  .github-panel {
+    padding: 22px;
   }
 }
 
@@ -1128,7 +1280,9 @@ onBeforeUnmount(() => {
   }
 
   .hero-actions,
-  .hero-actions .el-button {
+  .hero-actions .el-button,
+  .github-actions,
+  .github-link {
     width: 100%;
   }
 
@@ -1150,8 +1304,10 @@ onBeforeUnmount(() => {
   .product-stage,
   .roles-section,
   .platform-section,
+  .github-section,
   .role-link,
-  .capability-card {
+  .capability-card,
+  .github-panel {
     opacity: 1 !important;
     transform: none !important;
   }

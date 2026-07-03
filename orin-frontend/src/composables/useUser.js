@@ -11,18 +11,12 @@ import { UI_TEXT } from '@/constants/uiText'
 
 const roleNameMap = {
   ROLE_ADMIN: UI_TEXT.role.ROLE_ADMIN,
-  ROLE_SUPER_ADMIN: UI_TEXT.role.ROLE_SUPER_ADMIN,
-  ROLE_PLATFORM_ADMIN: UI_TEXT.role.ROLE_PLATFORM_ADMIN,
-  ROLE_OPERATOR: UI_TEXT.role.ROLE_OPERATOR,
   ROLE_USER: UI_TEXT.role.ROLE_USER,
   ADMIN: UI_TEXT.role.ADMIN,
   USER: UI_TEXT.role.USER,
 }
 
 const roleDisplayPriority = [
-  'ROLE_SUPER_ADMIN',
-  'ROLE_PLATFORM_ADMIN',
-  'ROLE_OPERATOR',
   'ROLE_ADMIN',
   'ADMIN',
   'ROLE_USER',

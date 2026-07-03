@@ -62,7 +62,7 @@ const json = (body) => ({
 
 async function authenticate(page) {
   await page.addInitScript(() => {
-    const roles = ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_USER']
+    const roles = ['ROLE_ADMIN', 'ROLE_USER']
     window.localStorage.setItem('orin_token', 'wave5-token')
     window.sessionStorage.setItem('orin_setup_completed', 'true')
     document.cookie = 'orin_token=wave5-token; path=/'

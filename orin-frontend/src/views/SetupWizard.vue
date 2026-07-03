@@ -294,8 +294,8 @@ const steps = [
     description: '确认 MySQL、Redis、AI Engine、RabbitMQ 降级状态和关键安全配置。'
   },
   {
-    title: '超级管理员',
-    description: '创建或修复首个超级管理员账号，避免依赖默认密码进入系统。'
+    title: '管理员',
+    description: '创建或修复首个管理员账号，避免依赖默认密码进入系统。'
   },
   {
     title: '模型 Provider',

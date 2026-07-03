@@ -8,10 +8,10 @@
 [![MCP Native](https://img.shields.io/badge/MCP--Native-Codex%20%2B%20MCP%20Clients-blueviolet)](./docs/mcp-client-setup.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](./README.md#license)
 
-> MCP-Native 多智能体管理平台。
-> 面向 Agent 接入、工作流编排、MCP 工具生态与平台治理的一体化工程实践。
+> 面向中小型企业与个人使用的 MCP-Native AI 管理中枢。
+> 覆盖 Agent 接入、知识资产、工作流编排、MCP 工具生态与运行治理的一体化工程实践。
 
-ORIN 是一个面向企业智能体场景的管理平台，覆盖 Agent 接入、OpenAI 兼容网关、API Key 治理、知识库、工作流编排、多智能体协作、MCP 工具接入与可观测性。项目采用 `Spring Boot + Vue 3 + Python FastAPI/LangGraph` 三层架构：Java 后端负责业务管控和唯一持久化，Python AI Engine 负责工作流/协作执行，Vue 管理台提供平台化操作入口。
+ORIN 是一个面向中小型企业与个人使用的 AI 管理中枢，覆盖 Agent 接入、OpenAI 兼容网关、API Key 治理、知识库、工作流编排、多智能体协作、MCP 工具接入与可观测性。项目采用 `Spring Boot + Vue 3 + Python FastAPI/LangGraph` 三层架构：Java 后端负责业务管控和唯一持久化，Python AI Engine 负责工作流/协作执行，Vue 管理台提供平台化操作入口。
 
 项目包含 Docker quickstart、GitHub Actions、CodeQL、gitleaks、coverage artifacts、业务 smoke、MCP open demo smoke、文档手册和贡献流程。当前定位是“骨架完整、核心链路可验收、部分高级能力持续收敛”的开源项目。
 

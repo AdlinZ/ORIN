@@ -115,6 +115,6 @@ export const testNeo4jConnection = () => {
 // ========== 统一状态 ==========
 
 // 获取所有集成状态
-export const getIntegrationStatus = () => {
-    return request.get('/system/integrations/status');
+export const getIntegrationStatus = (config = {}) => {
+    return request.get('/system/integrations/status', config);
 };
