@@ -123,20 +123,20 @@ describe('gateway workbench revamp', () => {
     postMock.mockResolvedValue({})
   })
 
-  it('renders runtime metrics first and exposes the gateway workspaces', async () => {
+  it('renders gateway console surface and exposes the gateway workspaces', async () => {
     const wrapper = mount(UnifiedGateway, { global: { stubs } })
     await Promise.resolve()
     await nextTick()
 
     const text = wrapper.text()
-    expect(text).toContain('运行总览')
-    expect(text).toContain('当前 QPS')
-    expect(text).toContain('平均延迟')
-    expect(text).toContain('错误率')
-    expect(text).toContain('运行结论')
+    expect(text).toContain('AI API 中转站')
+    expect(text).toContain('Base URL')
+    expect(text).toContain('快速接入')
+    expect(text).toContain('模型与端点状态')
+    expect(text).toContain('最近调用')
 
     const tabLabels = wrapper.findAll('.workspace-tab strong').map((label) => label.text())
-    expect(tabLabels).toEqual(['运行态', '统一入口', '访问控制', '流量策略'])
+    expect(tabLabels).toEqual(['总览', '统一入口', 'API Keys', '流量策略'])
     expect(tabLabels).not.toContain('上游服务')
     expect(tabLabels).not.toContain('密钥中心')
     expect(tabLabels).not.toContain('安全与流量')
@@ -157,16 +157,15 @@ describe('gateway workbench revamp', () => {
     expect(wrapper.find('.services-tab').exists()).toBe(true)
     expect(wrapper.text()).toContain('后台入口配置')
     expect(wrapper.text()).toContain('上游服务')
-    expect(wrapper.text()).toContain('配置统一入口')
     expect(wrapper.text()).toContain('需要处理')
   })
 
-  it('switches to the access control workspace', async () => {
+  it('switches to the API Keys workspace', async () => {
     const wrapper = mount(UnifiedGateway, { global: { stubs } })
     await Promise.resolve()
     await nextTick()
 
-    const accessButton = wrapper.findAll('.workspace-tab').find((button) => button.text().includes('访问控制'))
+    const accessButton = wrapper.findAll('.workspace-tab').find((button) => button.text().includes('API Keys'))
     await accessButton.trigger('click')
     await nextTick()
 

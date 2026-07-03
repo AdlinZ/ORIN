@@ -1,26 +1,90 @@
 #!/bin/bash
 # ORIN Gateway MVP smoke baseline.
 # Verifies the OpenAI-compatible gateway end-to-end:
-#   - /v1/health, /v1/models, /v1/chat/completions
+#   - /v1/health, /v1/models, /v1/chat/completions, /v1/embeddings
 #   - API Key 创建 → 鉴权调用 → 禁用后 401
 #   - usage / trace / audit 记录
 #
 # 设计约定见 docs/Gateway-MVP-开发方向.md §Gateway-0。
 # 默认不打印明文 key / 密码 / provider secret。
 #
-# 用法（用户自行启动后端后再跑）：
+# =============================================================================
+# 用法
+# =============================================================================
+#
+# 前置条件：orin-backend 已启动并可访问（默认 http://127.0.0.1:8080）。
+# 脚本自身完成：admin 登录 → 创建临时 API Key → 跑完所有断言 → 清理临时 Key。
+#
+# ---- 模式一：普通模式（默认） ----
+#
 #   bash scripts/gateway-smoke.sh
 #
-# 环境变量（覆盖默认值）：
+#   - /v1/health 必须 200
+#   - /v1/models 必须 200（无 provider 时允许空列表 WARN）
+#   - /v1/chat/completions 期望 200 / 503 / 429 均按语义处理：
+#       200  → PASS（有响应内容则检查 choices）
+#       503  → WARN（"No available provider" — 需配置 provider credential）
+#       429  → WARN（命中限流，鉴权链路正常）
+#       500  → 根据 ORIN_GATEWAY_SMOKE_REQUIRE_LIVE 决定 WARN 或 FAIL
+#   - /v1/embeddings 期望 501（默认关闭）→ SKIP；若开启则按 200/503 处理
+#   - 禁用 Key 后 /v1/models 和 /v1/chat/completions 必须 401
+#   - audit / usage / trace 做软断言（未写到时 WARN，不 FAIL）
+#
+# ---- 模式二：严格审计模式 ----
+#
+#   ORIN_GATEWAY_SMOKE_STRICT_AUDIT=1 bash scripts/gateway-smoke.sh
+#
+#   与普通模式相同，但以下场景从 WARN 升级为 FAIL：
+#   - chat 200 成功后 5s 内 audit_logs 查不到 traceId → FAIL
+#   - audit_logs 行缺少 modelAlias / providerModel / apiKeyId / userId → FAIL
+#   - audit_logs 成功路径 errorCode 不为 null → FAIL
+#
+#   适用场景：CI 流水线、上线前验收、regression 检测。
+#   注意：严格审计模式要求 chat 真正调通 provider（200），
+#   无 provider 时 chat 会 503/500 短路，不触发审计硬断言。
+#
+# ---- 模式三：embeddings 默认关闭时的预期行为 ----
+#
+#   bash scripts/gateway-smoke.sh
+#
+#   /v1/embeddings 返回 501 → SKIP（符合预期：端点已关闭）
+#   若需要在 smoke 中验证 embeddings，需先在后端配置：
+#     orin.gateway.endpoints.embeddings-enabled=true
+#   并确保有可用的 embedding provider。
+#
+# ---- 模式四：provider 未配置时的预期行为 ----
+#
+#   bash scripts/gateway-smoke.sh
+#
+#   若未配置任何 provider credential：
+#   - /v1/models           → 200（空列表）+ WARN
+#   - /v1/chat/completions → 503 + WARN（"No available provider"）
+#   - /v1/embeddings       → 501 + SKIP（端点关闭）或 503 + WARN（端点开启但无 provider）
+#   脚本不会因为 provider 缺失而 FAIL，但会明确输出 WARN 提示。
+#
+# =============================================================================
+# 环境变量
+# =============================================================================
+#
+# 所有变量均有默认值，仅需在非默认场景下覆盖。
+#
 #   ORIN_BASE_URL                      默认 http://127.0.0.1:8080
 #   ORIN_ADMIN_USERNAME                默认 admin
 #   ORIN_ADMIN_PASSWORD                默认 admin123
+#
 #   ORIN_GATEWAY_SMOKE_REQUIRE_LIVE    auto|0|1 ，默认 auto
-#                                       auto = 没真实 provider 时降级为 WARN
+#                                       auto = 无真实 provider 时降级为 WARN
 #                                       0    = 任何失败都允许 WARN
 #                                       1    = 任何失败必须 FAIL
+#
 #   ORIN_GATEWAY_SMOKE_MODEL           默认空 → 从 /v1/models 自动选第一个
 #   ORIN_GATEWAY_SMOKE_TIMEOUT_SECONDS 默认 30（拉 trace summary 总超时）
+#
+#   ORIN_GATEWAY_SMOKE_STRICT_AUDIT    默认 0。设为 1 后对 audit 写入做硬断言：
+#                                       - chat 200 成功后 5s 内 audit 必须有 traceId 命中行
+#                                       - 命中行必须包含 modelAlias/providerModel/apiKeyId/userId
+#                                       - 成功路径 errorCode 必须为 null
+#                                       不满足任一条件 → FAIL
 
 set -euo pipefail
 
