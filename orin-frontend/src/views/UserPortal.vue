@@ -500,7 +500,7 @@ import {
   createChatSession,
   deleteChatSession,
   getAttachedKnowledgeBases,
-  getChatSession,
+  getSessionMessages,
   listAgents,
   listChatSessions,
   listKnowledgeBases,
@@ -965,9 +965,8 @@ const openSession = async (session) => {
   currentSessionId.value = session.id;
   selectedKbIds.value = [];
   try {
-    const res = await getChatSession(session.id);
-    const data = res?.data ?? res;
-    const rawMessages = data?.messages || data?.conversation || data?.history || [];
+    const res = await getSessionMessages(session.id);
+    const rawMessages = (res?.data || res || {}).messages || [];
     messages.value = Array.isArray(rawMessages) ? rawMessages.map(normalizeMessage).filter((msg) => msg.content) : [];
     await loadAttachedKnowledgeBases();
     await scrollToBottom();

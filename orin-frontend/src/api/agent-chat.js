@@ -50,10 +50,22 @@ export function deleteChatSession(sessionId) {
   });
 }
 
+// 会话 metadata: id/agentId/title/createdAt/kbDocFilters。
+// 不再包含 messages,按需走 getSessionMessages。
 export function getChatSession(sessionId) {
   return request({
     url: `/agents/chat/sessions/${sessionId}`,
     method: 'get',
+  });
+}
+
+// limit: 最大返回条数;null/不传 = 全量(向后兼容)
+// before: 窗口上界(数组索引);null/不传 = 从尾部取
+export function getSessionMessages(sessionId, { limit, before } = {}) {
+  return request({
+    url: `/agents/chat/sessions/${sessionId}/messages`,
+    method: 'get',
+    params: { limit, before }
   });
 }
 

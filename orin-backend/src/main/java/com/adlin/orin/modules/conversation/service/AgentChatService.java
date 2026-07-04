@@ -170,26 +170,55 @@ public class AgentChatService {
     public Map<String, Object> getSession(String sessionId) {
         AgentChatSession session = sessionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("id", session.getSessionId());
         result.put("agentId", session.getAgentId());
         result.put("title", session.getTitle());
         result.put("createdAt", session.getCreatedAt());
-        
-        // 解析历史消息
-        try {
-            List<Map<String, Object>> messages = objectMapper.readValue(session.getHistory(),
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class));
-            result.put("messages", messages);
-        } catch (Exception e) {
-            result.put("messages", new ArrayList<>());
-        }
-        
-        // 获取附加的知识库
-        result.put("attachedKbs", session.getAttachedKbIds());
         result.put("kbDocFilters", session.getKbDocFilters());
 
+        return result;
+    }
+
+    /**
+     * 获取会话消息(从 metadata 拆出来,按需加载,避免 history JSON 反序列化阻塞详情接口)。
+     * <p>
+     * cursor 用数组索引(避免秒级 createdAt 碰撞丢页),无 limit 时全量返回(向后兼容)。
+     *
+     * @param sessionId 会话 ID
+     * @param limit     最大返回条数;null/&lt;=0 表示全量
+     * @param beforeIndex 窗口上界(不含);null 表示从尾部取,非空表示取索引 [0, beforeIndex)
+     */
+    public Map<String, Object> getSessionMessages(String sessionId, Integer limit, Integer beforeIndex) {
+        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> all;
+        try {
+            all = objectMapper.readValue(session.getHistory(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class));
+        } catch (Exception e) {
+            all = new ArrayList<>();
+        }
+
+        int windowEnd = (beforeIndex == null) ? all.size() : Math.min(beforeIndex, all.size());
+
+        List<Map<String, Object>> slice;
+        int nextCursor;
+        if (limit == null || limit <= 0 || limit >= windowEnd) {
+            slice = all.subList(0, windowEnd);
+            nextCursor = 0;
+        } else {
+            slice = all.subList(windowEnd - limit, windowEnd);
+            nextCursor = windowEnd - limit;
+        }
+
+        boolean hasMore = nextCursor > 0;
+        result.put("messages", slice);
+        result.put("hasMore", hasMore);
+        result.put("nextCursor", hasMore ? nextCursor : null);
         return result;
     }
 

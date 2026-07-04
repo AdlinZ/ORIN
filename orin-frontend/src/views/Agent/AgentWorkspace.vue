@@ -781,8 +781,9 @@
       </div>
 
       <template v-else>
-        <div ref="messagesContainer" class="messages-container" :class="{ 'is-empty': messages.length === 0 }">
-          <div v-if="messages.length === 0" class="welcome-panel">
+        <div ref="messagesContainer" class="messages-container" :class="{ 'is-empty': messages.length === 0 }" @scroll="onMessagesScroll">
+          <div v-if="loadingOlderMessages" class="loading-older-indicator">加载更早的消息…</div>
+          <div v-if="messages.length === 0 && !loadingOlderMessages" class="welcome-panel">
             <h2>{{ greetingText }}</h2>
 
             <div class="composer-placeholder">
@@ -1181,6 +1182,7 @@ import {
   getAgentToolBinding,
   getAttachedKnowledgeBases,
   getChatSession,
+  getSessionMessages,
   getSessionToolBinding,
   getToolCatalog,
   listAgents,
@@ -1309,6 +1311,11 @@ const skills = ref([]);
 const mcpServices = ref([]);
 const toolCatalog = ref([]);
 const messages = ref([]);
+// messages 分页状态(Slice 3)
+const messagesHasMore = ref(false);
+const messagesNextCursor = ref(null);
+const loadingOlderMessages = ref(false);
+const messagesLoadToken = ref(0); // 请求版本号,会话切换或新 selectSession 时自增,过期响应被守卫丢弃
 const attachedKbIds = ref([]);
 const kbDocFilters = reactive({});  // {[kbId]: string[]}
 const kbDocuments = ref({});        // {[kbId]: documents[]}
@@ -2180,6 +2187,14 @@ const toPersistableMessage = (message = {}) => {
 
 const persistCurrentSessionMessages = async () => {
   if (!currentSessionId.value) return;
+  // 分页未完整时跳过 persist,防止把后端完整 history 覆盖成部分切片(数据丢失)
+  if (messagesHasMore.value) {
+    console.warn(
+      '[AgentWorkspace] skip persist: history not fully loaded (hasMore=true). ' +
+      'User should scroll up to load full history before sending.'
+    );
+    return;
+  }
   try {
     await saveChatSessionMessages(
       currentSessionId.value,
@@ -2311,19 +2326,35 @@ const loadToolCatalogSafe = async () => {
   }
 };
 
-const loadModelCatalog = async () => {
-  try {
-    const res = await getModelList();
-    const list = Array.isArray(res)
-      ? res
-      : Array.isArray(res?.data)
-        ? res.data
-        : [];
-    modelCatalog.value = list.map(normalizeModelRecord).filter((item) => item.value);
-  } catch (error) {
-    console.warn('Failed to load model catalog:', error);
-    modelCatalog.value = [];
+// 模块级缓存:首次成功后保留 promise,后续命中缓存直接复用;
+// 失败时清空,允许下次重试。仅缓存非空结果,避免空响应被永久冻住。
+let modelCatalogPromise = null;
+
+const loadModelCatalog = async ({ force = false } = {}) => {
+  if (!force && modelCatalogPromise) {
+    return modelCatalogPromise;
   }
+  modelCatalogPromise = (async () => {
+    try {
+      const res = await getModelList();
+      const list = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
+      const next = list.map(normalizeModelRecord).filter((item) => item.value);
+      if (next.length) {
+        modelCatalog.value = next;
+      }
+      return modelCatalog.value;
+    } catch (error) {
+      console.warn('Failed to load model catalog:', error);
+      modelCatalog.value = [];
+      modelCatalogPromise = null; // 失败不缓存,允许下次重试
+      throw error;
+    }
+  })();
+  return modelCatalogPromise;
 };
 
 const loadCollaborationWorkflows = async () => {
@@ -3082,19 +3113,31 @@ const loadKbDocFilters = async (sessionId) => {
 
   try {
     const res = await getChatSession(sessionId);
-    const data = res?.data || res || {};
-    const filters = normalizeKbDocFilters(data.kbDocFilters || {});
-    Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
-    Object.assign(kbDocFilters, filters);
+    applyKbDocFilters(res?.data || res || {});
   } catch (error) {
     Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
   }
+};
+
+// 纯函数:把后端返回的 kbDocFilters 同步写入响应式对象,
+// 供 selectSession 已拿到 data 时直接复用,避免重复 getChatSession。
+const applyKbDocFilters = (data) => {
+  const filters = normalizeKbDocFilters(data?.kbDocFilters || {});
+  Object.keys(kbDocFilters).forEach(key => delete kbDocFilters[key]);
+  Object.assign(kbDocFilters, filters);
 };
 
 const selectSession = async (session) => {
   if (!session?.id) return;
 
   currentSessionId.value = session.id;
+  // 抢占: 自增版本号,旧 selectSession / loadOlder 响应将被守卫丢弃
+  const token = ++messagesLoadToken.value;
+  // 重置分页状态
+  messagesHasMore.value = false;
+  messagesNextCursor.value = null;
+  loadingOlderMessages.value = false;
+
   const cachedMessages = getCachedSessionMessages(session.id);
   if (cachedMessages?.length) {
     messages.value = cachedMessages.map((message) => normalizeWorkspaceMessage(message));
@@ -3102,17 +3145,18 @@ const selectSession = async (session) => {
   }
 
   try {
-    const res = await getChatSession(session.id);
-    const data = res?.data || res || {};
-    messages.value = (data.messages || []).map((message) => normalizeWorkspaceMessage({
-      ...message,
-      retrievedChunks: currentConfig.showRetrievedContext ? message.retrievedChunks || [] : []
-    }));
-    setCachedSessionMessages(session.id, messages.value);
+    // 1) metadata 先 await: 小包,只含 id/agentId/title/createdAt/kbDocFilters
+    const metaRes = await getChatSession(session.id);
+    if (token !== messagesLoadToken.value) return; // 已被切换,丢弃
+    const meta = metaRes?.data || metaRes || {};
+
+    // 2) messages tail=50 拉取;与 metadata 链并行
+    const messagesPromise = getSessionMessages(session.id, { limit: 50 });
+    applyKbDocFilters(meta);
     await loadAttachedKbs(session.id);
-    await loadKbDocFilters(session.id);
     try {
       const sessionBinding = await getSessionToolBinding(session.id);
+      if (token !== messagesLoadToken.value) return; // 已被切换,丢弃
       if (sessionBinding && typeof sessionBinding === 'object') {
         if (Array.isArray(sessionBinding.toolIds)) currentConfig.toolIds = sessionBinding.toolIds;
         if (Array.isArray(sessionBinding.kbIds)) currentConfig.kbIds = sessionBinding.kbIds;
@@ -3122,6 +3166,20 @@ const selectSession = async (session) => {
     } catch (error) {
       console.warn('Failed to load session tool binding:', error);
     }
+
+    // 3) messages 单独 commit
+    const msgsRes = await messagesPromise;
+    if (token !== messagesLoadToken.value) return;
+    const data = msgsRes?.data || msgsRes || {};
+    const incomingMessages = data.messages || [];
+    messagesHasMore.value = Boolean(data.hasMore);
+    messagesNextCursor.value = data.nextCursor ?? null;
+    messages.value = incomingMessages.map((message) => normalizeWorkspaceMessage({
+      ...message,
+      retrievedChunks: currentConfig.showRetrievedContext ? message.retrievedChunks || [] : []
+    }));
+    // 仅初次 tail 加载时写缓存;增量加载(loadOlderMessages)不写,避免 localStorage 单 session 缓存无界增长
+    setCachedSessionMessages(session.id, messages.value);
     scrollToBottom();
   } catch (error) {
     if (!cachedMessages?.length) {
@@ -3130,6 +3188,67 @@ const selectSession = async (session) => {
       ElMessage.warning('网络波动：已显示本地缓存消息');
     }
   }
+};
+
+// 增量加载更早消息:滚到顶时触发,保留滚动位置
+const loadOlderMessages = async () => {
+  if (!messagesHasMore.value || loadingOlderMessages.value || !messagesNextCursor.value) return;
+  if (!currentSessionId.value) return;
+
+  const token = ++messagesLoadToken.value;
+  const container = messagesContainer.value;
+  const previousScrollTop = container?.scrollTop ?? 0;
+  const previousScrollHeight = container?.scrollHeight ?? 0;
+
+  loadingOlderMessages.value = true;
+  try {
+    const res = await getSessionMessages(currentSessionId.value, {
+      limit: 50,
+      before: messagesNextCursor.value
+    });
+    if (token !== messagesLoadToken.value) return; // 已过期(切换会话/新 selectSession)
+    const data = res?.data || res || {};
+    const older = (data.messages || []).map((message) => normalizeWorkspaceMessage(message));
+    if (older.length) {
+      // prepend,保持时间序(老→新)
+      messages.value = [...older, ...messages.value];
+    }
+    messagesHasMore.value = Boolean(data.hasMore);
+    messagesNextCursor.value = data.nextCursor ?? null;
+
+    await nextTick();
+    if (container) {
+      const delta = container.scrollHeight - previousScrollHeight;
+      // 临时关闭 smooth,避免写入变成动画滚动
+      const prevBehavior = container.style.scrollBehavior;
+      container.style.scrollBehavior = 'auto';
+      container.scrollTop = Math.ceil(previousScrollTop) + delta;
+      requestAnimationFrame(() => {
+        container.style.scrollBehavior = prevBehavior;
+      });
+    }
+    // 不调 setCachedSessionMessages:localStorage 仅保留初次 tail 的 50 条,不随滚动无限增长
+  } catch (error) {
+    console.warn('Failed to load older messages:', error);
+  } finally {
+    if (token === messagesLoadToken.value) {
+      loadingOlderMessages.value = false;
+    }
+  }
+};
+
+// 滚动守卫:rAF 节流,滚到顶时触发 loadOlder
+let messagesScrollRafId = null;
+const onMessagesScroll = () => {
+  if (messagesScrollRafId !== null) return;
+  messagesScrollRafId = requestAnimationFrame(() => {
+    messagesScrollRafId = null;
+    const container = messagesContainer.value;
+    if (!container) return;
+    if (container.scrollTop <= 50 && messagesHasMore.value && !loadingOlderMessages.value) {
+      loadOlderMessages();
+    }
+  });
 };
 
 const createSessionForAgent = async (agentId) => {
@@ -3167,11 +3286,16 @@ const handleAgentChange = async (agentId) => {
   currentAgentId.value = targetId;
   currentAgent.value = findAgentById(targetId);
   selectedModelName.value = currentAgent.value?.model || '';
-  await restoreConfigForAgent(targetId);
-  await loadAgentRuntimeConfig(targetId);
   activeConfigTab.value = 'tools';
 
   try {
+    // Wave 1: agent 级别配置加载,并发
+    await Promise.all([
+      restoreConfigForAgent(targetId),
+      loadAgentRuntimeConfig(targetId)
+    ]);
+
+    // Wave 2: 依赖 currentSessionId,顺序执行(沿用现有 selectSession 内部逻辑)
     await loadSessions(targetId);
     if (!sessions.value.length) {
       await createSessionForAgent(targetId);
@@ -4933,6 +5057,13 @@ watch(
   max-width: var(--chat-content-max-width);
   margin-left: auto;
   margin-right: auto;
+}
+
+.messages-container > .loading-older-indicator {
+  align-self: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 /* Custom Scrollbar for Main Area */
