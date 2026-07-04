@@ -57,7 +57,7 @@ jobs:
         run: npm run rollback:revamp:drill -- --out ./artifacts/revamp-rollback-drill.md
 
       - name: Upload revamp artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: revamp-governance-${{ github.run_id }}
           path: |
