@@ -52,7 +52,7 @@ class McpStreamableHttpTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void webConfigWiresApiKeyInterceptorsOnlyForMcpV1Endpoint() {
+    void webConfigWiresApiKeyInterceptorsForMcpAndGatewayV1Endpoints() {
         ApiKeyAuthInterceptor auth = mock(ApiKeyAuthInterceptor.class);
         ApiRateLimitInterceptor rateLimit = mock(ApiRateLimitInterceptor.class);
         WebConfig config = new WebConfig(auth, rateLimit);
@@ -64,8 +64,10 @@ class McpStreamableHttpTest {
         assertThat(registrations).hasSizeGreaterThanOrEqualTo(2);
         List<String> authPatterns = (List<String>) ReflectionTestUtils.getField(registrations.get(0), "includePatterns");
         List<String> rateLimitPatterns = (List<String>) ReflectionTestUtils.getField(registrations.get(1), "includePatterns");
-        assertThat(authPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**");
-        assertThat(rateLimitPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**");
+        assertThat(authPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
+                "/v1/chat/completions", "/v1/embeddings", "/v1/models");
+        assertThat(rateLimitPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
+                "/v1/chat/completions", "/v1/embeddings", "/v1/models");
         assertThat(authPatterns).doesNotContain("/v1/**");
         assertThat(rateLimitPatterns).doesNotContain("/v1/**");
     }
