@@ -45,7 +45,7 @@ ORIN 是一个面向中小型企业与个人使用的 AI 管理中枢，覆盖 A
 | Workflow 编排 | DSL 校验、发布、执行、任务 replay/cancel、trace summary | `/dashboard/applications/workflows` |
 | 多智能体协作 | 包/子任务/事件/人工干预入口、Workflow 子任务 smoke 已具备 | `/dashboard/applications/collaboration/dashboard` |
 | MCP 双向接入 | 外部 MCP Server 管理；ORIN Agent / Workflow 暴露为 MCP tools | [docs/mcp-client-setup.md](./docs/mcp-client-setup.md) |
-| API Key 治理 | 创建、禁用、启用、删除、轮换、调用摘要、最近历史、MCP 配置复制 | `/dashboard/control/gateway?workspace=access`、`/portal/api-keys` |
+| API Key 治理 | 创建、禁用、启用、删除、轮换、调用摘要、最近历史、MCP 配置复制 | `/dashboard/control/gateway?workspace=access`、`/platform` |
 | 知识库 | CRUD、上传、解析、向量化、检索入口已具备 | `/dashboard/resources/center` |
 | 可观测与安全 | traceId、审计、CodeQL、gitleaks、coverage artifacts、安全文档 | GitHub Actions、`/api/v1/traces/{traceId}/summary` |
 
@@ -74,9 +74,14 @@ docker compose --env-file .env up --build -d
 
 启动后访问：
 
-- 前端管理台：<http://localhost:5173>
+- 官网入口：<http://localhost:5173>
+- ORIN Chat：<http://localhost:5173/chat>
+- 开发者平台：<http://localhost:5173/platform>
+- 管理员控制台：<http://localhost:5173/dashboard>
 - 后端服务：<http://localhost:8080>（Swagger：`/swagger-ui/index.html`）
 - AI Engine：<http://localhost:8000>
+
+对外 API 域名可按 DeepSeek 风格配置为 `https://api.your-domain.com/chat/completions`，在网关层转发到后端实际入口 `/v1/chat/completions`。
 
 `.env.example` 的默认值仅用于本机 smoke。真实部署或共享环境必须替换数据库密码、`JWT_SECRET`、`ORIN_DEFAULT_ADMIN_PASSWORD`、CORS、provider key 等配置。Docker quickstart 依赖 `docker/mysql/init/01-orin-schema.sql` 作为 schema snapshot baseline 初始化 MySQL，后端启动后由 Flyway 补跑快照之后的迁移。
 

@@ -89,7 +89,7 @@ public class DashboardSummaryService {
         if (hasAnyRole(roles, OPERATOR_ROLES)) {
             return "/dashboard/applications/agents";
         }
-        return "/portal";
+        return "/chat";
     }
 
     private Map<String, Object> systemHealth() {
@@ -237,8 +237,8 @@ public class DashboardSummaryService {
             );
         }
         return List.of(
-                link("服务门户", "/portal"),
-                link("我的 API Key", "/portal/api-keys")
+                link("ORIN Chat", "/chat"),
+                link("开发者平台", "/platform")
         );
     }
 

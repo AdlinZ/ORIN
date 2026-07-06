@@ -12,6 +12,7 @@ import {
     ORGANIZATION_MENU_ROLES,
     USER_MENU_ROLES,
     canAccessAnyRole,
+    getDashboardGuardRedirect,
     getDefaultHomeByRoles
 } from './topMenuConfig'
 
@@ -103,17 +104,38 @@ const routes = [
         meta: { title: '首次初始化' }
     },
     {
-        path: '/portal',
-        name: 'UserPortal',
+        path: '/chat',
+        name: 'ChatPortal',
         component: () => import('@/views/UserPortal.vue'),
-        meta: { title: '智能体服务门户' }
+        meta: { title: 'ORIN Chat', roles: USER_MENU_ROLES }
+    },
+    {
+        path: '/platform',
+        name: 'DeveloperPlatform',
+        component: () => import('@/views/System/ApiKeyManagement.vue'),
+        props: { selfService: true },
+        meta: { title: '开发者平台', roles: API_KEY_SELF_SERVICE_ROUTE_ROLES }
+    },
+    {
+        path: '/platform/api-keys',
+        name: 'PlatformApiKeys',
+        component: () => import('@/views/System/ApiKeyManagement.vue'),
+        props: { selfService: true },
+        meta: { title: '开发者平台', roles: API_KEY_SELF_SERVICE_ROUTE_ROLES }
+    },
+    {
+        path: '/platform/docs',
+        name: 'PlatformApiDocs',
+        component: () => import('@/views/System/UnifiedApiDocs.vue'),
+        meta: { title: 'API 文档', roles: API_KEY_SELF_SERVICE_ROUTE_ROLES }
+    },
+    {
+        path: '/portal',
+        redirect: ROUTES.CHAT
     },
     {
         path: '/portal/api-keys',
-        name: 'PortalApiKeys',
-        component: () => import('@/views/System/ApiKeyManagement.vue'),
-        props: { selfService: true },
-        meta: { title: 'API 中转站', roles: API_KEY_SELF_SERVICE_ROUTE_ROLES }
+        redirect: ROUTES.PLATFORM_API_KEYS
     },
 
     // 数据大屏
@@ -888,6 +910,14 @@ router.beforeEach(async (to, from, next) => {
         if (to.path !== defaultHome) {
             return next(defaultHome)
         }
+    }
+
+    // 统一拦截 /dashboard/*：非管理员直接重定向到 ROLE_USER 入口。
+    // 补足子页面没声明 meta.roles 的边界。
+    const dashboardRedirect = getDashboardGuardRedirect(userStore.roles || [], to.path)
+    if (dashboardRedirect) {
+        ElMessage.error('您没有权限访问此页面')
+        return next(dashboardRedirect)
     }
 
     // 检查权限。父级模块和子页面都可以声明 roles，直接输入 URL 时同样生效。

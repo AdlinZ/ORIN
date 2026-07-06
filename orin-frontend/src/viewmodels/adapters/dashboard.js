@@ -58,7 +58,7 @@ export function toDashboardSummaryViewModel(payload = {}) {
 
   return {
     roles: Array.isArray(payload.roles) ? payload.roles : ['ROLE_USER'],
-    defaultHome: payload.defaultHome || '/portal',
+    defaultHome: payload.defaultHome || '/chat',
     systemHealth: normalizeHealth(payload.systemHealth),
     metrics: {
       agents: normalizeNumber(metrics.agents),

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ROUTES } from '@/router/routes'
-import { getActiveMenuId, getDefaultHomeByRoles, getVisibleMenus } from '@/router/topMenuConfig'
+import {
+  getActiveMenuId,
+  getDashboardGuardRedirect,
+  getDefaultHomeByRoles,
+  getVisibleMenus
+} from '@/router/topMenuConfig'
 
 describe('top menu IA behavior', () => {
   it('filters admin-only system domain for non-admin users', () => {
@@ -8,15 +13,17 @@ describe('top menu IA behavior', () => {
     const userMenus = getVisibleMenus(['ROLE_USER'])
 
     expect(adminMenus.some((menu) => menu.id === 'control')).toBe(true)
-    expect(userMenus).toEqual([])
+    expect(userMenus.map((menu) => menu.id)).toEqual(['chat'])
   })
 
   it('keeps API key self-service outside the admin control console', () => {
     const userMenus = getVisibleMenus(['ROLE_USER'])
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
 
-    expect(ROUTES.PORTAL_API_KEYS).toBe('/portal/api-keys')
-    expect(userMenus).toEqual([])
+    expect(ROUTES.CHAT).toBe('/chat')
+    expect(ROUTES.PLATFORM).toBe('/platform')
+    expect(ROUTES.PORTAL_API_KEYS).toBe('/platform/api-keys')
+    expect(userMenus.map((menu) => menu.id)).toEqual(['chat'])
     expect(adminMenus.find((menu) => menu.id === 'control').children).toContainEqual(expect.objectContaining({
       title: '统一网关',
       path: ROUTES.SYSTEM.GATEWAY,
@@ -25,11 +32,17 @@ describe('top menu IA behavior', () => {
 
   it('routes each role cohort to its default landing page', () => {
     expect(getDefaultHomeByRoles(['ROLE_ADMIN'])).toBe(ROUTES.SYSTEM.ADMIN_DASHBOARD)
-    expect(getDefaultHomeByRoles(['ROLE_USER'])).toBe(ROUTES.PORTAL_API_KEYS)
+    expect(getDefaultHomeByRoles(['ROLE_USER'])).toBe(ROUTES.CHAT)
   })
 
   it('keeps regular users out of dashboard navigation', () => {
-    expect(getVisibleMenus(['ROLE_USER'])).toEqual([])
+    const userMenus = getVisibleMenus(['ROLE_USER'])
+    expect(userMenus).toHaveLength(1)
+    expect(userMenus[0]).toMatchObject({ id: 'chat', path: ROUTES.CHAT })
+    expect(userMenus[0].children).toContainEqual(expect.objectContaining({
+      title: 'ORIN Chat',
+      path: ROUTES.CHAT
+    }))
   })
 
   it('shows the complete dashboard menu for admins', () => {
@@ -123,5 +136,53 @@ describe('top menu IA behavior', () => {
       path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE,
       icon: 'Connection',
     }))
+  })
+
+  it('exposes a dedicated chat entry for ROLE_USER with /chat as the only child', () => {
+    const userMenus = getVisibleMenus(['ROLE_USER'])
+    expect(userMenus).toHaveLength(1)
+    const chatMenu = userMenus[0]
+    expect(chatMenu).toMatchObject({
+      id: 'chat',
+      path: ROUTES.CHAT,
+      title: '对话'
+    })
+    expect(chatMenu.children).toEqual([
+      expect.objectContaining({ title: 'ORIN Chat', path: ROUTES.CHAT })
+    ])
+  })
+
+  it('keeps the chat entry out of the admin top menu', () => {
+    const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
+    expect(adminMenus.some((menu) => menu.id === 'chat')).toBe(false)
+  })
+
+  it('redirects ROLE_USER away from /dashboard/* to /chat via the guard helper', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard')).toBe(ROUTES.CHAT)
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/applications/agents')).toBe(ROUTES.CHAT)
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/runtime/overview')).toBe(ROUTES.CHAT)
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/control/users')).toBe(ROUTES.CHAT)
+  })
+
+  it('lets ROLE_USER stay on /dashboard/profile (shared page)', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/profile')).toBeNull()
+  })
+
+  it('does not redirect ROLE_ADMIN away from any /dashboard/* page', () => {
+    expect(getDashboardGuardRedirect(['ROLE_ADMIN'], '/dashboard')).toBeNull()
+    expect(getDashboardGuardRedirect(['ROLE_ADMIN'], '/dashboard/applications/agents')).toBeNull()
+    expect(getDashboardGuardRedirect(['ROLE_ADMIN'], '/dashboard/control/users')).toBeNull()
+  })
+
+  it('does not redirect non-dashboard paths', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/chat')).toBeNull()
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/platform')).toBeNull()
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/')).toBeNull()
+  })
+
+  it('handles empty / undefined inputs safely', () => {
+    expect(getDashboardGuardRedirect([], '/dashboard/applications/agents')).toBe(ROUTES.CHAT)
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '')).toBeNull()
+    expect(getDashboardGuardRedirect(undefined, '/dashboard/applications/agents')).toBe(ROUTES.CHAT)
   })
 })

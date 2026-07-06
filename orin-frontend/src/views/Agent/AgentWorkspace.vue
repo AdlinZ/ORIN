@@ -3140,6 +3140,10 @@ const selectSession = async (session) => {
 
   const cachedMessages = getCachedSessionMessages(session.id);
   if (cachedMessages?.length) {
+    // Cached messages are only a fallback/tail view until the server confirms
+    // the complete pagination state. Keep persist guarded to avoid overwrites.
+    messagesHasMore.value = true;
+    messagesNextCursor.value = null;
     messages.value = cachedMessages.map((message) => normalizeWorkspaceMessage(message));
     scrollToBottom();
   }

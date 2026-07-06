@@ -49,7 +49,23 @@ export function getDefaultHomeByRoles(userRoles = []) {
     return ROUTES.SYSTEM.ADMIN_DASHBOARD
   }
 
-  return ROUTES.PORTAL_API_KEYS
+  return ROUTES.CHAT
+}
+
+/**
+ * ROLE_USER 访问 /dashboard/* 时统一重定向到 /chat。
+ * /dashboard/profile 例外（个人中心对所有角色开放）。
+ *
+ * @param {string[]} userRoles  当前用户角色列表
+ * @param {string}   targetPath 目标路径
+ * @returns {string|null} 重定向目标路径，未命中返回 null
+ */
+export function getDashboardGuardRedirect(userRoles = [], targetPath = '') {
+  if (!targetPath) return null
+  if (!targetPath.startsWith('/dashboard')) return null
+  if (targetPath === '/dashboard/profile') return null
+  if (isAdminLike(userRoles)) return null
+  return ROUTES.CHAT
 }
 
 /**
@@ -133,6 +149,17 @@ export const TOP_MENU_CONFIG = [
       { title: '检索实验', path: ROUTES.KNOWLEDGE.RETRIEVAL_LAB, icon: 'Search', roles: BUILDER_MENU_ROLES },
     ],
   },
+  {
+    id: 'chat',
+    title: '对话',
+    icon: 'ChatRound',
+    color: '#0f766e',
+    path: ROUTES.CHAT,
+    roles: USER_MENU_ROLES,
+    children: [
+      { title: 'ORIN Chat', path: ROUTES.CHAT, icon: 'ChatRound', roles: USER_MENU_ROLES }
+    ],
+  },
 ]
 
 /**
@@ -147,6 +174,8 @@ export function getVisibleMenus(userRoles = []) {
     switch (menu.id) {
       case 'runtime':
         return adminLike
+      case 'chat':
+        return !adminLike && hasAnyRole(userRoles, menu.roles)
       default:
         return hasAnyRole(userRoles, menu.roles)
     }

@@ -140,8 +140,12 @@ const mcpRoutes = {
 
 export const ROUTES = {
     SETUP: '/setup',
-    PORTAL: '/portal',
-    PORTAL_API_KEYS: '/portal/api-keys',
+    CHAT: '/chat',
+    PLATFORM: '/platform',
+    PLATFORM_API_KEYS: '/platform/api-keys',
+    PLATFORM_DOCS: '/platform/docs',
+    PORTAL: '/chat',
+    PORTAL_API_KEYS: '/platform/api-keys',
     HOME: '/dashboard/runtime/overview',
     MCP: mcpRoutes,
     AGENTS: agentRoutes,

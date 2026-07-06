@@ -203,7 +203,7 @@ public class AgentChatService {
             all = new ArrayList<>();
         }
 
-        int windowEnd = (beforeIndex == null) ? all.size() : Math.min(beforeIndex, all.size());
+        int windowEnd = (beforeIndex == null) ? all.size() : Math.max(0, Math.min(beforeIndex, all.size()));
 
         List<Map<String, Object>> slice;
         int nextCursor;

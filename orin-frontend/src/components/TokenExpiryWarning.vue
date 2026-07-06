@@ -24,19 +24,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { useUserStore } from '@/stores/user';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 
 const userStore = useUserStore();
+const route = useRoute();
 const router = useRouter();
 
 const showWarning = ref(false);
 const warningMessage = ref('');
 let checkInterval = null;
+const shouldCheckTokenExpiry = computed(() => route.path === ROUTES.CHAT || route.path.startsWith('/dashboard'));
 
 // 检查 Token 状态
 function checkTokenStatus() {
+  if (!shouldCheckTokenExpiry.value) {
+    showWarning.value = false;
+    return;
+  }
+
   if (!userStore.isLoggedIn) {
     showWarning.value = false;
     return;
@@ -65,6 +73,11 @@ watch(() => userStore.isLoggedIn, (newVal) => {
     checkTokenStatus();
   }
 }, { immediate: true });
+
+watch(() => route.path, () => {
+  showWarning.value = false;
+  checkTokenStatus();
+});
 
 // 重新登录
 function handleRelogin() {

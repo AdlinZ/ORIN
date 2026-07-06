@@ -469,7 +469,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { marked } from 'marked';
@@ -497,25 +497,31 @@ import {
   VideoCamera
 } from '@element-plus/icons-vue';
 import {
+  attachKnowledgeBase,
   createChatSession,
   deleteChatSession,
+  detachKnowledgeBase,
   getAttachedKnowledgeBases,
   getSessionMessages,
   listAgents,
   listChatSessions,
   listKnowledgeBases,
-  sendChatMessage
+  sendChatMessage,
+  sendChatMessageStream
 } from '@/api/agent-chat';
 import { chatAgent } from '@/api/agent';
 import { uploadMultimodalFile } from '@/api/multimodal';
 import { useUserStore } from '@/stores/user';
 import { ROUTES } from '@/router/routes';
+import { useChatSelectionPersistence } from '@/composables/useChatSelectionPersistence';
+import { formatChatError } from '@/utils/formatChatError';
 import ImageGenerator from '@/views/Agent/components/ImageGenerator.vue';
 import VideoGenerator from '@/views/Agent/components/VideoGenerator.vue';
 import AudioGenerator from '@/views/Agent/components/AudioGenerator.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
+const persistence = useChatSelectionPersistence();
 
 const agents = ref([]);
 const knowledgeBases = ref([]);
@@ -524,6 +530,7 @@ const messages = ref([]);
 const currentAgentId = ref('');
 const currentSessionId = ref('');
 const selectedKbIds = ref([]);
+const attachedKbIds = ref([]); // 后端当前实际绑定的 KB id，用于 diff 同步
 const selectedUploadFileId = ref('');
 const selectedUploadFileName = ref('');
 const inputMessage = ref('');
@@ -911,6 +918,7 @@ const ensureSession = async () => {
   });
   const session = normalizeSession(res?.data ?? res);
   currentSessionId.value = session.id;
+  persistence.persistSession(session.id);
   if (session.id && !sessions.value.some((item) => item.id === session.id)) {
     sessions.value.unshift(session);
   }
@@ -920,22 +928,60 @@ const ensureSession = async () => {
 const loadAttachedKnowledgeBases = async () => {
   if (!currentSessionId.value) {
     selectedKbIds.value = [];
+    attachedKbIds.value = [];
     return;
   }
 
   try {
     const res = await getAttachedKnowledgeBases(currentSessionId.value);
-    selectedKbIds.value = unwrapList(res).map((kb) => normalizeId(kb.id ?? kb.kbId ?? kb.knowledgeBaseId)).filter(Boolean);
+    const ids = unwrapList(res).map((kb) => normalizeId(kb.id ?? kb.kbId ?? kb.knowledgeBaseId)).filter(Boolean);
+    attachedKbIds.value = ids;
+    selectedKbIds.value = ids.slice();
   } catch (error) {
     selectedKbIds.value = [];
+    attachedKbIds.value = [];
   }
 };
+
+const syncSelectedKbIds = async () => {
+  const sessionId = currentSessionId.value;
+  if (!sessionId) {
+    attachedKbIds.value = selectedKbIds.value.slice();
+    return;
+  }
+  const target = new Set(selectedKbIds.value);
+  const current = new Set(attachedKbIds.value);
+  const toAdd = [...target].filter((id) => !current.has(id));
+  const toRemove = [...current].filter((id) => !target.has(id));
+  if (toAdd.length === 0 && toRemove.length === 0) return;
+  try {
+    await Promise.all([
+      ...toAdd.map((kbId) => attachKnowledgeBase(sessionId, kbId)),
+      ...toRemove.map((kbId) => detachKnowledgeBase(sessionId, kbId))
+    ]);
+    attachedKbIds.value = [...target];
+  } catch (error) {
+    // 失败时回滚本地视图，让 UI 状态与后端保持一致
+    selectedKbIds.value = attachedKbIds.value.slice();
+    ElMessage.error(formatChatError(error) || '参考资料范围同步失败');
+  }
+};
+
+watch(selectedKbIds, () => {
+  // 仅在已存在会话时把 KB 变化写回后端；选 agent 阶段 attach 暂不调用
+  if (currentSessionId.value) {
+    syncSelectedKbIds()
+  }
+});
 
 const selectAgent = async (agent) => {
   currentAgentId.value = agent.id;
   currentSessionId.value = '';
   messages.value = [];
   selectedKbIds.value = [];
+  attachedKbIds.value = [];
+  persistence.persistAgent(agent.id);
+  persistence.clearSession();
   await loadSessions();
 };
 
@@ -954,6 +1000,8 @@ const startNewSession = async () => {
   currentSessionId.value = '';
   messages.value = [];
   selectedKbIds.value = [];
+  attachedKbIds.value = [];
+  persistence.clearSession();
   clearUploadedFile();
   await ensureSession();
   await loadSessions();
@@ -964,6 +1012,8 @@ const openSession = async (session) => {
   showServicePanel.value = false;
   currentSessionId.value = session.id;
   selectedKbIds.value = [];
+  attachedKbIds.value = [];
+  persistence.persistSession(session.id);
   try {
     const res = await getSessionMessages(session.id);
     const rawMessages = (res?.data || res || {}).messages || [];
@@ -971,7 +1021,8 @@ const openSession = async (session) => {
     await loadAttachedKnowledgeBases();
     await scrollToBottom();
   } catch (error) {
-    ElMessage.error('会话加载失败');
+    persistence.clearSession();
+    ElMessage.error(formatChatError(error) || '会话加载失败');
   }
 };
 
@@ -1001,14 +1052,16 @@ const removeSession = async (session) => {
     if (currentSessionId.value === sessionId) {
       messages.value = [];
       selectedKbIds.value = [];
+      attachedKbIds.value = [];
       currentSessionId.value = '';
+      persistence.clearSession();
       const nextSession = sessions.value[0];
       if (nextSession) {
         await openSession(nextSession);
       }
     }
   } catch (error) {
-    ElMessage.error(error?.message || '删除会话失败');
+    ElMessage.error(formatChatError(error) || '删除会话失败');
   }
 };
 
@@ -1282,34 +1335,155 @@ const sendMessage = async () => {
   sending.value = true;
   await scrollToBottom();
 
-  try {
-    const res = hasAttachment
-      ? await chatAgent(
+  // 附件走 chatAgent（多模态通道）；纯文本优先尝试 SSE 流式，失败则回退 blocking。
+  if (hasAttachment) {
+    try {
+      const res = await chatAgent(
         currentAgentId.value,
         outboundMessage || `请帮我处理这个文件：${selectedUploadFileName.value || '已上传附件'}`,
         selectedUploadFileId.value
-      )
-      : await sendChatMessage(sessionId, {
+      );
+      messages.value.push({
+        role: 'assistant',
+        content: extractAssistantReply(res),
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      messages.value.push({
+        role: 'assistant',
+        content: formatChatError(error),
+        createdAt: new Date().toISOString()
+      });
+    } finally {
+      clearUploadedFile();
+      sending.value = false;
+      await loadSessions();
+      await scrollToBottom();
+    }
+    return;
+  }
+
+  // 纯文本：SSE 流式优先；网络 / 解析失败自动回退 blocking。
+  const assistantIndex = messages.value.length;
+  let assistantContent = '';
+  let assistantCreatedAt = new Date().toISOString();
+  let usedStream = false;
+  const renderStreamAssistant = (content) => {
+    if (!content) return
+    usedStream = true
+    assistantContent = content
+    const assistantMessage = {
+      role: 'assistant',
+      content: assistantContent,
+      createdAt: assistantCreatedAt
+    }
+    if (messages.value[assistantIndex]?.role !== 'assistant') {
+      messages.value.push(assistantMessage)
+    } else {
+      messages.value[assistantIndex] = assistantMessage
+    }
+    scrollToBottom()
+  }
+
+  try {
+    await sendChatMessageStream(
+      sessionId,
+      { message: outboundMessage, kbIds: selectedKbIds.value },
+      {
+        message: (payload) => {
+          // 单条 message 事件：当后端不发送 delta 时使用，作为"已完成的整段回复"
+          if (!usedStream && payload && typeof payload === 'object') {
+            const text = extractAssistantReply({ data: payload });
+            if (text) {
+              renderStreamAssistant(text)
+            }
+          } else if (typeof payload === 'string' && payload) {
+            // 纯文本事件：把片段追加到当前 assistant 气泡
+            renderStreamAssistant(`${assistantContent}${payload}`)
+          }
+        },
+        delta: (payload) => {
+          // 增量片段（增量流）
+          const piece = typeof payload === 'string'
+            ? payload
+            : (payload && typeof payload === 'object'
+              ? (payload.delta || payload.content || payload.text || '')
+              : '')
+          if (!piece) return
+          renderStreamAssistant(`${assistantContent}${piece}`)
+        },
+        error: (payload) => {
+          const err = new Error(
+            (payload && typeof payload === 'object' && payload.message) || 'SSE 通道返回错误'
+          )
+          err.response = { data: payload || {} }
+          throw err
+        },
+        done: (payload) => {
+          const text = normalizeReplyText(payload)
+          if (text) {
+            renderStreamAssistant(text)
+          }
+        }
+      }
+    )
+    // 流式通道成功但没有返回最终内容时才用 blocking 兜底。
+    if (!usedStream) {
+      const res = await sendChatMessage(sessionId, {
         message: outboundMessage,
         kbIds: selectedKbIds.value
-      });
-
-    messages.value.push({
-      role: 'assistant',
-      content: extractAssistantReply(res),
-      createdAt: new Date().toISOString()
-    });
-    clearUploadedFile();
-    await loadSessions();
-  } catch (error) {
-    messages.value.push({
-      role: 'assistant',
-      content: '请求失败，请稍后重试或联系管理员检查智能体服务状态。',
-      createdAt: new Date().toISOString()
-    });
+      })
+      messages.value.push({
+        role: 'assistant',
+        content: extractAssistantReply(res),
+        createdAt: new Date().toISOString()
+      })
+    } else if (messages.value[assistantIndex]?.role === 'assistant') {
+      // 保留流式结果（createdAt 已被 stream 设置）
+    } else if (assistantContent) {
+      messages.value.push({
+        role: 'assistant',
+        content: assistantContent,
+        createdAt: assistantCreatedAt
+      })
+    }
+  } catch (streamError) {
+    // SSE 抛错：尝试回退到 blocking；如 blocking 不可用再写入错误气泡
+    try {
+      const res = await sendChatMessage(sessionId, {
+        message: outboundMessage,
+        kbIds: selectedKbIds.value
+      })
+      // 如果流式已经有部分内容，丢弃（因为完整 blocking 响应已拿到）
+      if (messages.value[assistantIndex]?.role === 'assistant') {
+        messages.value.splice(assistantIndex, 1)
+      }
+      messages.value.push({
+        role: 'assistant',
+        content: extractAssistantReply(res),
+        createdAt: new Date().toISOString()
+      })
+    } catch (fallbackError) {
+      const finalError = fallbackError || streamError
+      const formatted = formatChatError(finalError)
+      if (messages.value[assistantIndex]?.role === 'assistant') {
+        messages.value[assistantIndex] = {
+          role: 'assistant',
+          content: assistantContent ? `${assistantContent}\n\n${formatted}` : formatted,
+          createdAt: assistantCreatedAt
+        }
+      } else {
+        messages.value.push({
+          role: 'assistant',
+          content: formatted,
+          createdAt: new Date().toISOString()
+        })
+      }
+    }
   } finally {
-    sending.value = false;
-    await scrollToBottom();
+    sending.value = false
+    await loadSessions()
+    await scrollToBottom()
   }
 };
 
@@ -1357,7 +1531,7 @@ const handleUserCommand = (command) => {
     return;
   }
   if (command === 'apiKeys') {
-    router.push(ROUTES.PORTAL_API_KEYS);
+    router.push(ROUTES.PLATFORM);
     return;
   }
   if (command === 'dashboard') {
@@ -1383,9 +1557,28 @@ const formatDate = (value) => {
 };
 
 onMounted(async () => {
+  const persisted = persistence.restore();
   await refreshPortal();
-  if (agents.value.length) {
-    await selectAgent(agents.value[0]);
+
+  if (!agents.value.length) {
+    return;
+  }
+
+  // 恢复智能体选择：被持久化的 agent 必须仍存在
+  const persistedAgent = persisted.agentId
+    ? agents.value.find((a) => a.id === persisted.agentId)
+    : null;
+  const fallbackAgent = persistedAgent || agents.value[0];
+
+  await selectAgent(fallbackAgent);
+
+  // 恢复最近会话：调用方需捕获失败并清掉失效 id
+  if (persisted.sessionId && persistedAgent) {
+    try {
+      await openSession({ id: persisted.sessionId, title: '上次对话' });
+    } catch (error) {
+      persistence.clearSession();
+    }
   }
 });
 </script>

@@ -117,6 +117,14 @@ application-*.local.properties
 orin-backend/storage/
 
 # ============================================
+# Playwright artifacts
+# ============================================
+# Playwright 默认把错误上下文与 .last-run.json 写到 test-results/，
+# HTML 报告写到 playwright-report/；它们是运行产物，不入库。
+orin-frontend/test-results/
+orin-frontend/playwright-report/
+
+# ============================================
 # Python Specific
 # ============================================
 __pycache__/

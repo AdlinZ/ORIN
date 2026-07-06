@@ -7,7 +7,7 @@
         </button>
 
         <div class="nav-center">
-          <button type="button" @click="scrollToSection('roles')">角色入口</button>
+          <button type="button" @click="scrollToSection('roles')">产品入口</button>
           <button type="button" @click="scrollToSection('platform')">平台能力</button>
           <button type="button" @click="scrollToSection('github')">GitHub</button>
           <button type="button" @click="openApiDocs">API 文档</button>
@@ -47,17 +47,17 @@
     <main class="landing-page">
       <section class="hero-section">
         <a class="release-pill" href="#roles" @click.prevent="scrollToSection('roles')">
-          <span>ORIN Platform</span>
-          <strong>面向中小企业与个人的 AI 管理中枢</strong>
+          <span>ORIN</span>
+          <strong>官网 · Chat · Platform · Dashboard</strong>
           <el-icon><ArrowRight /></el-icon>
         </a>
 
         <h1 class="hero-title">
-          <span>让团队和个人都有</span>
-          <span class="title-accent">自己的 AI 管理中枢</span>
+          <span>面向团队和个人的</span>
+          <span class="title-accent">AI 管理中枢</span>
         </h1>
         <p class="hero-subtitle">
-          ORIN 连接智能体、知识库、工作流、MCP 工具与观测链路，帮助中小型企业和个人把 AI 应用接入、知识沉淀、流程编排和运行治理放在同一个开源平台里逐步闭环。
+          ORIN 将官网、普通用户 Chat、开发者 Platform 和管理员 Dashboard 拆成清晰的产品线，帮助中小型企业和个人把 AI 对话、API 调用、知识资产、工作流与运行治理放在同一个开源体系里闭环。
         </p>
 
         <div class="hero-actions">
@@ -67,6 +67,9 @@
           </el-button>
           <el-button size="large" class="secondary-button" @click="goAdminConsole">
             我是平台管理者
+          </el-button>
+          <el-button size="large" class="platform-button" @click="goDeveloperPlatform">
+            开发者平台
           </el-button>
           <el-button size="large" class="github-button" @click="openGithub">
             <GithubIcon :size="18" />
@@ -80,6 +83,12 @@
             {{ item.label }}
           </span>
         </div>
+
+        <div class="api-route-card" aria-label="ORIN 对外 API 路由">
+          <span>Public API</span>
+          <code>api.your-domain.com/chat/completions</code>
+          <strong>→ /v1/chat/completions</strong>
+        </div>
       </section>
 
       <section class="product-stage" aria-label="ORIN 产品入口预览">
@@ -89,23 +98,23 @@
             <span />
             <span />
             <div>
-              <strong>ORIN Console</strong>
+              <strong>ORIN Product Suite</strong>
             </div>
           </div>
 
           <div class="product-preview">
             <aside class="preview-sidebar">
-              <span class="preview-brand">AI 中枢</span>
-              <span>知识资产</span>
-              <span>流程编排</span>
-              <span>运营观测</span>
+              <span class="preview-brand">官网</span>
+              <span>Chat</span>
+              <span>Platform</span>
+              <span>Dashboard</span>
             </aside>
 
             <section class="preview-main">
               <div class="preview-header">
                 <div>
                   <span>Overview</span>
-                  <h2>智能体管理与运行中枢</h2>
+                  <h2>四个入口，一套 AI 管理底座</h2>
                 </div>
                 <div class="preview-status">
                   <i />
@@ -123,7 +132,7 @@
               <div class="preview-panel">
                 <div class="panel-copy">
                   <span>Workspace</span>
-                  <strong>个人工作台与团队治理台共享同一套底层能力</strong>
+                  <strong>普通用户、开发者和管理员共享同一套底层能力</strong>
                 </div>
                 <div class="panel-lines">
                   <i />
@@ -142,21 +151,24 @@
 
       <section id="roles" class="roles-section">
         <div class="section-heading">
-          <span>Platform entry</span>
-          <h2>同一平台，面向不同使用场景</h2>
-          <p>个人侧关注可用的智能体、知识检索和自动化流程，团队侧关注应用接入、资源配置、权限边界和运行状态。</p>
+          <span>Product entry</span>
+          <h2>像 DeepSeek 一样拆清入口，但保留 ORIN 的管理能力</h2>
+          <p>普通用户默认进 Chat，开发者和 API 调用方进 Platform，管理员继续使用 Dashboard；官网只负责介绍、分流和开源展示。</p>
         </div>
 
-        <div class="role-row">
-          <button type="button" class="role-link" @click="goUserPortal">
-            <span>业务使用侧</span>
-            <strong>AI 服务工作台</strong>
-            <el-icon><ArrowRight /></el-icon>
-          </button>
-
-          <button type="button" class="role-link admin" @click="goAdminConsole">
-            <span>平台治理侧</span>
-            <strong>管理控制台</strong>
+        <div class="entry-grid">
+          <button
+            v-for="entry in productEntries"
+            :key="entry.title"
+            type="button"
+            class="entry-card"
+            :class="entry.variant"
+            @click="entry.action"
+          >
+            <component :is="entry.icon" :size="24" />
+            <span>{{ entry.kicker }}</span>
+            <strong>{{ entry.title }}</strong>
+            <small>{{ entry.desc }}</small>
             <el-icon><ArrowRight /></el-icon>
           </button>
         </div>
@@ -231,7 +243,13 @@ import {
   SwitchButton,
   User as UserIcon,
 } from '@element-plus/icons-vue'
-import { ExternalLink as ExternalLinkIcon, Github as GithubIcon } from 'lucide-vue-next'
+import {
+  ExternalLink as ExternalLinkIcon,
+  Github as GithubIcon,
+  KeyRound,
+  MessageCircle,
+  ShieldCheck,
+} from 'lucide-vue-next'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -304,12 +322,48 @@ const goLogin = () => {
 }
 
 const goUserPortal = () => {
-  router.push(ROUTES.PORTAL)
+  router.push(ROUTES.CHAT)
+}
+
+const goDeveloperPlatform = () => {
+  if (!isLoggedIn.value) {
+    router.push(ROUTES.LOGIN)
+    return
+  }
+
+  router.push(ROUTES.PLATFORM)
 }
 
 const goAdminConsole = () => {
   router.push(isLoggedIn.value ? getWorkspaceRoute() : ROUTES.LOGIN)
 }
+
+const productEntries = [
+  {
+    kicker: '普通用户',
+    title: 'ORIN Chat',
+    desc: '面向日常使用的智能体对话、知识问答、文件处理和 AI 创作入口。',
+    icon: MessageCircle,
+    variant: 'chat',
+    action: goUserPortal,
+  },
+  {
+    kicker: '开发者 / API 调用方',
+    title: 'Developer Platform',
+    desc: '创建 CLIENT_ACCESS Key，查看调用历史，复制 MCP 配置并接入开放 API。',
+    icon: KeyRound,
+    variant: 'platform',
+    action: goDeveloperPlatform,
+  },
+  {
+    kicker: '管理员',
+    title: 'Dashboard',
+    desc: '管理 Agent、模型、知识库、Workflow、MCP 服务、监控、权限和审计。',
+    icon: ShieldCheck,
+    variant: 'admin',
+    action: goAdminConsole,
+  },
+]
 
 const handleLogout = () => {
   Cookies.remove('orin_token')
@@ -363,7 +417,7 @@ const handlePointerMove = (event) => {
 
 const initScrollEffects = () => {
   const targets = document.querySelectorAll(
-    '.product-stage, .roles-section, .platform-section, .github-section, .role-link, .capability-card, .github-panel',
+    '.product-stage, .roles-section, .platform-section, .github-section, .entry-card, .capability-card, .github-panel',
   )
 
   revealObserver = new IntersectionObserver(
@@ -438,8 +492,7 @@ onBeforeUnmount(() => {
 }
 
 .logo-button,
-.nav-center button,
-.role-link {
+.nav-center button {
   border: 0;
   background: transparent;
   color: inherit;
@@ -622,6 +675,12 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 
+.platform-button {
+  border-color: rgba(37, 99, 235, 0.22);
+  color: var(--home-blue);
+  background: #fff;
+}
+
 .github-button {
   display: inline-flex;
   align-items: center;
@@ -651,6 +710,40 @@ onBeforeUnmount(() => {
 .hero-proof strong {
   color: var(--home-primary-dark);
   font-size: 22px;
+}
+
+.api-route-card {
+  width: fit-content;
+  max-width: 100%;
+  margin: 24px auto 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(16, 24, 40, 0.1);
+  border-radius: 8px;
+  background: #101828;
+  color: #fff;
+  box-shadow: 0 18px 44px rgba(16, 24, 40, 0.12);
+  animation: riseIn 0.8s ease 0.46s both;
+}
+
+.api-route-card span {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.api-route-card code {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.api-route-card strong {
+  color: #99f6e4;
+  font-size: 13px;
 }
 
 .product-stage {
@@ -916,53 +1009,74 @@ onBeforeUnmount(() => {
   line-height: 1.75;
 }
 
-.role-row {
+.entry-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
-.role-link {
-  min-height: 112px;
+.entry-card {
+  min-height: 210px;
   padding: 24px;
   border: 1px solid rgba(0, 191, 165, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.8);
   text-align: left;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
   transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
 }
 
-.role-link:hover,
+.entry-card:hover,
 .capability-card:hover {
   transform: translateY(-4px);
   border-color: rgba(0, 191, 165, 0.3);
   box-shadow: 0 18px 42px rgba(15, 118, 110, 0.1);
 }
 
-.role-link span,
-.role-link strong {
+.entry-card span,
+.entry-card strong,
+.entry-card small {
   display: block;
 }
 
-.role-link span {
+.entry-card span {
+  margin-top: 18px;
   color: var(--home-muted);
   font-size: 13px;
   font-weight: 760;
 }
 
-.role-link strong {
+.entry-card strong {
   margin-top: 8px;
   color: var(--home-primary-dark);
   font-size: 22px;
 }
 
-.role-link .el-icon {
-  margin-top: 14px;
+.entry-card small {
+  min-height: 66px;
+  margin-top: 10px;
+  color: var(--home-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.entry-card > svg {
   color: var(--home-primary-dark);
 }
 
-.role-link.admin strong,
-.role-link.admin .el-icon {
+.entry-card .el-icon {
+  margin-top: 16px;
+  color: var(--home-primary-dark);
+}
+
+.entry-card.platform strong,
+.entry-card.platform > svg,
+.entry-card.platform .el-icon,
+.entry-card.admin strong,
+.entry-card.admin > svg,
+.entry-card.admin .el-icon {
   color: var(--home-blue);
 }
 
@@ -986,7 +1100,7 @@ onBeforeUnmount(() => {
 .roles-section,
 .platform-section,
 .github-section,
-.role-link,
+.entry-card,
 .capability-card,
 .github-panel {
   opacity: 0;
@@ -998,18 +1112,19 @@ onBeforeUnmount(() => {
 .roles-section.is-visible,
 .platform-section.is-visible,
 .github-section.is-visible,
-.role-link.is-visible,
+.entry-card.is-visible,
 .capability-card.is-visible,
 .github-panel.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-.role-link:nth-child(2),
+.entry-card:nth-child(2),
 .capability-card:nth-child(2) {
   transition-delay: 0.08s;
 }
 
+.entry-card:nth-child(3),
 .capability-card:nth-child(3) {
   transition-delay: 0.16s;
 }
@@ -1257,11 +1372,15 @@ onBeforeUnmount(() => {
     padding: 20px;
   }
 
-  .role-row,
+  .entry-grid,
   .capability-list,
   .preview-metrics,
   .github-section {
     grid-template-columns: 1fr;
+  }
+
+  .entry-card {
+    min-height: auto;
   }
 
   .github-panel {
@@ -1286,6 +1405,12 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 
+  .api-route-card {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .preview-header {
     flex-direction: column;
   }
@@ -1305,7 +1430,7 @@ onBeforeUnmount(() => {
   .roles-section,
   .platform-section,
   .github-section,
-  .role-link,
+  .entry-card,
   .capability-card,
   .github-panel {
     opacity: 1 !important;

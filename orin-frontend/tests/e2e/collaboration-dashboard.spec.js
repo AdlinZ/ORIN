@@ -410,7 +410,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
 
     await authenticate(page, ['ROLE_USER'])
     await page.goto('/dashboard/control/users')
-    await expect(page).toHaveURL(/\/portal\/api-keys/)
+    await expect(page).toHaveURL(/\/chat/)
   })
 
   test('keeps regular users on the API relay station instead of dashboard modules', async ({ page }) => {
@@ -419,17 +419,17 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await authenticate(page, ['ROLE_USER'])
     await page.goto('/dashboard')
 
-    await expect(page).toHaveURL(/\/portal\/api-keys/)
+    await expect(page).toHaveURL(/\/chat/)
     await page.goto('/dashboard/applications/agents')
-    await expect(page).toHaveURL(/\/portal\/api-keys/)
+    await expect(page).toHaveURL(/\/chat/)
   })
 
-  test('lets regular users manage only self-service API keys from the portal route', async ({ page }) => {
+  test('lets regular users manage only self-service API keys from the platform route', async ({ page }) => {
     const backend = createApiKeyBackend()
     await page.route('**/api/v1/**', backend.route)
 
     await authenticate(page, ['ROLE_USER'])
-    await page.goto('/portal/api-keys')
+    await page.goto('/platform')
 
     await expect(page.getByText('API 中转站').first()).toBeVisible()
     await expect(page.getByText('API Key 自助').first()).toBeVisible()

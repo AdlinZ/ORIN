@@ -40,7 +40,7 @@ describe('dashboard summary viewmodel', () => {
     const vm = toDashboardSummaryViewModel()
 
     expect(vm.roles).toEqual(['ROLE_USER'])
-    expect(vm.defaultHome).toBe('/portal')
+    expect(vm.defaultHome).toBe('/chat')
     expect(vm.systemHealth.backend.status).toBe('UNKNOWN')
     expect(vm.metrics.openTasks).toBe(0)
     expect(vm.recentActivity).toEqual([])

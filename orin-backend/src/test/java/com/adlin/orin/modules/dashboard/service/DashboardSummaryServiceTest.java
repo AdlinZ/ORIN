@@ -142,7 +142,7 @@ class DashboardSummaryServiceTest {
 
         Map<String, Object> summary = service.getSummary(null);
 
-        assertThat(summary.get("defaultHome")).isEqualTo("/portal");
+        assertThat(summary.get("defaultHome")).isEqualTo("/chat");
         assertTrue(((List<?>) summary.get("roles")).contains("ROLE_USER"));
         Map<?, ?> aiEngine = (Map<?, ?>) ((Map<?, ?>) summary.get("systemHealth")).get("aiEngine");
         assertThat(aiEngine.get("status")).isEqualTo("DOWN");

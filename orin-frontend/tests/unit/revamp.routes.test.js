@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LEGACY_ROUTE_REDIRECTS, ROUTES } from '@/router/routes'
+import { getDashboardGuardRedirect } from '@/router/topMenuConfig'
 
 describe('route cleanup contracts', () => {
   it('contains no self redirect entries', () => {
@@ -10,6 +11,11 @@ describe('route cleanup contracts', () => {
 
   it('keeps required historical paths', () => {
     expect(ROUTES.SETUP).toBe('/setup')
+    expect(ROUTES.CHAT).toBe('/chat')
+    expect(ROUTES.PLATFORM).toBe('/platform')
+    expect(ROUTES.PLATFORM_API_KEYS).toBe('/platform/api-keys')
+    expect(ROUTES.PORTAL).toBe(ROUTES.CHAT)
+    expect(ROUTES.PORTAL_API_KEYS).toBe(ROUTES.PLATFORM_API_KEYS)
     expect(LEGACY_ROUTE_REDIRECTS['/workflow']).toBe('/dashboard/applications/workflows')
     expect(LEGACY_ROUTE_REDIRECTS['/system/api-keys']).toBe('/dashboard/control/gateway?workspace=access')
   })
@@ -74,5 +80,29 @@ describe('route cleanup contracts', () => {
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/workflows-v2/:id']).toBe(
       ROUTES.AGENTS.WORKFLOWS
     )
+  })
+})
+
+describe('ROLE_USER dashboard boundary', () => {
+  it('redirects ROLE_USER on /dashboard/applications/agents to /chat', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/applications/agents')).toBe(ROUTES.CHAT)
+  })
+
+  it('redirects ROLE_USER on /dashboard/runtime/overview to /chat', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/runtime/overview')).toBe(ROUTES.CHAT)
+  })
+
+  it('redirects ROLE_USER on /dashboard/control/users to /chat', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/control/users')).toBe(ROUTES.CHAT)
+  })
+
+  it('does not redirect ROLE_USER on /dashboard/profile (shared)', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/profile')).toBeNull()
+  })
+
+  it('does not redirect ROLE_ADMIN on any /dashboard path', () => {
+    expect(getDashboardGuardRedirect(['ROLE_ADMIN'], '/dashboard/applications/agents')).toBeNull()
+    expect(getDashboardGuardRedirect(['ROLE_ADMIN'], '/dashboard/control/users')).toBeNull()
+    expect(getDashboardGuardRedirect(['ROLE_ADMIN'], '/dashboard/profile')).toBeNull()
   })
 })

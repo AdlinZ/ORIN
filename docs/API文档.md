@@ -23,7 +23,9 @@
 | `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token |
 | `/v1/health` · `/api/v1/health` | 无 | 健康检查公开 |
 
-API Key 创建：管理员在管理台 `/dashboard/control/gateway` 的访问凭据区域创建；普通用户 / 运维在 `/portal/api-keys` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
+API Key 创建：管理员在管理台 `/dashboard/control/gateway` 的访问凭据区域创建；开发者 / API 调用方在 `/platform` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
+
+对外产品化域名建议使用 `api.<your-domain>/chat/completions`，由网关 / Nginx 转发到后端实际协议入口 `/v1/chat/completions`。代码层继续保持 `/v1/*` 作为 API Key 对外协议前缀，避免新增并行接口前缀。
 
 API Key 生命周期接口：
 
@@ -78,7 +80,7 @@ ORIN_ADMIN_PASSWORD=<由本地配置或初始化向导创建的管理员密码>
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d "{\"username\":\"admin\",\"password\":\"${ORIN_ADMIN_PASSWORD}\"}"
-# → { "token": "...", "refreshToken": "..." }
+# → { "token": "...", "user": { "userId": 1, "username": "admin", ... }, "roles": ["ROLE_ADMIN"] }
 ```
 
 后续请求附加：`Authorization: Bearer <token>`
@@ -290,6 +292,55 @@ curl -X POST http://localhost:8080/api/v1/agents/{agentId}/chat \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{ "message": "..." }'
 ```
+
+#### 4.5.1 智能体对话会话（ROLE_USER /chat 入口）
+
+`/api/v1/agents/chat/sessions/**` 是 `/chat` 页面使用的会话 / 消息 / 知识库附加接口，前端走 `src/api/agent-chat.js`，全部归入既有 `/api/v1/agents/chat/` 前缀。
+
+```bash
+# 列出会话（可按 agentId 过滤）
+curl 'http://localhost:8080/api/v1/agents/chat/sessions?agentId=<id>' \
+  -H "Authorization: Bearer $TOKEN"
+
+# 创建会话
+curl -X POST http://localhost:8080/api/v1/agents/chat/sessions \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"agentId":"<id>","title":"<可选标题>"}'
+
+# 获取会话元信息（不包含 messages）
+curl http://localhost:8080/api/v1/agents/chat/sessions/<sessionId> \
+  -H "Authorization: Bearer $TOKEN"
+
+# 获取会话消息（支持分页）
+curl 'http://localhost:8080/api/v1/agents/chat/sessions/<sessionId>/messages?limit=50&before=<索引>' \
+  -H "Authorization: Bearer $TOKEN"
+
+# 发送消息（blocking）
+curl -X POST http://localhost:8080/api/v1/agents/chat/sessions/<sessionId>/messages \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"message":"<用户消息>","kbIds":["<可选>"]}'
+
+# 发送消息（SSE 流式）
+curl -N -X POST http://localhost:8080/api/v1/agents/chat/sessions/<sessionId>/messages/stream \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"message":"<用户消息>","kbIds":["<可选>"]}'
+
+# 知识库附加 / 解绑 / 列出
+curl -X POST http://localhost:8080/api/v1/agents/chat/sessions/<sessionId>/attach-kb \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"kbId":"<id>"}'
+curl -X POST http://localhost:8080/api/v1/agents/chat/sessions/<sessionId>/detach-kb \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"kbId":"<id>"}'
+curl http://localhost:8080/api/v1/agents/chat/sessions/<sessionId>/kbs \
+  -H "Authorization: Bearer $TOKEN"
+
+# 删除会话
+curl -X DELETE http://localhost:8080/api/v1/agents/chat/sessions/<sessionId> \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+错误响应统一带 `traceId`（与 `4.4.4` 同源），前端 `request.js → buildErrorMessage` 会把它附在 message 末尾，ROLE_USER 的 `/chat` 对话区会展示该 traceId 便于排错。
 
 ### 4.6 知识库
 
