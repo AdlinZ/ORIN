@@ -7,8 +7,8 @@ import com.adlin.orin.modules.conversation.service.AgentChatService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,18 +16,27 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/v1/agents/chat")
-@RequiredArgsConstructor
 @Slf4j
 @Tag(name = "智能体对话", description = "智能体工作台 - 支持知识库附加的对话接口")
 public class AgentChatController {
 
     private final AgentChatService agentChatService;
     private final ObjectMapper objectMapper;
+    private final Executor taskExecutor;
+
+    public AgentChatController(
+            AgentChatService agentChatService,
+            ObjectMapper objectMapper,
+            @Qualifier("taskExecutor") Executor taskExecutor) {
+        this.agentChatService = agentChatService;
+        this.objectMapper = objectMapper;
+        this.taskExecutor = taskExecutor;
+    }
 
     @Operation(summary = "创建会话")
     @PostMapping("/sessions")
@@ -81,7 +90,7 @@ public class AgentChatController {
             @RequestBody ChatMessageRequest request) {
         SseEmitter emitter = new SseEmitter(180_000L);
 
-        CompletableFuture.runAsync(() -> {
+        taskExecutor.execute(() -> {
             try {
                 agentChatService.sendMessageStream(sessionId, request, (eventType, payload) -> {
                     try {

@@ -3,6 +3,7 @@ package com.adlin.orin.modules.collaboration.controller;
 import com.adlin.orin.modules.collaboration.dto.CollabSessionDtos;
 import com.adlin.orin.modules.collaboration.service.CollaborationSessionService;
 import com.adlin.orin.modules.collaboration.service.CollaborationSessionStreamService;
+import com.adlin.orin.modules.collaboration.service.CollaborationOwnershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -25,23 +26,22 @@ public class CollaborationSessionController {
 
     private final CollaborationSessionService sessionService;
     private final CollaborationSessionStreamService streamService;
+    private final CollaborationOwnershipService ownershipService;
 
     @Operation(summary = "创建协作会话")
     @PostMapping
     public ResponseEntity<CollabSessionDtos.SessionView> createSession(
-            @RequestBody(required = false) CollabSessionDtos.SessionCreateRequest request,
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+            @RequestBody(required = false) CollabSessionDtos.SessionCreateRequest request) {
         CollabSessionDtos.SessionCreateRequest body = request != null
                 ? request
                 : CollabSessionDtos.SessionCreateRequest.builder().build();
-        return ResponseEntity.ok(sessionService.createSession(body, userId));
+        return ResponseEntity.ok(sessionService.createSession(body, ownershipService.currentUserKey()));
     }
 
     @Operation(summary = "获取协作会话列表")
     @GetMapping
-    public ResponseEntity<List<CollabSessionDtos.SessionView>> listSessions(
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
-        return ResponseEntity.ok(sessionService.listSessions(userId));
+    public ResponseEntity<List<CollabSessionDtos.SessionView>> listSessions() {
+        return ResponseEntity.ok(sessionService.listSessions(ownershipService.currentUserKey()));
     }
 
     @Operation(summary = "提交用户消息并触发协作回合")
@@ -49,13 +49,15 @@ public class CollaborationSessionController {
     public ResponseEntity<CollabSessionDtos.TurnStartResponse> sendMessage(
             @PathVariable String sessionId,
             @RequestBody CollabSessionDtos.SessionMessageRequest request,
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId,
             @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
+
+        ownershipService.assertCanManageSession(sessionId);
 
         String finalTraceId = traceId != null && !traceId.isBlank()
                 ? traceId
                 : UUID.randomUUID().toString().replace("-", "");
-        return ResponseEntity.ok(sessionService.sendMessage(sessionId, request, userId, finalTraceId));
+        return ResponseEntity.ok(sessionService.sendMessage(
+                sessionId, request, ownershipService.currentUserKey(), finalTraceId));
     }
 
     @Operation(summary = "获取协作会话消息历史")
@@ -65,6 +67,7 @@ public class CollaborationSessionController {
             @RequestParam(required = false) String turnId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
+        ownershipService.assertCanManageSession(sessionId);
         return ResponseEntity.ok(sessionService.listMessages(sessionId, turnId, page, size));
     }
 
@@ -73,6 +76,7 @@ public class CollaborationSessionController {
     public ResponseEntity<CollabSessionDtos.SessionStateView> getState(
             @PathVariable String sessionId,
             @RequestParam(required = false) String turnId) {
+        ownershipService.assertCanManageSession(sessionId);
         return ResponseEntity.ok(sessionService.getState(sessionId, turnId));
     }
 
@@ -81,6 +85,7 @@ public class CollaborationSessionController {
     public SseEmitter stream(
             @PathVariable String sessionId,
             @RequestParam String turnId) {
+        ownershipService.assertCanManageSession(sessionId);
         SseEmitter emitter = streamService.register(sessionId, turnId);
 
         try {
@@ -117,6 +122,7 @@ public class CollaborationSessionController {
     public ResponseEntity<CollabSessionDtos.ActionResponse> pauseTurn(
             @PathVariable String sessionId,
             @PathVariable String turnId) {
+        ownershipService.assertCanManageSession(sessionId);
         return ResponseEntity.ok(sessionService.pauseTurn(sessionId, turnId));
     }
 
@@ -125,6 +131,7 @@ public class CollaborationSessionController {
     public ResponseEntity<CollabSessionDtos.ActionResponse> resumeTurn(
             @PathVariable String sessionId,
             @PathVariable String turnId) {
+        ownershipService.assertCanManageSession(sessionId);
         return ResponseEntity.ok(sessionService.resumeTurn(sessionId, turnId));
     }
 
@@ -133,6 +140,7 @@ public class CollaborationSessionController {
     public ResponseEntity<CollabSessionDtos.ActionResponse> switchPolicy(
             @PathVariable String sessionId,
             @RequestBody CollabSessionDtos.PolicySwitchRequest request) {
+        ownershipService.assertCanManageSession(sessionId);
         return ResponseEntity.ok(sessionService.switchMainAgentPolicy(sessionId, request));
     }
 }

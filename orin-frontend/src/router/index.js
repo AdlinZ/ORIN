@@ -7,7 +7,7 @@ import { ROUTES, LEGACY_ROUTE_REDIRECTS } from './routes'
 import { getSetupStatus } from '@/api/setup'
 import {
     ADMIN_MENU_ROLES,
-    DASHBOARD_ADMIN_ROLES,
+    WORKSPACE_MENU_ROLES,
     MONITOR_MENU_ROLES,
     ORGANIZATION_MENU_ROLES,
     USER_MENU_ROLES,
@@ -17,7 +17,7 @@ import {
 } from './topMenuConfig'
 
 const ADMIN_ROUTE_ROLES = [...ADMIN_MENU_ROLES]
-const DASHBOARD_ROUTE_ROLES = [...DASHBOARD_ADMIN_ROLES]
+const WORKSPACE_ROUTE_ROLES = [...WORKSPACE_MENU_ROLES]
 const MONITOR_ROUTE_ROLES = [...MONITOR_MENU_ROLES]
 const ORGANIZATION_ROUTE_ROLES = [...ORGANIZATION_MENU_ROLES]
 const API_KEY_SELF_SERVICE_ROUTE_ROLES = [...USER_MENU_ROLES]
@@ -41,7 +41,7 @@ const getStoredToken = () => {
 
 const getUnauthorizedFallback = (from, userRoles = []) => {
     const defaultHome = getDefaultHomeByRoles(userRoles)
-    const publicFallbacks = new Set(['/', '/login', '/datawall', '/unified-docs'])
+    const publicFallbacks = new Set(['/', '/login', '/register', '/datawall', '/unified-docs'])
 
     if (!from?.path || publicFallbacks.has(from.path)) {
         return defaultHome
@@ -98,6 +98,12 @@ const routes = [
         meta: { title: '用户登录' }
     },
     {
+        path: '/register',
+        name: 'Register',
+        component: () => import('@/views/Register.vue'),
+        meta: { title: '注册账号' }
+    },
+    {
         path: '/setup',
         name: 'SetupWizard',
         component: () => import('@/views/SetupWizard.vue'),
@@ -108,6 +114,12 @@ const routes = [
         name: 'ChatPortal',
         component: () => import('@/views/UserPortal.vue'),
         meta: { title: 'ORIN Chat', roles: USER_MENU_ROLES }
+    },
+    {
+        path: '/chat/profile',
+        name: 'ChatProfile',
+        component: () => import('@/views/UserProfile.vue'),
+        meta: { title: '个人中心', roles: USER_MENU_ROLES }
     },
     {
         path: '/platform',
@@ -153,6 +165,25 @@ const routes = [
         meta: { title: '统一 API 文档' }
     },
 
+    // Phase 7: 历史 /dashboard/{applications,control,runtime,resources} 顶层重定向到 canonical 新路径。
+    // 子路径仍由 LEGACY_ROUTE_REDIRECTS 自动生成；mount 块保留作为向后兼容兜底（命中不到子路径时渲染）。
+    {
+        path: '/dashboard/applications',
+        redirect: ROUTES.WORKSPACE_ROOT
+    },
+    {
+        path: '/dashboard/control',
+        redirect: ROUTES.ADMIN_ROOT
+    },
+    {
+        path: '/dashboard/runtime',
+        redirect: `${ROUTES.ADMIN_ROOT}/runtime`
+    },
+    {
+        path: '/dashboard/resources',
+        redirect: `${ROUTES.WORKSPACE_ROOT}/knowledge`
+    },
+
     // 主应用布局
     {
         path: '/dashboard',
@@ -183,605 +214,28 @@ const routes = [
                 ]
             },
 
-            // ==================== 智能体管理模块 ====================
+            // ==================== 智能体管理模块（Phase 7b: mount 迁到 top-level /workspace） ====================
             {
                 path: 'applications',
-                meta: { title: '智能体管理', category: 'applications', roles: DASHBOARD_ROUTE_ROLES },
-                children: [
-                    // 应用列表（智能体）
-                    {
-                        path: 'agents',
-                        name: 'ApplicationAgents',
-                        component: () => import('@/views/revamp/agents/AgentListV2.vue'),
-                        meta: { title: '智能体列表', icon: 'Grid' }
-                    },
-                    {
-                        path: 'developer',
-                        name: 'ApplicationDeveloper',
-                        component: () => import('@/views/revamp/agents/DeveloperDashboard.vue'),
-                        meta: { title: '开发者工作台', icon: 'Monitor', roles: DASHBOARD_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'agents/console',
-                        name: 'AgentConsoleEntry',
-                        redirect: ROUTES.AGENTS.LIST,
-                        meta: { title: '应用控制台', icon: 'Monitor' }
-                    },
-                    {
-                        path: 'agents/console/:id',
-                        name: 'AgentConsole',
-                        component: () => import('@/views/Agent/AgentConsole.vue'),
-                        meta: { title: '应用控制台', hidden: true }
-                    },
-                    {
-                        path: 'agents/onboard',
-                        name: 'AgentOnboard',
-                        component: () => import('@/views/AgentOnboarding.vue'),
-                        meta: { title: '智能体接入', hidden: true }
-                    },
-
-                    // 会话记录
-                    {
-                        path: 'conversations',
-                        name: 'ApplicationConversations',
-                        component: () => import('@/views/Agent/ChatLogs.vue'),
-                        meta: { title: '会话记录', icon: 'ChatDotRound' }
-                    },
-                    {
-                        path: 'workspace',
-                        name: 'ApplicationWorkspace',
-                        component: () => import('@/views/Agent/AgentWorkspace.vue'),
-                        meta: { title: '智能体工作台', icon: 'Monitor' }
-                    },
-                    {
-                        path: 'workflows/execution',
-                        name: 'ApplicationWorkflowExecution',
-                        component: () => import('@/views/Workflow/WorkflowExecution.vue'),
-                        meta: { title: '工作流执行', icon: 'VideoPlay' }
-                    },
-                    {
-                        path: 'workflows-v2',
-                        redirect: ROUTES.AGENTS.WORKFLOWS,
-                        meta: { hidden: true }
-                    },
-                    {
-                        path: 'workflows-v2/canvas',
-                        redirect: ROUTES.AGENTS.WORKFLOW_VISUAL,
-                        meta: { hidden: true }
-                    },
-                    {
-                        path: 'workflows-v2/runs',
-                        redirect: ROUTES.AGENTS.WORKFLOW_EXECUTION,
-                        meta: { hidden: true }
-                    },
-                    {
-                        path: 'workflows-v2/:id',
-                        redirect: ROUTES.AGENTS.WORKFLOWS,
-                        meta: { hidden: true }
-                    },
-                    {
-                        path: 'collaboration/dashboard',
-                        component: () => import('@/views/revamp/collaboration/CollaborationDashboardV2.vue'),
-                        meta: { title: '协作任务包看板', icon: 'DataAnalysis' }
-                    },
-                    {
-                        path: 'collaboration/workflows',
-                        name: 'MultiAgentCollaborationWorkflows',
-                        component: () => import('@/views/Playground/PlaygroundWorkflows.vue'),
-                        meta: { title: '多智能体协同', icon: 'Connection' }
-                    },
-
-                    // 模型管理
-                    {
-                        path: 'models',
-                        name: 'ApplicationModels',
-                        component: () => import('@/views/ModelConfig/ModelList.vue'),
-                        meta: { title: '模型管理', icon: 'Cpu', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'models/add',
-                        name: 'ModelAdd',
-                        component: () => import('@/views/ModelConfig/AddModel.vue'),
-                        meta: { title: '添加模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'models/edit/:id',
-                        name: 'ModelEdit',
-                        component: () => import('@/views/ModelConfig/AddModel.vue'),
-                        meta: { title: '编辑模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 技能绑定
-                    {
-                        path: 'skills',
-                        name: 'ApplicationSkills',
-                        redirect: ROUTES.AGENTS.SKILLS,
-                        meta: { title: 'Skills', icon: 'MagicStick', hidden: true }
-                    },
-                    {
-                        path: 'mcp',
-                        name: 'ApplicationMcp',
-                        redirect: ROUTES.MCP.SERVERS,
-                        meta: { title: 'MCP 管理', icon: 'Connection', hidden: true }
-                    },
-                    {
-                        path: 'extensions',
-                        name: 'ApplicationExtensions',
-                        component: () => import('@/views/Agent/AgentExtensions.vue'),
-                        meta: { title: '智能体扩展', icon: 'MagicStick' }
-                    },
-
-                    // Multi-Agent legacy playground routes
-                    {
-                        path: 'playground',
-                        name: 'AgentPlayground',
-                        component: () => import('@/views/Playground/PlaygroundContainer.vue'),
-                        meta: { title: '多智能体控制台', icon: 'Play' }
-                    },
-                    {
-                        path: 'playground/overview',
-                        name: 'PlaygroundOverview',
-                        component: () => import('@/views/Playground/PlaygroundOverview.vue'),
-                        meta: { title: '多智能体总览', icon: 'Histogram' }
-                    },
-                    {
-                        path: 'playground/workflows',
-                        name: 'LegacyPlaygroundWorkflows',
-                        redirect: (to) => ({
-                            path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
-                            query: to.query
-                        }),
-                        meta: { title: '多智能体协同', icon: 'Connection', hidden: true }
-                    },
-                    {
-                        path: 'playground/run',
-                        name: 'PlaygroundRun',
-                        redirect: '/dashboard/applications/workspace',
-                        meta: { title: '协作对话', icon: 'VideoPlay' }
-                    },
-
-                    // 工作流管理
-                    {
-                        path: 'workflows',
-                        name: 'ApplicationWorkflows',
-                        component: () => import('@/views/Workflow/WorkflowList.vue'),
-                        meta: { title: '工作流中心', icon: 'Connection' }
-                    },
-                    {
-                        path: 'workflows/:id',
-                        name: 'WorkflowEditCompat',
-                        redirect: (to) => `/dashboard/applications/workflows/visual/${to.params.id}`,
-                        meta: { hidden: true }
-                    },
-                    {
-                        path: 'workflows/create',
-                        name: 'WorkflowCreate',
-                        component: () => import('@/views/Workflow/WorkflowEditor.vue'),
-                        meta: { title: '创建工作流', hidden: true }
-                    },
-                    {
-                        path: 'workflows/edit/:id',
-                        name: 'WorkflowEdit',
-                        component: () => import('@/views/Workflow/WorkflowEditor.vue'),
-                        meta: { title: '编辑工作流', hidden: true }
-                    },
-                    {
-                        path: 'workflows/visual',
-                        name: 'VisualWorkflowCreate',
-                        component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
-                        meta: { title: '可视化工作流编辑器', hidden: true }
-                    },
-                    {
-                        path: 'workflows/visual/:id',
-                        name: 'VisualWorkflowEdit',
-                        component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
-                        meta: { title: '编辑可视化工作流', hidden: true }
-                    }
-                ]
+                redirect: ROUTES.WORKSPACE_ROOT
             },
 
-            // ==================== 运行监控模块 ====================
+            // ==================== 运行监控模块（Phase 7b: mount 迁到 top-level /admin/runtime） ====================
             {
                 path: 'runtime',
-                meta: { title: '运行监控', category: 'runtime', roles: MONITOR_ROUTE_ROLES },
-                children: [
-                    // 监控总览
-                    {
-                        path: 'overview',
-                        name: 'HomeDashboard',
-                        component: () => import('@/views/Home/HomeDashboard.vue'),
-                        meta: { title: '监控总览', icon: 'DataAnalysis' }
-                    },
-                    {
-                        path: 'home',
-                        redirect: '/dashboard/runtime/overview'
-                    },
-
-                    // 实时指标
-                    {
-                        path: 'metrics',
-                        name: 'RuntimeMetrics',
-                        component: () => import('@/views/Monitor/TokenStats.vue'),
-                        meta: { title: '用量统计', icon: 'TrendCharts' }
-                    },
-                    {
-                        path: 'costs',
-                        redirect: '/dashboard/control/pricing'
-                    },
-                    {
-                        path: 'latency',
-                        name: 'RuntimeLatency',
-                        component: () => import('@/views/Monitor/LatencyStats.vue'),
-                        meta: { title: '性能分析', icon: 'Timer' }
-                    },
-                    {
-                        path: 'errors',
-                        name: 'RuntimeErrors',
-                        component: () => import('@/views/Monitor/ErrorStats.vue'),
-                        meta: { title: '错误统计', icon: 'Warning' }
-                    },
-
-                    // 调用链路
-                    {
-                        path: 'traces',
-                        name: 'RuntimeTraces',
-                        component: () => import('@/views/Trace/TraceViewer.vue'),
-                        meta: { title: '调用链路', icon: 'Share' }
-                    },
-                    {
-                        path: 'traces/:traceId',
-                        name: 'TraceDetail',
-                        component: () => import('@/views/Trace/TraceViewer.vue'),
-                        meta: { title: '链路详情', hidden: true }
-                    },
-                    {
-                        path: 'dataflow/:traceId',
-                        name: 'DataFlow',
-                        component: () => import('@/views/Monitor/DataFlow.vue'),
-                        meta: { title: '数据流追踪', hidden: true }
-                    },
-
-                    // 异常告警（含告警规则，内部以 tab 切换）
-                    {
-                        path: 'alerts',
-                        name: 'RuntimeAlerts',
-                        component: () => import('@/views/Monitor/AlertsLogsCenter.vue'),
-                        meta: { title: '告警与日志', icon: 'Bell', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'alerts/rules/create',
-                        name: 'RuntimeAlertRuleCreate',
-                        component: () => import('@/views/Monitor/AlertRuleBuilder.vue'),
-                        meta: { title: '创建告警规则', hidden: true, roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'alerts/rules/:id/edit',
-                        name: 'RuntimeAlertRuleEdit',
-                        component: () => import('@/views/Monitor/AlertRuleBuilder.vue'),
-                        meta: { title: '编辑告警规则', hidden: true, roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'audit-logs',
-                        name: 'RuntimeAuditLogs',
-                        component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
-                        meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 服务器监控
-                    {
-                        path: 'server/:serverId',
-                        name: 'RuntimeServerNode',
-                        component: () => import('@/views/Monitor/ServerNodeDetail.vue'),
-                        meta: { title: '节点监控详情', hidden: true }
-                    },
-                    {
-                        path: 'server',
-                        name: 'RuntimeServer',
-                        component: () => import('@/views/Monitor/ServerMonitor.vue'),
-                        meta: { title: '服务器监控', icon: 'Monitor' }
-                    },
-
-                    // 任务队列
-                    {
-                        path: 'tasks',
-                        name: 'RuntimeTasks',
-                        component: () => import('@/views/Monitor/TaskQueue.vue'),
-                        meta: { title: '任务队列', icon: 'Tickets' }
-                    },
-
-                    // 限流配置
-                    {
-                        path: 'rate-limit',
-                        name: 'RuntimeRateLimit',
-                        component: () => import('@/views/Monitor/RateLimit.vue'),
-                        meta: { title: '限流配置', icon: 'Lightning', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 日志归档
-                    {
-                        path: 'logs',
-                        name: 'RuntimeLogs',
-                        component: () => import('@/views/Monitor/LogArchive.vue'),
-                        meta: { title: '日志归档', icon: 'Document' }
-                    },
-
-                    // 系统维护
-                    {
-                        path: 'maintenance',
-                        name: 'RuntimeMaintenance',
-                        component: () => import('@/views/System/SystemMaintenance.vue'),
-                        meta: { title: '系统维护', icon: 'Tools' }
-                    }
-                ]
+                redirect: `${ROUTES.ADMIN_ROOT}/runtime`
             },
 
-            // ==================== 知识库管理模块 ====================
+            // ==================== 知识库管理模块（Phase 7b: mount 迁到 top-level /workspace/knowledge） ====================
             {
                 path: 'resources',
-                meta: { title: '知识库管理', category: 'resources', roles: DASHBOARD_ROUTE_ROLES },
-                children: [
-                    {
-                        path: '',
-                        redirect: '/dashboard/resources/center'
-                    },
-                    {
-                        path: 'center',
-                        name: 'ResourcesKnowledgeCenter',
-                        redirect: '/dashboard/resources/retrieval',
-                        meta: { title: '知识检索', icon: 'Reading' }
-                    },
-                    {
-                        path: 'assets',
-                        name: 'ResourcesKnowledgeAssets',
-                        component: () => import('@/views/Knowledge/KnowledgeAssets.vue'),
-                        meta: { title: '知识资产', icon: 'Collection' }
-                    },
-                    // 知识库
-                    {
-                        path: 'knowledge',
-                        name: 'ResourcesKnowledge',
-                        redirect: '/dashboard/resources/assets',
-                        meta: { title: '知识库（旧）', hidden: true }
-                    },
-                    {
-                        path: 'knowledge/create',
-                        name: 'KnowledgeCreate',
-                        component: () => import('@/views/Knowledge/KBCreate.vue'),
-                        meta: { title: '创建知识库', hidden: true }
-                    },
-                    {
-                        path: 'knowledge/detail/:id',
-                        name: 'KnowledgeDetail',
-                        component: () => import('@/views/Knowledge/KBDetail.vue'),
-                        meta: { title: '知识库详情', hidden: true }
-                    },
-                    {
-                        path: 'knowledge/:kbId/document/:docId',
-                        name: 'DocumentDetail',
-                        component: () => import('@/views/Knowledge/DocumentDetail.vue'),
-                        meta: { title: '文档详情', hidden: true }
-                    },
-
-                    // 知识库检索
-                    {
-                        path: 'retrieval',
-                        name: 'ResourcesRetrieval',
-                        component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
-                        meta: { title: '知识检索', icon: 'Search' }
-                    },
-
-                    // 旧路径兼容重定向
-                    {
-                        path: 'embedding-lab',
-                        redirect: '/dashboard/resources/retrieval'
-                    },
-                    {
-                        path: 'rag-lab',
-                        redirect: '/dashboard/resources/retrieval'
-                    },
-
-                    // 检索测试
-                    {
-                        path: 'retrieval-test',
-                        name: 'ResourcesRetrievalTest',
-                        component: () => import('@/views/Knowledge/RetrievalTestPage.vue'),
-                        meta: { title: '检索测试', icon: 'Aim' }
-                    },
-
-                    // 资产架构
-                    {
-                        path: 'architecture',
-                        name: 'ResourcesArchitecture',
-                        component: () => import('@/views/Knowledge/AssetSchema.vue'),
-                        meta: { title: '资产架构', icon: 'Grid' }
-                    },
-                    {
-                        path: 'graph',
-                        name: 'ResourcesGraph',
-                        redirect: '/dashboard/resources/assets',
-                        meta: { title: '知识图谱（旧）', hidden: true }
-                    },
-                    {
-                        path: 'graph/:id',
-                        name: 'ResourcesGraphDetail',
-                        component: () => import('@/views/Knowledge/KnowledgeGraphDetail.vue'),
-                        meta: { title: '图谱详情', hidden: true }
-                    },
-                    {
-                        path: 'sync',
-                        redirect: '/dashboard/control/sync'
-                    },
-
-                    // 智力资产中心（重定向到资产架构）
-                    {
-                        path: 'intelligence',
-                        redirect: 'architecture'
-                    }
-                ]
+                redirect: `${ROUTES.WORKSPACE_ROOT}/knowledge`
             },
 
-            // ==================== 系统设置模块 ====================
+            // Phase 7b: control mount 移到 top-level（见下方同名 top-level 路由）
             {
                 path: 'control',
-                meta: { title: '系统设置', category: 'control', requiresAdmin: true, roles: ADMIN_ROUTE_ROLES },
-                children: [
-                    // 平台总览
-                    {
-                        path: 'admin-overview',
-                        name: 'ControlAdminDashboard',
-                        component: () => import('@/views/revamp/system/AdminDashboard.vue'),
-                        meta: { title: '平台总览', icon: 'DataBoard', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    // 用户权限
-                    {
-                        path: 'users',
-                        name: 'ControlUsers',
-                        component: () => import('@/views/System/UserManagement.vue'),
-                        meta: { title: '用户管理', icon: 'User', roles: ORGANIZATION_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'departments',
-                        name: 'ControlDepartments',
-                        component: () => import('@/views/System/DepartmentManagement.vue'),
-                        meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ORGANIZATION_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'roles',
-                        name: 'ControlRoles',
-                        component: () => import('@/views/System/RoleManagement.vue'),
-                        meta: { title: '角色管理', icon: 'UserFilled', roles: ORGANIZATION_ROUTE_ROLES }
-                    },
-
-
-
-                    // 审计日志
-                    {
-                        path: 'audit-logs',
-                        name: 'ControlAuditLogs',
-                        component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
-                        meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // API 密钥管理
-                    {
-                        path: 'api-keys',
-                        name: 'ApiKeyManagement',
-                        redirect: (to) => ({
-                            path: '/dashboard/control/gateway',
-                            query: { ...to.query, workspace: to.query.workspace || 'access' }
-                        }),
-                        meta: { title: 'API 密钥', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 文件管理
-                    {
-                        path: 'file-management',
-                        redirect: (to) => ({
-                            path: '/dashboard/control/data-assets',
-                            query: { ...to.query, assetTab: 'files' }
-                        })
-                    },
-
-                    // 数据资产
-                    {
-                        path: 'data-assets',
-                        name: 'ControlDataAssets',
-                        component: () => import('@/views/System/DataAssets.vue'),
-                        meta: { title: '数据资产', icon: 'Folder', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 环境配置
-                    {
-                        path: 'system-env',
-                        name: 'ControlSystemEnv',
-                        component: () => import('@/views/System/MonitorSettings.vue'),
-                        meta: { title: '环境配置', icon: 'Tools', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'gateway',
-                        name: 'ControlUnifiedGateway',
-                        alias: 'unified-gateway',
-                        component: () => import('@/views/System/UnifiedGateway.vue'),
-                        meta: { title: '统一网关', icon: 'Connection', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'unified-api-docs',
-                        name: 'ControlUnifiedApiDocs',
-                        component: () => import('@/views/System/UnifiedApiDocs.vue'),
-                        meta: { title: '统一 API 文档', icon: 'Document', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'mcp-service',
-                        name: 'ControlMcpService',
-                        component: () => import('@/views/System/McpService.vue'),
-                        meta: { title: 'MCP 服务', icon: 'Service', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'pricing',
-                        name: 'ControlPricing',
-                        component: () => import('@/views/System/PricingConfig.vue'),
-                        meta: { title: '定价配置', icon: 'PriceTag', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'statistics',
-                        name: 'ControlStatistics',
-                        component: () => import('@/views/System/Statistics.vue'),
-                        meta: { title: '统计分析', icon: 'DataAnalysis', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 通知中心（统一入口）
-                    {
-                        path: 'notification-channels',
-                        name: 'NotificationChannels',
-                        component: () => import('@/views/Mail/MailSetup.vue'),
-                        meta: { title: '通知设置', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 数据同步
-                    {
-                        path: 'sync',
-                        redirect: (to) => ({
-                            path: '/dashboard/control/data-assets',
-                            query: { ...to.query, assetTab: 'sync', tab: to.query.tab || 'changes' }
-                        })
-                    },
-                    {
-                        path: 'client-sync',
-                        redirect: (to) => ({
-                            path: '/dashboard/control/data-assets',
-                            query: { ...to.query, assetTab: 'sync', tab: to.query.tab || 'changes' }
-                        })
-                    },
-
-                    // 邮件中心（新版 - 任务导向）
-                    {
-                        path: 'mail',
-                        redirect: '/dashboard/control/notification-channels?tab=overview',
-                        meta: { title: '邮件中心', icon: 'Message' }
-                    },
-                    {
-                        path: 'mail/setup',
-                        redirect: '/dashboard/control/notification-channels?tab=service',
-                        meta: { title: '配置与联通', icon: 'Setting', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'mail/compose',
-                        redirect: '/dashboard/control/notification-channels?tab=compose',
-                        meta: { title: '发送与模板', icon: 'EditPen', roles: ADMIN_ROUTE_ROLES }
-                    },
-                    {
-                        path: 'mail/tracking',
-                        redirect: '/dashboard/control/notification-channels?tab=tracking',
-                        meta: { title: '追踪与回执', icon: 'List', roles: ADMIN_ROUTE_ROLES }
-                    },
-
-                    // 邮件中心（旧版，保留兼容）
-                    {
-                        path: 'mail-center',
-                        redirect: '/dashboard/control/notification-channels?tab=overview',
-                        meta: { title: '邮件中心', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
-                    }
-                ]
+                redirect: ROUTES.ADMIN_ROOT
             },
 
             // 404 页面
@@ -800,7 +254,553 @@ const routes = [
         name: 'GlobalNotFound',
         component: () => import('@/views/Error/NotFound.vue'),
         meta: { title: '页面不存在' }
-    }
+    },
+
+    // ==================== Phase 7b: top-level mounts（新 canonical 路径） ====================
+    // 这些路由块从 /dashboard.children 迁出，挂到 /workspace 与 /admin 等新路径下。
+    // 子路径的旧形态由 LEGACY_ROUTE_REDIRECTS 兜底 redirect 到 canonical。
+    {
+        path: `${ROUTES.WORKSPACE_ROOT}/knowledge`,
+        component: MainLayout,
+        meta: { title: '资源知识', category: 'resources', surface: 'workspace', roles: WORKSPACE_ROUTE_ROLES },
+        children: [
+            {
+                path: '',
+                redirect: '/workspace/knowledge/center'
+            },
+            {
+                path: 'center',
+                name: 'ResourcesKnowledgeCenter',
+                redirect: '/workspace/knowledge/retrieval',
+                meta: { title: '知识检索', icon: 'Reading' }
+            },
+            {
+                path: 'assets',
+                name: 'ResourcesKnowledgeAssets',
+                component: () => import('@/views/Knowledge/KnowledgeAssets.vue'),
+                meta: { title: '知识资产', icon: 'Collection' }
+            },
+            {
+                path: 'knowledge',
+                name: 'ResourcesKnowledge',
+                redirect: '/workspace/knowledge/assets',
+                meta: { title: '知识库（旧）', hidden: true }
+            },
+            {
+                path: 'knowledge/create',
+                name: 'KnowledgeCreate',
+                component: () => import('@/views/Knowledge/KBCreate.vue'),
+                meta: { title: '创建知识库', hidden: true }
+            },
+            {
+                path: 'knowledge/detail/:id',
+                name: 'KnowledgeDetail',
+                component: () => import('@/views/Knowledge/KBDetail.vue'),
+                meta: { title: '知识库详情', hidden: true }
+            },
+            {
+                path: 'knowledge/:kbId/document/:docId',
+                name: 'DocumentDetail',
+                component: () => import('@/views/Knowledge/DocumentDetail.vue'),
+                meta: { title: '文档详情', hidden: true }
+            },
+            {
+                path: 'retrieval',
+                name: 'ResourcesRetrieval',
+                component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
+                meta: { title: '知识检索', icon: 'Search' }
+            },
+            {
+                path: 'embedding-lab',
+                redirect: '/workspace/knowledge/retrieval'
+            },
+            {
+                path: 'rag-lab',
+                redirect: '/workspace/knowledge/retrieval'
+            },
+            {
+                path: 'retrieval-test',
+                name: 'ResourcesRetrievalTest',
+                component: () => import('@/views/Knowledge/RetrievalTestPage.vue'),
+                meta: { title: '检索测试', icon: 'Aim' }
+            },
+            {
+                path: 'architecture',
+                name: 'ResourcesArchitecture',
+                component: () => import('@/views/Knowledge/AssetSchema.vue'),
+                meta: { title: '资产架构', icon: 'Grid' }
+            },
+            {
+                path: 'graph',
+                name: 'ResourcesGraph',
+                redirect: '/workspace/knowledge/assets',
+                meta: { title: '知识图谱（旧）', hidden: true }
+            },
+            {
+                path: 'graph/:id',
+                name: 'ResourcesGraphDetail',
+                component: () => import('@/views/Knowledge/KnowledgeGraphDetail.vue'),
+                meta: { title: '图谱详情', hidden: true }
+            },
+            {
+                path: 'sync',
+                redirect: '/admin/data-assets?assetTab=sync&tab=changes'
+            },
+            {
+                path: 'intelligence',
+                redirect: 'architecture'
+            }
+        ]
+    },
+    {
+        path: ROUTES.WORKSPACE_ROOT,
+        component: MainLayout,
+        meta: { title: '应用构建', category: 'applications', surface: 'workspace', roles: WORKSPACE_ROUTE_ROLES },
+        children: [
+            {
+                path: 'agents',
+                name: 'ApplicationAgents',
+                component: () => import('@/views/revamp/agents/AgentListV2.vue'),
+                meta: { title: '智能体列表', icon: 'Grid' }
+            },
+            {
+                path: 'developer',
+                name: 'ApplicationDeveloper',
+                component: () => import('@/views/revamp/agents/DeveloperDashboard.vue'),
+                meta: { title: '工作台首页', icon: 'Monitor', roles: WORKSPACE_ROUTE_ROLES }
+            },
+            {
+                path: 'agents/console',
+                name: 'AgentConsoleEntry',
+                redirect: ROUTES.AGENTS.LIST,
+                meta: { title: '应用控制台', icon: 'Monitor' }
+            },
+            {
+                path: 'agents/console/:id',
+                name: 'AgentConsole',
+                component: () => import('@/views/Agent/AgentConsole.vue'),
+                meta: { title: '应用控制台', hidden: true }
+            },
+            {
+                path: 'agents/onboard',
+                name: 'AgentOnboard',
+                component: () => import('@/views/AgentOnboarding.vue'),
+                meta: { title: '智能体接入', hidden: true }
+            },
+            {
+                path: 'conversations',
+                name: 'ApplicationConversations',
+                component: () => import('@/views/Agent/ChatLogs.vue'),
+                meta: { title: '会话记录', icon: 'ChatDotRound' }
+            },
+            {
+                path: 'workspace',
+                name: 'ApplicationWorkspace',
+                component: () => import('@/views/Agent/AgentWorkspace.vue'),
+                meta: { title: '智能体工作台', icon: 'Monitor' }
+            },
+            {
+                path: 'workflows/execution',
+                name: 'ApplicationWorkflowExecution',
+                component: () => import('@/views/Workflow/WorkflowExecution.vue'),
+                meta: { title: '工作流执行', icon: 'VideoPlay' }
+            },
+            {
+                path: 'workflows-v2',
+                redirect: ROUTES.AGENTS.WORKFLOWS,
+                meta: { hidden: true }
+            },
+            {
+                path: 'workflows-v2/canvas',
+                redirect: ROUTES.AGENTS.WORKFLOW_VISUAL,
+                meta: { hidden: true }
+            },
+            {
+                path: 'workflows-v2/runs',
+                redirect: ROUTES.AGENTS.WORKFLOW_EXECUTION,
+                meta: { hidden: true }
+            },
+            {
+                path: 'workflows-v2/:id',
+                redirect: ROUTES.AGENTS.WORKFLOWS,
+                meta: { hidden: true }
+            },
+            {
+                path: 'collaboration/dashboard',
+                component: () => import('@/views/revamp/collaboration/CollaborationDashboardV2.vue'),
+                meta: { title: '协作任务包看板', icon: 'DataAnalysis' }
+            },
+            {
+                path: 'collaboration/workflows',
+                name: 'MultiAgentCollaborationWorkflows',
+                component: () => import('@/views/Playground/PlaygroundWorkflows.vue'),
+                meta: { title: '多智能体协同', icon: 'Connection' }
+            },
+            {
+                path: 'models',
+                alias: ROUTES.ADMIN_PATHS.MODELS,
+                name: 'ApplicationModels',
+                component: () => import('@/views/ModelConfig/ModelList.vue'),
+                meta: { title: '模型管理', icon: 'Cpu', roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'models/add',
+                alias: `${ROUTES.ADMIN_PATHS.MODELS}/add`,
+                name: 'ModelAdd',
+                component: () => import('@/views/ModelConfig/AddModel.vue'),
+                meta: { title: '添加模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'models/edit/:id',
+                alias: `${ROUTES.ADMIN_PATHS.MODELS}/edit/:id`,
+                name: 'ModelEdit',
+                component: () => import('@/views/ModelConfig/AddModel.vue'),
+                meta: { title: '编辑模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'skills',
+                name: 'ApplicationSkills',
+                redirect: ROUTES.AGENTS.SKILLS,
+                meta: { title: 'Skills', icon: 'MagicStick', hidden: true }
+            },
+            {
+                path: 'mcp',
+                name: 'ApplicationMcp',
+                redirect: ROUTES.MCP.SERVERS,
+                meta: { title: 'MCP 管理', icon: 'Connection', hidden: true }
+            },
+            {
+                path: 'extensions',
+                name: 'ApplicationExtensions',
+                component: () => import('@/views/Agent/AgentExtensions.vue'),
+                meta: { title: '智能体扩展', icon: 'MagicStick' }
+            },
+            {
+                path: 'playground',
+                name: 'AgentPlayground',
+                component: () => import('@/views/Playground/PlaygroundContainer.vue'),
+                meta: { title: '多智能体控制台', icon: 'Play' }
+            },
+            {
+                path: 'playground/overview',
+                name: 'PlaygroundOverview',
+                component: () => import('@/views/Playground/PlaygroundOverview.vue'),
+                meta: { title: '多智能体总览', icon: 'Histogram' }
+            },
+            {
+                path: 'playground/workflows',
+                name: 'LegacyPlaygroundWorkflows',
+                redirect: (to) => ({
+                    path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
+                    query: to.query
+                }),
+                meta: { title: '多智能体协同', icon: 'Connection', hidden: true }
+            },
+            {
+                path: 'playground/run',
+                name: 'PlaygroundRun',
+                redirect: '/workspace/workspace',
+                meta: { title: '协作对话', icon: 'VideoPlay' }
+            },
+            {
+                path: 'workflows',
+                name: 'ApplicationWorkflows',
+                component: () => import('@/views/Workflow/WorkflowList.vue'),
+                meta: { title: '工作流中心', icon: 'Connection' }
+            },
+            {
+                path: 'workflows/:id',
+                name: 'WorkflowEditCompat',
+                redirect: (to) => `/workspace/workflows/visual/${to.params.id}`,
+                meta: { hidden: true }
+            },
+            {
+                path: 'workflows/create',
+                name: 'WorkflowCreate',
+                component: () => import('@/views/Workflow/WorkflowEditor.vue'),
+                meta: { title: '创建工作流', hidden: true }
+            },
+            {
+                path: 'workflows/edit/:id',
+                name: 'WorkflowEdit',
+                component: () => import('@/views/Workflow/WorkflowEditor.vue'),
+                meta: { title: '编辑工作流', hidden: true }
+            },
+            {
+                path: 'workflows/visual',
+                name: 'VisualWorkflowCreate',
+                component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
+                meta: { title: '可视化工作流编辑器', hidden: true }
+            },
+            {
+                path: 'workflows/visual/:id',
+                name: 'VisualWorkflowEdit',
+                component: () => import('@/views/Workflow/VisualWorkflowEditor.vue'),
+                meta: { title: '编辑可视化工作流', hidden: true }
+            }
+        ]
+    },
+    {
+        path: `${ROUTES.ADMIN_ROOT}/runtime`,
+        component: MainLayout,
+        meta: { title: '运行监控', category: 'runtime', roles: MONITOR_ROUTE_ROLES },
+        children: [
+            // 监控总览
+            {
+                path: 'overview',
+                name: 'HomeDashboard',
+                component: () => import('@/views/Home/HomeDashboard.vue'),
+                meta: { title: '监控总览', icon: 'DataAnalysis' }
+            },
+            {
+                path: 'home',
+                redirect: '/admin/runtime/overview'
+            },
+            {
+                path: 'metrics',
+                name: 'RuntimeMetrics',
+                component: () => import('@/views/Monitor/TokenStats.vue'),
+                meta: { title: '用量统计', icon: 'TrendCharts' }
+            },
+            {
+                path: 'costs',
+                redirect: '/admin/pricing'
+            },
+            {
+                path: 'latency',
+                name: 'RuntimeLatency',
+                component: () => import('@/views/Monitor/LatencyStats.vue'),
+                meta: { title: '性能分析', icon: 'Timer' }
+            },
+            {
+                path: 'errors',
+                name: 'RuntimeErrors',
+                component: () => import('@/views/Monitor/ErrorStats.vue'),
+                meta: { title: '错误统计', icon: 'Warning' }
+            },
+            {
+                path: 'traces',
+                name: 'RuntimeTraces',
+                component: () => import('@/views/Trace/TraceViewer.vue'),
+                meta: { title: '调用链路', icon: 'Share' }
+            },
+            {
+                path: 'traces/:traceId',
+                name: 'TraceDetail',
+                component: () => import('@/views/Trace/TraceViewer.vue'),
+                meta: { title: '链路详情', hidden: true }
+            },
+            {
+                path: 'dataflow/:traceId',
+                name: 'DataFlow',
+                component: () => import('@/views/Monitor/DataFlow.vue'),
+                meta: { title: '数据流追踪', hidden: true }
+            },
+            {
+                path: 'alerts',
+                name: 'RuntimeAlerts',
+                component: () => import('@/views/Monitor/AlertsLogsCenter.vue'),
+                meta: { title: '告警与日志', icon: 'Bell', roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'alerts/rules/create',
+                name: 'RuntimeAlertRuleCreate',
+                component: () => import('@/views/Monitor/AlertRuleBuilder.vue'),
+                meta: { title: '创建告警规则', hidden: true, roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'alerts/rules/:id/edit',
+                name: 'RuntimeAlertRuleEdit',
+                component: () => import('@/views/Monitor/AlertRuleBuilder.vue'),
+                meta: { title: '编辑告警规则', hidden: true, roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'audit-logs',
+                name: 'RuntimeAuditLogs',
+                component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
+                meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'server/:serverId',
+                name: 'RuntimeServerNode',
+                component: () => import('@/views/Monitor/ServerNodeDetail.vue'),
+                meta: { title: '节点监控详情', hidden: true }
+            },
+            {
+                path: 'server',
+                name: 'RuntimeServer',
+                component: () => import('@/views/Monitor/ServerMonitor.vue'),
+                meta: { title: '服务器监控', icon: 'Monitor' }
+            },
+            {
+                path: 'tasks',
+                name: 'RuntimeTasks',
+                component: () => import('@/views/Monitor/TaskQueue.vue'),
+                meta: { title: '任务队列', icon: 'Tickets' }
+            },
+            {
+                path: 'rate-limit',
+                name: 'RuntimeRateLimit',
+                component: () => import('@/views/Monitor/RateLimit.vue'),
+                meta: { title: '限流配置', icon: 'Lightning', roles: ADMIN_ROUTE_ROLES }
+            },
+            {
+                path: 'logs',
+                name: 'RuntimeLogs',
+                component: () => import('@/views/Monitor/LogArchive.vue'),
+                meta: { title: '日志归档', icon: 'Document' }
+            },
+            {
+                path: 'maintenance',
+                name: 'RuntimeMaintenance',
+                component: () => import('@/views/System/SystemMaintenance.vue'),
+                meta: { title: '系统维护', icon: 'Tools' }
+            }
+        ]
+    },
+    {
+        path: ROUTES.ADMIN_ROOT,
+        component: MainLayout,
+        meta: { title: '平台控制', category: 'control', surface: 'admin', requiresAdmin: true, roles: ADMIN_ROUTE_ROLES },
+        children: [
+            // 平台总览
+        {
+            path: 'admin-overview',
+            name: 'ControlAdminDashboard',
+            component: () => import('@/views/revamp/system/AdminDashboard.vue'),
+            meta: { title: '平台总览', icon: 'DataBoard', roles: ADMIN_ROUTE_ROLES }
+        },
+        // 用户权限
+        {
+            path: 'users',
+            name: 'ControlUsers',
+            component: () => import('@/views/System/UserManagement.vue'),
+            meta: { title: '用户管理', icon: 'User', roles: ORGANIZATION_ROUTE_ROLES }
+        },
+        {
+            path: 'departments',
+            name: 'ControlDepartments',
+            component: () => import('@/views/System/DepartmentManagement.vue'),
+            meta: { title: '部门管理', icon: 'OfficeBuilding', roles: ORGANIZATION_ROUTE_ROLES }
+        },
+        {
+            path: 'roles',
+            name: 'ControlRoles',
+            component: () => import('@/views/System/RoleManagement.vue'),
+            meta: { title: '角色管理', icon: 'UserFilled', roles: ORGANIZATION_ROUTE_ROLES }
+        },
+        {
+            path: 'audit-logs',
+            name: 'ControlAuditLogs',
+            component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
+            meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'api-keys',
+            name: 'ApiKeyManagement',
+            redirect: (to) => ({
+                path: '/admin/gateway',
+                query: { ...to.query, workspace: to.query.workspace || 'access' }
+            }),
+            meta: { title: 'API 密钥', icon: 'Key', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'file-management',
+            redirect: (to) => ({
+                path: '/admin/data-assets',
+                query: { ...to.query, assetTab: 'files' }
+            })
+        },
+        {
+            path: 'data-assets',
+            name: 'ControlDataAssets',
+            component: () => import('@/views/System/DataAssets.vue'),
+            meta: { title: '数据资产', icon: 'Folder', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'system-env',
+            name: 'ControlSystemEnv',
+            component: () => import('@/views/System/MonitorSettings.vue'),
+            meta: { title: '环境配置', icon: 'Tools', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'gateway',
+            name: 'ControlUnifiedGateway',
+            alias: 'unified-gateway',
+            component: () => import('@/views/System/UnifiedGateway.vue'),
+            meta: { title: '统一网关', icon: 'Connection', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'unified-api-docs',
+            name: 'ControlUnifiedApiDocs',
+            component: () => import('@/views/System/UnifiedApiDocs.vue'),
+            meta: { title: '统一 API 文档', icon: 'Document', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'mcp-service',
+            name: 'ControlMcpService',
+            component: () => import('@/views/System/McpService.vue'),
+            meta: { title: 'MCP 服务', icon: 'Service', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'pricing',
+            name: 'ControlPricing',
+            component: () => import('@/views/System/PricingConfig.vue'),
+            meta: { title: '定价配置', icon: 'PriceTag', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'statistics',
+            name: 'ControlStatistics',
+            component: () => import('@/views/System/Statistics.vue'),
+            meta: { title: '统计分析', icon: 'DataAnalysis', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'notification-channels',
+            name: 'NotificationChannels',
+            component: () => import('@/views/Mail/MailSetup.vue'),
+            meta: { title: '通知设置', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'sync',
+            redirect: (to) => ({
+                path: '/admin/data-assets',
+                query: { ...to.query, assetTab: 'sync', tab: to.query.tab || 'changes' }
+            })
+        },
+        {
+            path: 'client-sync',
+            redirect: (to) => ({
+                path: '/admin/data-assets',
+                query: { ...to.query, assetTab: 'sync', tab: to.query.tab || 'changes' }
+            })
+        },
+        {
+            path: 'mail',
+            redirect: '/admin/notification-channels?tab=overview',
+            meta: { title: '邮件中心', icon: 'Message' }
+        },
+        {
+            path: 'mail/setup',
+            redirect: '/admin/notification-channels?tab=service',
+            meta: { title: '配置与联通', icon: 'Setting', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'mail/compose',
+            redirect: '/admin/notification-channels?tab=compose',
+            meta: { title: '发送与模板', icon: 'EditPen', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'mail/tracking',
+            redirect: '/admin/notification-channels?tab=tracking',
+            meta: { title: '追踪与回执', icon: 'List', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'mail-center',
+            redirect: '/admin/notification-channels?tab=overview',
+            meta: { title: '邮件中心', icon: 'Message', roles: ADMIN_ROUTE_ROLES }
+        }
+    ]
+},
 ]
 
 // ==================== 添加旧路由重定向 ====================
@@ -889,7 +889,7 @@ router.beforeEach(async (to, from, next) => {
     const token = getStoredToken()
 
     // 公开页面列表
-    const publicPages = ['/', '/login', '/setup', '/datawall', '/unified-docs']
+    const publicPages = ['/', '/login', '/register', '/setup', '/datawall', '/unified-docs']
     const authRequired = !publicPages.includes(to.path)
 
     if (authRequired && !token) {
@@ -901,6 +901,10 @@ router.beforeEach(async (to, from, next) => {
 
     if (token && (!userStore.roles || userStore.roles.length === 0)) {
         userStore.restoreFromCookies()
+    }
+
+    if (token && to.path === ROUTES.REGISTER) {
+        return next(getDefaultHomeByRoles(userStore.roles || []))
     }
 
     // 统一使用角色默认首页，避免所有角色都落到同一入口。

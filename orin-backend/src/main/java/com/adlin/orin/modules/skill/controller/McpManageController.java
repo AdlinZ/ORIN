@@ -4,12 +4,13 @@ import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.service.McpServiceService;
+import com.adlin.orin.modules.skill.service.McpServiceOwnershipService;
 import com.adlin.orin.modules.skill.util.McpEnvSecretRef;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -25,11 +26,24 @@ import java.util.Optional;
 @Slf4j
 @RestController
 @RequestMapping("/api/system/mcp")
-@RequiredArgsConstructor
 @Tag(name = "MCP 服务管理", description = "MCP 服务的增删改查和连接测试")
 public class McpManageController {
 
     private final McpServiceService mcpServiceService;
+    private final McpServiceOwnershipService ownershipService;
+
+    @Autowired
+    public McpManageController(
+            McpServiceService mcpServiceService,
+            McpServiceOwnershipService ownershipService) {
+        this.mcpServiceService = mcpServiceService;
+        this.ownershipService = ownershipService;
+    }
+
+    /** Compatibility constructor retained for focused standalone controller tests. */
+    public McpManageController(McpServiceService mcpServiceService) {
+        this(mcpServiceService, null);
+    }
 
     // command：docker-compose 部署默认参数（容器内路径）。
     // localCommand：本机开发默认参数，带路径的 server（filesystem/sqlite）留空待用户填写，
@@ -64,9 +78,12 @@ public class McpManageController {
     public ResponseEntity<List<McpService>> getServices(@RequestParam(required = false) String keyword) {
         List<McpService> services;
         if (keyword != null && !keyword.isBlank()) {
-            services = mcpServiceService.searchServices(keyword);
+            services = visibleServices().stream()
+                    .filter(service -> service.getName() != null
+                            && service.getName().toLowerCase().contains(keyword.toLowerCase()))
+                    .toList();
         } else {
-            services = mcpServiceService.getAllServices();
+            services = visibleServices();
         }
         return ResponseEntity.ok(services.stream().map(this::maskService).toList());
     }
@@ -75,12 +92,14 @@ public class McpManageController {
     @Operation(summary = "获取单个 MCP 服务")
     public ResponseEntity<McpService> getService(@PathVariable Long id) {
         McpService service = mcpServiceService.getServiceById(id);
+        assertCanRead(service);
         return ResponseEntity.ok(maskService(service));
     }
 
     @PostMapping("/services")
     @Operation(summary = "创建 MCP 服务")
     public ResponseEntity<McpService> createService(@RequestBody McpService service) {
+        assignOwner(service);
         McpService created = mcpServiceService.createService(service);
         return ResponseEntity.ok(maskService(created));
     }
@@ -88,6 +107,7 @@ public class McpManageController {
     @PutMapping("/services/{id}")
     @Operation(summary = "更新 MCP 服务")
     public ResponseEntity<McpService> updateService(@PathVariable Long id, @RequestBody McpService service) {
+        assertCanManage(mcpServiceService.getServiceById(id));
         McpService updated = mcpServiceService.updateService(id, service);
         return ResponseEntity.ok(maskService(updated));
     }
@@ -95,6 +115,7 @@ public class McpManageController {
     @DeleteMapping("/services/{id}")
     @Operation(summary = "删除 MCP 服务")
     public ResponseEntity<Void> deleteService(@PathVariable Long id) {
+        assertCanManage(mcpServiceService.getServiceById(id));
         mcpServiceService.deleteService(id);
         return ResponseEntity.ok().build();
     }
@@ -102,6 +123,7 @@ public class McpManageController {
     @PostMapping("/services/{id}/test")
     @Operation(summary = "测试 MCP 服务连接")
     public ResponseEntity<Map<String, Object>> testConnection(@PathVariable Long id) {
+        assertCanManage(mcpServiceService.getServiceById(id));
         Map<String, Object> result = mcpServiceService.testConnection(id);
         return ResponseEntity.ok(result);
     }
@@ -109,7 +131,7 @@ public class McpManageController {
     @GetMapping("/tools")
     @Operation(summary = "获取 MCP 工具列表")
     public ResponseEntity<List<Map<String, Object>>> getTools() {
-        List<McpService> services = mcpServiceService.getAllServices();
+        List<McpService> services = visibleServices();
         Map<String, McpService> serviceByToolKey = new HashMap<>();
         for (McpService service : services) {
             if (service.getToolKey() != null && !service.getToolKey().isBlank()) {
@@ -197,7 +219,7 @@ public class McpManageController {
         }
 
         Map<String, Object> template = templateOpt.get();
-        List<McpService> existing = mcpServiceService.getAllServices();
+        List<McpService> existing = visibleServices();
         Optional<McpService> installedOpt = existing.stream()
                 .filter(s -> toolKey.equals(s.getToolKey()))
                 .findFirst();
@@ -219,12 +241,15 @@ public class McpManageController {
                 .enabled(true)
                 .build();
 
+        assignOwner(service);
+
         return ResponseEntity.ok(maskService(mcpServiceService.createService(service)));
     }
 
     @PutMapping("/services/{id}/enabled")
     @Operation(summary = "启用/禁用 MCP 服务")
     public ResponseEntity<McpService> setServiceEnabled(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        assertCanManage(mcpServiceService.getServiceById(id));
         boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
         return ResponseEntity.ok(maskService(mcpServiceService.setServiceEnabled(id, enabled)));
     }
@@ -235,6 +260,7 @@ public class McpManageController {
         }
         return McpService.builder()
                 .id(service.getId())
+                .ownerUserId(service.getOwnerUserId())
                 .name(service.getName())
                 .toolKey(service.getToolKey())
                 .type(service.getType())
@@ -271,5 +297,29 @@ public class McpManageController {
             return line;
         }
         return line.substring(0, eq + 1) + "******";
+    }
+
+    private List<McpService> visibleServices() {
+        return ownershipService != null
+                ? ownershipService.visibleServices()
+                : mcpServiceService.getAllServices();
+    }
+
+    private void assignOwner(McpService service) {
+        if (ownershipService != null) {
+            ownershipService.assignOwnerForCreate(service);
+        }
+    }
+
+    private void assertCanRead(McpService service) {
+        if (ownershipService != null) {
+            ownershipService.assertCanRead(service);
+        }
+    }
+
+    private void assertCanManage(McpService service) {
+        if (ownershipService != null) {
+            ownershipService.assertCanManage(service);
+        }
     }
 }

@@ -2,7 +2,10 @@
   <div class="service-portal">
     <aside class="portal-sidebar">
       <div class="sidebar-brand-row">
-        <img class="sidebar-brand-logo" src="/logo.svg" alt="ORIN" />
+        <div class="sidebar-brand-title" aria-label="ORIN Chat">
+          <img class="sidebar-brand-logo" src="/logo.svg" alt="ORIN" />
+          <strong>Chat</strong>
+        </div>
       </div>
 
       <nav class="sidebar-nav">
@@ -12,7 +15,7 @@
           type="button"
           @click="startNewSession"
         >
-          <el-icon><EditPen /></el-icon>
+          <span class="nav-icon"><el-icon><ChatLineRound /></el-icon></span>
           <span>新对话</span>
           <kbd>⌘ K</kbd>
         </button>
@@ -22,7 +25,7 @@
           type="button"
           @click="openCreationStudio"
         >
-          <el-icon><MagicStick /></el-icon>
+          <span class="nav-icon"><el-icon><EditPen /></el-icon></span>
           <span>AI 创作</span>
         </button>
         <button
@@ -31,8 +34,8 @@
           type="button"
           @click="toggleServicePanel"
         >
-          <el-icon><Grid /></el-icon>
-          <span>服务</span>
+          <span class="nav-icon"><el-icon><Connection /></el-icon></span>
+          <span>可用服务</span>
           <span v-if="agents.length" class="nav-count">{{ agents.length }}</span>
           <el-icon class="nav-tail"><ArrowRight /></el-icon>
         </button>
@@ -74,7 +77,7 @@
             @click="openSession(session)"
           >
             <div class="session-head">
-              <el-icon class="session-icon"><ChatRound /></el-icon>
+              <el-icon class="session-icon"><ChatLineRound /></el-icon>
               <span class="session-title">{{ session.title || '未命名会话' }}</span>
               <span v-if="session.updatedAt" class="session-time">{{ formatDate(session.updatedAt) }}</span>
               <button
@@ -94,7 +97,7 @@
       <div class="sidebar-bottom">
         <el-dropdown trigger="click" placement="top-start" @command="handleUserCommand">
           <div class="portal-user-wrapper">
-            <el-avatar :size="40" :src="userAvatar" class="portal-user-avatar">
+            <el-avatar :size="36" :src="userAvatar" class="portal-user-avatar">
               {{ avatarText }}
             </el-avatar>
             <div class="portal-user-info">
@@ -105,6 +108,7 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+              <el-dropdown-item command="workspace">ORIN 工作台</el-dropdown-item>
               <el-dropdown-item command="apiKeys">API Key 自助</el-dropdown-item>
               <el-dropdown-item command="settings">设置与帮助</el-dropdown-item>
               <el-dropdown-item v-if="userStore.isAdmin" command="dashboard">管理端</el-dropdown-item>
@@ -134,17 +138,47 @@
           </header>
 
           <div v-if="creationServiceHint" class="creation-service-hint">
-            <div class="creation-service-hint-copy">
+            <div class="creation-empty-hero">
+              <span class="creation-empty-icon">
+                <el-icon><component :is="creationServiceHint.icon" /></el-icon>
+              </span>
+              <span class="creation-empty-kicker">{{ creationServiceHint.modeLabel }}</span>
               <strong>{{ creationServiceHint.title }}</strong>
-              <span>{{ creationServiceHint.description }}</span>
+              <p>{{ creationServiceHint.description }}</p>
             </div>
-            <div v-if="userStore.isAdmin" class="creation-service-actions">
-              <el-button type="primary" size="small" @click="goCreationSetup">
-                {{ creationServiceHint.primaryAction }}
-              </el-button>
-              <el-button size="small" @click="router.push(ROUTES.AGENTS.MODELS)">
-                模型管理
-              </el-button>
+
+            <div class="creation-empty-footer">
+              <div class="creation-empty-status">
+                <strong>{{ creationServiceHint.requiredType }}</strong>
+                <span>{{ creationServiceHint.statusText }}</span>
+              </div>
+              <div class="creation-service-actions">
+                <template v-if="userStore.isAdmin">
+                  <el-button type="primary" size="small" @click="goCreationSetup">
+                    {{ creationServiceHint.primaryAction }}
+                  </el-button>
+                  <el-button size="small" @click="router.push(ROUTES.AGENTS.MODELS)">
+                    模型管理
+                  </el-button>
+                </template>
+                <template v-else>
+                  <el-button size="small" @click="activeWorkspace = 'chat'">
+                    返回对话
+                  </el-button>
+                  <el-button size="small" @click="openServicePanel">
+                    查看可用服务
+                  </el-button>
+                </template>
+              </div>
+            </div>
+
+            <div class="creation-empty-notes">
+              <span
+                v-for="step in creationServiceHint.steps"
+                :key="step.title"
+              >
+                {{ step.title }}
+              </span>
             </div>
           </div>
 
@@ -187,52 +221,10 @@
 
         <template v-else-if="isHome">
           <div class="home-center">
-            <div v-if="currentAgent" class="service-context">
-              <button class="current-service-button" type="button" @click="openServicePanel">
-                <el-icon><Cpu /></el-icon>
-                <span>
-                  <strong>{{ currentAgent.name }}</strong>
-                  <small>{{ getAgentMeta(currentAgent) }}</small>
-                </span>
-                <el-icon><ArrowRight /></el-icon>
-              </button>
-              <el-popover
-                v-if="knowledgeBases.length"
-                placement="bottom"
-                trigger="click"
-                width="320"
-                popper-class="portal-kb-popover"
-              >
-                <template #reference>
-                  <button class="context-chip" type="button">
-                    <el-icon><Files /></el-icon>
-                    <span>{{ selectedKbLabel }}</span>
-                  </button>
-                </template>
-                <div class="kb-picker">
-                  <div class="kb-picker-head">
-                    <strong>参考资料范围</strong>
-                    <button type="button" @click="clearKnowledgeSelection">全部</button>
-                  </div>
-                  <el-checkbox-group v-model="selectedKbIds">
-                    <el-checkbox
-                      v-for="kb in knowledgeBases"
-                      :key="kb.id"
-                      :label="kb.id"
-                    >
-                      <span class="kb-option">
-                        <strong>{{ kb.name }}</strong>
-                        <small>{{ kb.documentCount }} 份资料</small>
-                      </span>
-                    </el-checkbox>
-                  </el-checkbox-group>
-                </div>
-              </el-popover>
+            <div class="home-greeting">
+              <h1 class="chat-home-title">你好，{{ displayName }}</h1>
+              <p class="chat-home-subtitle">今天想让 <span>ORIN</span> 做什么？</p>
             </div>
-            <h1>
-              <span>今天想让 ORIN</span>
-              <span class="home-title-accent">帮你处理什么？</span>
-            </h1>
             <div class="input-card">
               <input ref="fileInputRef" class="hidden-file-input" type="file" @change="onFileSelected" />
               <div v-if="uploadingFile" class="uploading-chip">
@@ -251,7 +243,7 @@
                 resize="none"
                 :autosize="{ minRows: 2, maxRows: 5 }"
                 :disabled="!currentAgent || sending || uploadingFile"
-                :placeholder="selectedUploadFileName ? '补充你想让 ORIN 如何处理这个文件...' : '输入问题，或按 / 选择常用操作'"
+                :placeholder="selectedUploadFileName ? '说明如何处理这个文件...' : '输入问题...'"
                 @keydown.enter.exact.prevent="handleComposerEnter"
               />
               <div v-if="showCommandMenu" class="command-menu">
@@ -268,38 +260,48 @@
                 </button>
                 <div v-if="filteredCommandActions.length === 0" class="command-empty">没有匹配的常用操作</div>
               </div>
-              <div class="tools-row">
+              <div class="tools-row premium-tools">
                 <div class="tools-left">
                   <button
                     type="button"
-                    class="icon-btn ghost"
+                    class="premium-icon-btn"
                     title="上传文件"
                     :disabled="!currentAgent || uploadingFile"
                     @click="triggerFilePicker"
                   >
-                    <el-icon><component :is="uploadingFile ? Loading : Plus" /></el-icon>
+                    <el-icon><component :is="uploadingFile ? Loading : Paperclip" /></el-icon>
                   </button>
                   <button
                     type="button"
-                    class="tool-pill"
+                    class="premium-icon-btn"
                     :class="{ active: showToolsMenu }"
+                    title="常用工具"
                     :disabled="!currentAgent || sending || uploadingFile"
                     @click="toggleToolsMenu"
                   >
                     <el-icon><Operation /></el-icon>
-                    <span>工具</span>
                   </button>
                 </div>
                 <div class="tools-right">
-                  <el-button
-                    class="send-button"
-                    type="primary"
-                    circle
-                    :icon="Top"
-                    :loading="sending"
+                  <button
+                    v-if="currentAgent"
+                    class="premium-model-picker"
+                    type="button"
+                    @click="openServicePanel"
+                  >
+                    <span>{{ currentAgent.name }}</span>
+                    <el-icon><ArrowRight /></el-icon>
+                  </button>
+                  <button
+                    class="premium-send-btn"
+                    :class="{ active: inputMessage.trim() || selectedUploadFileId }"
+                    type="button"
                     :disabled="uploadingFile || !currentAgent || (!inputMessage.trim() && !selectedUploadFileId)"
                     @click="sendMessage"
-                  />
+                  >
+                    <el-icon v-if="sending" class="is-loading"><Loading /></el-icon>
+                    <el-icon v-else><Top /></el-icon>
+                  </button>
                 </div>
               </div>
               <div v-if="showToolsMenu" class="tool-menu">
@@ -319,15 +321,16 @@
               </div>
             </div>
 
-            <div class="suggestions">
+            <div class="home-action-chips">
               <button
-                v-for="prompt in quickPrompts"
-                :key="prompt"
-                class="suggestion-chip"
+                v-for="action in homeActionChips"
+                :key="action.label"
+                class="home-action-chip"
                 type="button"
-                @click="applyPrompt(prompt)"
+                @click="handleHomeAction(action)"
               >
-                {{ prompt }}
+                <el-icon><component :is="action.icon" /></el-icon>
+                <span>{{ action.label }}</span>
               </button>
             </div>
           </div>
@@ -341,12 +344,11 @@
               class="message-row"
               :class="message.role"
             >
-              <div class="message-avatar">
-                <el-icon v-if="message.role === 'user'"><User /></el-icon>
-                <el-icon v-else><Cpu /></el-icon>
+              <div v-if="message.role === 'assistant'" class="message-avatar premium-avatar">
+                <el-icon><Cpu /></el-icon>
               </div>
-              <div class="message-bubble">
-                <div class="message-role">{{ message.role === 'user' ? '我' : currentAgent?.name || 'ORIN' }}</div>
+              <div class="message-bubble premium-bubble">
+                <div class="message-role" v-if="message.role === 'assistant'">{{ currentAgent?.name || 'ORIN' }}</div>
                 <div
                   v-if="message.role === 'assistant'"
                   class="message-content markdown-body"
@@ -394,7 +396,7 @@
                 resize="none"
                 :autosize="{ minRows: 2, maxRows: 5 }"
                 :disabled="!currentAgent || sending || uploadingFile"
-                :placeholder="selectedUploadFileName ? '补充你想让 ORIN 如何处理这个文件...' : '输入问题，或按 / 选择常用操作'"
+                :placeholder="selectedUploadFileName ? '说明如何处理这个文件...' : '输入问题...'"
                 @keydown.enter.exact.prevent="handleComposerEnter"
               />
               <div v-if="showCommandMenu" class="command-menu compact-menu">
@@ -475,15 +477,14 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { marked } from 'marked';
 import {
   ArrowRight,
-  Brush,
-  ChatRound,
+  ChatLineRound,
+  Connection,
   Cpu,
   DataAnalysis,
   Delete,
   Document,
   EditPen,
   Files,
-  Grid,
   Loading,
   MagicStick,
   Microphone,
@@ -491,7 +492,6 @@ import {
   Paperclip,
   Picture,
   Plus,
-  ScaleToOriginal,
   Top,
   User,
   VideoCamera
@@ -548,13 +548,6 @@ const uploadingFile = ref(false);
 const showToolsMenu = ref(false);
 const messagesRef = ref(null);
 const fileInputRef = ref(null);
-
-const quickPrompts = [
-  '帮我总结这份资料的关键结论',
-  '给我生成一个可执行的任务计划',
-  '根据参考资料回答客户这个问题',
-  '把下面内容改写成正式邮件'
-];
 
 const commandActions = [
   {
@@ -613,6 +606,27 @@ const toolActions = [
     desc: '把草稿改成正式表达',
     icon: EditPen,
     prompt: '请把下面内容改写成一封正式、清晰、礼貌的邮件。'
+  }
+];
+
+const homeActionChips = [
+  {
+    label: '生成图片',
+    desc: '进入 AI 创作',
+    icon: Picture,
+    action: 'creation'
+  },
+  {
+    label: '撰写或编辑',
+    desc: '改写、润色和整理文本',
+    icon: EditPen,
+    prompt: '请帮我撰写或编辑下面这段内容，让表达更清晰。'
+  },
+  {
+    label: '查找资料',
+    desc: '基于参考资料回答',
+    icon: Files,
+    prompt: '请根据可用参考资料帮我查找并回答下面的问题。'
   }
 ];
 
@@ -753,31 +767,68 @@ const canGenerateCreation = computed(() => {
 
 const creationServiceHint = computed(() => {
   if (creationAgent.value) return null;
+  const commonSteps = (agentType, modelType) => [
+    {
+      index: '01',
+      title: `需要 ${agentType} 智能体`,
+      description: `创建或启用一个 ${agentType} 智能体，并确认当前用户有权限访问。`
+    },
+    {
+      index: '02',
+      title: `绑定 ${modelType} 模型`,
+      description: `在模型管理中添加可用的 ${modelType} 模型，配置 provider 凭据。`
+    },
+    {
+      index: '03',
+      title: '配置后自动出现在这里',
+      description: '保存配置后刷新服务列表，即可在这里直接生成内容。'
+    }
+  ];
   if (loadingAgents.value) {
     return {
+      icon: Loading,
+      modeLabel: '正在检查服务',
       title: '正在加载创作服务...',
       description: '正在检查当前账号可用的图像、视频和音频智能体。',
-      primaryAction: '智能体接入'
+      primaryAction: '智能体接入',
+      requiredType: 'CREATION_AGENT',
+      statusText: '正在读取当前账号的服务权限',
+      steps: commonSteps('创作型', '多模态')
     };
   }
   if (creatorMode.value === 'video') {
     return {
-      title: '当前没有可用的视频生成服务',
-      description: '请在管理端接入一个 TEXT_TO_VIDEO 智能体；如果没有视频模型，先到模型管理添加或导入视频生成模型。',
-      primaryAction: '接入视频智能体'
+      icon: VideoCamera,
+      modeLabel: '视频生成',
+      title: '还没有视频生成服务',
+      description: '当前账号能用的服务里还没有视频生成能力。你可以先回到对话，或让管理员接入一个视频创作智能体。',
+      primaryAction: '接入视频智能体',
+      requiredType: 'TEXT_TO_VIDEO',
+      statusText: agents.value.length ? `已发现 ${agents.value.length} 个服务，但没有视频生成能力` : '当前账号暂无任何可用服务',
+      steps: commonSteps('TEXT_TO_VIDEO', '视频生成')
     };
   }
   if (creatorMode.value === 'audio') {
     return {
-      title: '当前没有可用的语音合成服务',
-      description: '请在管理端接入一个 TEXT_TO_SPEECH 智能体；如果没有语音模型，先到模型管理添加或导入语音合成模型。',
-      primaryAction: '接入语音智能体'
+      icon: Microphone,
+      modeLabel: '音频生成',
+      title: '还没有语音合成服务',
+      description: '当前账号能用的服务里还没有语音合成能力。你可以先回到对话，或让管理员接入一个语音创作智能体。',
+      primaryAction: '接入语音智能体',
+      requiredType: 'TEXT_TO_SPEECH',
+      statusText: agents.value.length ? `已发现 ${agents.value.length} 个服务，但没有语音合成能力` : '当前账号暂无任何可用服务',
+      steps: commonSteps('TEXT_TO_SPEECH', '语音合成')
     };
   }
   return {
-    title: '当前没有可用的图像生成服务',
-    description: '请在管理端接入一个 TEXT_TO_IMAGE 智能体；如果没有图像模型，先到模型管理添加或导入图像生成模型。',
-    primaryAction: '接入图像智能体'
+    icon: Picture,
+    modeLabel: '图像生成',
+    title: '还没有图像生成服务',
+    description: '当前账号能用的服务里还没有图像生成能力。你可以先回到对话，或让管理员接入一个图像创作智能体。',
+    primaryAction: '接入图像智能体',
+    requiredType: 'TEXT_TO_IMAGE',
+    statusText: agents.value.length ? `已发现 ${agents.value.length} 个服务，但没有图像生成能力` : '当前账号暂无任何可用服务',
+    steps: commonSteps('TEXT_TO_IMAGE', '图像生成')
   };
 });
 
@@ -800,14 +851,6 @@ const creationRuntimeParameters = computed(() => ({
   speed: 1,
   gain: 0
 }));
-
-const currentSessionTitle = computed(() => {
-  if (currentSessionId.value) {
-    const session = sessions.value.find((item) => item.id === currentSessionId.value);
-    if (session?.title) return session.title;
-  }
-  return '有什么可以帮你？';
-});
 
 const showCommandMenu = computed(() => {
   return inputMessage.value.trimStart().startsWith('/') && !sending.value && !uploadingFile.value;
@@ -1513,6 +1556,14 @@ const applyTool = (tool) => {
   inputMessage.value = tool.prompt;
 };
 
+const handleHomeAction = (action) => {
+  if (action.action === 'creation') {
+    openCreationStudio();
+    return;
+  }
+  applyTool(action);
+};
+
 const handleComposerEnter = () => {
   if (showCommandMenu.value && filteredCommandActions.value.length) {
     applyCommand(filteredCommandActions.value[0]);
@@ -1523,19 +1574,23 @@ const handleComposerEnter = () => {
 
 const handleUserCommand = (command) => {
   if (command === 'profile') {
-    router.push('/dashboard/profile');
+    router.push(ROUTES.CHAT_PROFILE);
     return;
   }
   if (command === 'settings') {
-    router.push('/dashboard/profile');
+    router.push(ROUTES.CHAT_PROFILE);
     return;
   }
   if (command === 'apiKeys') {
     router.push(ROUTES.PLATFORM);
     return;
   }
+  if (command === 'workspace') {
+    router.push(ROUTES.WORKSPACE);
+    return;
+  }
   if (command === 'dashboard') {
-    router.push('/dashboard');
+    router.push(ROUTES.ADMIN);
     return;
   }
   if (command === 'logout') {
@@ -1585,17 +1640,21 @@ onMounted(async () => {
 
 <style scoped>
 .service-portal {
-  --sidebar-width: 280px;
-  --portal-primary: #00bfa5;
+  --sidebar-width: 260px;
+  --portal-primary: #0d9488;
   --portal-primary-dark: #0f766e;
-  --portal-ink: #101828;
-  --portal-muted: #667085;
-  --portal-line: rgba(0, 191, 165, 0.14);
+  --portal-primary-soft: #e6f5f2;
+  --portal-ink: #0f172a;
+  --portal-muted: #6b7280;
+  --portal-line: rgba(15, 23, 42, 0.08);
+  --portal-surface: #ffffff;
+  --portal-bg: #ffffff;
   min-height: 100vh;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  background: #f8fafc;
+  background: var(--portal-bg);
   color: var(--portal-ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .portal-sidebar {
@@ -1603,29 +1662,37 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border-right: 1px solid var(--portal-line);
+  padding: 14px 12px 12px;
+  background: #f7f9f9;
+  border-right: 1px solid #e4ecea;
   box-sizing: border-box;
 }
 
 .sidebar-brand-row {
-  min-height: 64px;
+  min-height: 38px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  padding: 2px 8px 4px;
+  padding: 0 8px 2px;
   color: var(--portal-ink);
 }
 
+.sidebar-brand-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  font-size: 17px;
+  font-weight: 760;
+  line-height: 1;
+}
+
 .sidebar-brand-logo {
-  width: 112px;
-  height: 58px;
   display: block;
+  width: 65px;
+  height: 25px;
   object-fit: contain;
-  flex: 0 0 auto;
 }
 
 .icon-btn {
@@ -1642,7 +1709,7 @@ onMounted(async () => {
 }
 
 .icon-btn:hover {
-  background: #ecfdf5;
+  background: #f1f5f9;
   color: var(--portal-primary-dark);
 }
 
@@ -1652,29 +1719,30 @@ onMounted(async () => {
 }
 
 .icon-btn.ghost {
-  background: #ecfdf5;
+  background: transparent;
   color: var(--portal-primary-dark);
 }
 
 .portal-user-wrapper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  min-width: 0;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 .portal-user-wrapper:hover {
-  background: #f2f4f7;
+  background: #ececef;
 }
 
 .portal-user-avatar {
   flex-shrink: 0;
-  border: 2px solid #eef2f6;
-  background: var(--portal-primary);
-  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.12);
+  border: 0;
+  background: var(--portal-primary-dark);
+  box-shadow: none;
 }
 
 .portal-user-info {
@@ -1687,8 +1755,8 @@ onMounted(async () => {
 
 .portal-user-name {
   color: var(--portal-ink);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 650;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1699,16 +1767,19 @@ onMounted(async () => {
   width: fit-content;
   padding: 2px 6px;
   border-radius: 4px;
-  color: var(--portal-primary-dark);
-  background: #ecfdf5;
-  font-size: 11px;
-  font-weight: 700;
+  padding: 0;
+  color: #8a8a8e;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ececf0;
 }
 
 .nav-item {
@@ -1717,36 +1788,57 @@ onMounted(async () => {
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #20242c;
+  color: #111827;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
+  gap: 9px;
+  padding: 0 9px;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 560;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .nav-item:hover {
-  background: rgba(0, 191, 165, 0.08);
-  color: var(--portal-primary-dark);
-  transform: translateX(2px);
+  background: #edf2f1;
+  color: #030712;
 }
 
 .nav-item.active {
-  background: rgba(0, 191, 165, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(0, 191, 165, 0.14);
-  color: var(--portal-primary-dark);
+  background: var(--portal-primary-soft);
+  color: #0f5f58;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 0;
+  background: transparent;
+  color: currentColor;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  box-shadow: none;
+}
+
+.nav-icon .el-icon {
+  font-size: 17px;
+}
+
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  background: transparent;
+  color: currentColor;
+  box-shadow: none;
 }
 
 .nav-item kbd {
   margin-left: auto;
-  min-width: 42px;
+  min-width: 36px;
   height: 20px;
-  border: 1px solid rgba(0, 191, 165, 0.2);
-  border-radius: 6px;
-  color: #6b7280;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 7px;
+  color: #64748b;
   background: rgba(255, 255, 255, 0.72);
   display: inline-flex;
   align-items: center;
@@ -1768,11 +1860,11 @@ onMounted(async () => {
 
 .nav-count {
   margin-left: auto;
-  min-width: 22px;
+  min-width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: #e6fffa;
-  color: var(--portal-primary-dark);
+  background: #d9efeb;
+  color: #0f766e;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1789,62 +1881,97 @@ onMounted(async () => {
 }
 
 .section-title {
-  padding: 22px 10px 8px;
-  color: var(--portal-muted);
+  padding: 10px 9px 6px;
+  color: #111827;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 750;
+  letter-spacing: 0;
 }
 
 .session-list {
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.session-list:hover {
+  scrollbar-color: #d5d8de transparent;
+}
+
+.session-list::-webkit-scrollbar,
+.service-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.session-list::-webkit-scrollbar-track,
+.service-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.session-list::-webkit-scrollbar-thumb,
+.service-list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.session-list:hover::-webkit-scrollbar-thumb,
+.service-list:hover::-webkit-scrollbar-thumb {
+  background: #d5d8de;
 }
 
 .service-list {
   min-height: 0;
   overflow-y: auto;
   display: grid;
-  gap: 8px;
-  padding: 0 2px 8px;
+  gap: 4px;
+  padding: 0 2px 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.service-list:hover {
+  scrollbar-color: #d5d8de transparent;
 }
 
 .service-item {
   width: 100%;
-  min-height: 62px;
+  min-height: 52px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
   color: var(--portal-ink);
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 10px;
+  padding: 8px 12px;
   text-align: left;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .service-item:hover {
-  background: #f0fdfa;
-  border-color: rgba(0, 191, 165, 0.14);
-  transform: translateX(2px);
+  background: #edf2f1;
+  border-color: transparent;
 }
 
 .service-item.active {
-  background: #ccfbf1;
-  border-color: rgba(0, 191, 165, 0.24);
+  background: var(--portal-primary-soft);
+  border-color: transparent;
 }
 
 .service-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: #ecfdf5;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: transparent;
   color: var(--portal-primary-dark);
   display: inline-grid;
   place-items: center;
@@ -1883,39 +2010,38 @@ onMounted(async () => {
   border-radius: 10px;
   background: transparent;
   text-align: left;
-  padding: 8px 10px;
+  padding: 8px 9px;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.16s ease;
 }
 
 .session-item:hover {
-  background: #f0fdfa;
-  transform: translateX(2px);
+  background: #edf2f1;
 }
 
 .session-item.active {
-  background: #ccfbf1;
+  background: var(--portal-primary-soft);
 }
 
 .session-head {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .session-icon {
-  color: #98a2b3;
-  font-size: 16px;
+  color: #7a808c;
+  font-size: 14px;
   flex: 0 0 auto;
 }
 
 .session-title {
   min-width: 0;
   flex: 1 1 auto;
-  color: #344054;
+  color: #1f2937;
   font-size: 13px;
   line-height: 1.3;
   overflow: hidden;
@@ -1925,10 +2051,10 @@ onMounted(async () => {
 
 .session-delete {
   margin-left: auto;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: #8a8d95;
   display: inline-flex;
@@ -1950,9 +2076,7 @@ onMounted(async () => {
 }
 
 .session-time {
-  flex: 0 0 auto;
-  color: #8a8d95;
-  font-size: 11px;
+  display: none;
 }
 
 .sidebar-empty {
@@ -1964,8 +2088,8 @@ onMounted(async () => {
 .sidebar-bottom {
   display: grid;
   gap: 8px;
-  padding: 10px 4px 4px;
-  border-top: 1px solid var(--portal-line);
+  padding: 10px 2px 2px;
+  border-top: 1px solid #ececf0;
   background: transparent;
 }
 
@@ -1974,15 +2098,16 @@ onMounted(async () => {
   height: 100vh;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .creation-stage {
   height: 100vh;
   min-height: 0;
   overflow: hidden;
-  padding: 24px 28px;
+  padding: 22px 28px;
   box-sizing: border-box;
-  background: #f8fafc;
+  background: #fff;
 }
 
 .creation-workspace {
@@ -1996,8 +2121,8 @@ onMounted(async () => {
 
 .creation-workspace-head {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 20px;
+  right: 22px;
   z-index: 5;
   width: auto;
   min-height: 0;
@@ -2014,11 +2139,11 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid rgba(0, 191, 165, 0.16);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.95);
   padding: 3px;
-  box-shadow: 0 14px 36px rgba(15, 118, 110, 0.12);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.1);
   pointer-events: auto;
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
@@ -2027,16 +2152,16 @@ onMounted(async () => {
 .creation-mode-tabs button {
   height: 32px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
-  color: #4b5563;
+  color: #64748b;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 0 12px;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -2044,17 +2169,17 @@ onMounted(async () => {
 .creation-mode-tabs button.active {
   background: var(--portal-primary);
   color: #fff;
-  box-shadow: 0 12px 24px rgba(0, 191, 165, 0.24);
+  box-shadow: 0 8px 16px rgba(13, 148, 136, 0.2);
 }
 
 .creation-runner {
   flex: 1;
   min-height: 0;
-  border: 1px solid rgba(0, 191, 165, 0.12);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 18px;
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 22px 70px rgba(15, 118, 110, 0.1);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.04);
 }
 
 .creation-runner :deep(.playground-stage) {
@@ -2229,44 +2354,165 @@ onMounted(async () => {
 }
 
 .creation-service-hint {
-  width: min(720px, 100%);
+  width: min(780px, 100%);
   margin: auto;
-  border: 1px solid rgba(0, 191, 165, 0.14);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.86);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--portal-ink);
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
-  padding: 28px;
+  gap: 18px;
+  padding: 18px 0;
   text-align: center;
-  box-shadow: 0 24px 64px rgba(15, 118, 110, 0.08);
+  box-shadow: none;
 }
 
+.creation-empty-hero,
 .creation-service-hint-copy {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
 }
 
+.creation-empty-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--portal-primary);
+  color: #fff;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 14px 30px rgba(13, 148, 136, 0.18);
+}
+
+.creation-empty-icon .el-icon {
+  font-size: 24px;
+}
+
+.creation-empty-kicker {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.creation-empty-hero strong,
 .creation-service-hint-copy strong {
   color: var(--portal-ink);
-  font-size: 17px;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.creation-empty-hero p,
+.creation-service-hint-copy span {
+  max-width: 560px;
+  margin: 0;
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.creation-empty-grid {
+  display: none;
+}
+
+.creation-empty-step {
+  min-height: 122px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 16px;
+}
+
+.creation-empty-step span {
+  color: var(--portal-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.creation-empty-step strong {
+  color: #111827;
+  font-size: 15px;
   font-weight: 850;
 }
 
-.creation-service-hint-copy span {
-  max-width: 560px;
+.creation-empty-step small {
   color: #667085;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.creation-empty-footer {
+  width: min(620px, 100%);
+  min-height: 54px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 999px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 10px 8px 18px;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+}
+
+.creation-empty-status {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+}
+
+.creation-empty-status strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.creation-empty-status span {
+  color: #64748b;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .creation-service-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.creation-empty-notes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.creation-empty-notes span {
+  min-height: 26px;
+  border-radius: 999px;
+  background: #f2f2f3;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .creation-result {
@@ -2454,31 +2700,37 @@ onMounted(async () => {
 
 .chat-stage {
   overflow-y: auto;
-  padding: 16px 24px 24px;
+  padding: 24px 32px 34px;
   scroll-behavior: smooth;
+  background: #fff;
 }
 
 .chat-stage.home {
-  display: flex;
+  display: grid;
   align-items: center;
-  justify-content: center;
-  background: #f8fafc;
+  justify-items: center;
+  background: #fff;
 }
 
 .home-center {
-  width: min(860px, 100%);
+  width: min(760px, 100%);
   text-align: center;
-  animation: portalHomeIn 0.72s cubic-bezier(.16, 1, .3, 1) both;
+  animation: portalHomeIn 0.42s cubic-bezier(.16, 1, .3, 1) both;
+  margin-top: -24px;
 }
 
 .service-context {
-  width: min(680px, 100%);
-  margin: 0 auto 16px;
+  width: min(620px, 100%);
+  margin: 0 auto 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.chat-stage.home .service-context {
+  display: none;
 }
 
 .service-context.compact-context {
@@ -2489,38 +2741,38 @@ onMounted(async () => {
 
 .current-service-button,
 .context-chip {
-  border: 1px solid rgba(0, 191, 165, 0.14);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
-  color: var(--portal-primary-dark);
+  background: rgba(255, 255, 255, 0.82);
+  color: #334155;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .current-service-button {
   max-width: min(460px, 100%);
-  min-height: 42px;
-  padding: 6px 12px;
+  min-height: 38px;
+  padding: 5px 11px;
   text-align: left;
 }
 
 .context-chip {
-  height: 42px;
-  padding: 0 14px;
+  height: 38px;
+  padding: 0 12px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .current-service-button:hover,
 .context-chip:hover {
-  background: #ecfdf5;
-  border-color: rgba(0, 191, 165, 0.28);
-  transform: translateY(-1px);
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: var(--portal-primary-dark);
 }
 
 .current-service-button > span {
@@ -2532,8 +2784,8 @@ onMounted(async () => {
 .current-service-button strong {
   overflow: hidden;
   color: var(--portal-ink);
-  font-size: 14px;
-  font-weight: 900;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2543,7 +2795,7 @@ onMounted(async () => {
   overflow: hidden;
   max-width: 360px;
   color: #667085;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2616,20 +2868,28 @@ onMounted(async () => {
 }
 
 .home-center h1 {
-  margin: 8px 0 24px;
+  margin: 0 0 28px;
   color: var(--portal-ink);
-  font-size: clamp(34px, 4.8vw, 58px);
-  line-height: 1.08;
-  font-weight: 900;
+  font-size: 28px;
+  line-height: 1.14;
+  font-weight: 520;
+  letter-spacing: 0;
+}
+
+.chat-home-title {
+  margin: 0 0 28px;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 520;
+  letter-spacing: 0;
 }
 
 .home-center h1 span {
-  display: block;
+  display: inline;
 }
 
 .home-title-accent {
-  color: var(--portal-primary);
-  text-shadow: 0 18px 48px rgba(0, 191, 165, 0.18);
+  color: var(--portal-ink);
 }
 
 .home-kicker {
@@ -2642,21 +2902,43 @@ onMounted(async () => {
 
 .input-card {
   position: relative;
-  border: 1px solid rgba(0, 191, 165, 0.18);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 16px 18px 12px;
-  box-shadow: 0 26px 70px rgba(15, 118, 110, 0.12);
+  width: min(760px, 100%);
+  margin: 0 auto;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.98);
+  padding: 10px 12px;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
   text-align: left;
   backdrop-filter: blur(16px);
-  transition: border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease;
+  box-sizing: border-box;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.chat-stage.home .input-card {
+  width: min(760px, 100%);
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 999px;
+  background: #fff;
+  padding: 7px 8px 7px 12px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+}
+
+.chat-stage.home .input-card:hover,
+.chat-stage.home .input-card:focus-within {
+  border-color: rgba(13, 148, 136, 0.34);
+  box-shadow: 0 22px 54px rgba(13, 148, 136, 0.1);
 }
 
 .input-card:hover,
 .input-card:focus-within {
-  border-color: rgba(0, 191, 165, 0.34);
-  box-shadow: 0 30px 84px rgba(15, 118, 110, 0.16);
-  transform: translateY(-2px);
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.09);
 }
 
 .input-card.compact {
@@ -2668,14 +2950,102 @@ onMounted(async () => {
 }
 
 .composer-input :deep(.el-textarea__inner) {
-  min-height: 56px !important;
+  min-height: 50px !important;
   border: 0;
   box-shadow: none;
   background: transparent;
   color: var(--portal-ink);
+  font-size: 15px;
+  line-height: 1.42;
+  padding: 2px 4px 10px;
+}
+
+.chat-stage.home .composer-input {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.chat-stage.home .composer-input :deep(.el-textarea__inner) {
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 8px 4px 6px;
   font-size: 16px;
-  line-height: 1.34;
-  padding: 2px 4px 8px;
+  line-height: 1.25;
+  overflow: hidden !important;
+}
+
+.chat-stage.home .uploading-chip,
+.chat-stage.home .attachment-chip,
+.chat-stage.home .command-menu,
+.chat-stage.home .tool-menu {
+  grid-column: 1 / -1;
+}
+
+.chat-stage.home .tools-row {
+  display: contents;
+}
+
+.chat-stage.home .tools-left {
+  grid-column: 1;
+  grid-row: 1;
+  gap: 6px;
+}
+
+.chat-stage.home .tools-right {
+  grid-column: 3;
+  grid-row: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-stage.home .icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #111827;
+}
+
+.chat-stage.home .tool-pill {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #111827;
+  justify-content: center;
+}
+
+.home-model-button {
+  max-width: 120px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #111827;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 6px 0 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.home-model-button:hover {
+  background: #f4f4f5;
+}
+
+.home-model-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-model-button .el-icon {
+  flex: 0 0 auto;
+  color: #6b7280;
+  font-size: 13px;
 }
 
 .command-menu {
@@ -2768,11 +3138,11 @@ onMounted(async () => {
 }
 
 .tool-pill {
-  height: 34px;
+  height: 32px;
   border: 0;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #3f4652;
+  background: transparent;
+  color: #334155;
   padding: 0 14px;
   display: inline-flex;
   align-items: center;
@@ -2785,7 +3155,7 @@ onMounted(async () => {
 
 .tool-pill:hover,
 .tool-pill.active {
-  background: #e6fffa;
+  background: #f8fafc;
   color: var(--portal-primary-dark);
   transform: translateY(-1px);
 }
@@ -2859,39 +3229,99 @@ onMounted(async () => {
 }
 
 .send-button {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border: 0;
-  background: var(--portal-primary);
-  box-shadow: 0 12px 28px rgba(0, 191, 165, 0.28);
+  background: #050505 !important;
+  border-color: #050505 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.chat-stage.home .send-button {
+  width: 42px;
+  height: 42px;
+  background: #050505 !important;
+  color: #fff;
+  box-shadow: none;
+}
+
+.chat-stage.home .send-button.is-disabled {
+  background: #050505 !important;
+  opacity: 0.9;
 }
 
 .send-button.is-disabled {
-  background: #c7ccd4;
+  background: #050505 !important;
+  border-color: #050505 !important;
+  opacity: 0.9;
 }
 
 .suggestions {
-  margin-top: 16px;
+  width: min(760px, 100%);
+  margin: 12px auto 0;
   display: flex;
-  gap: 10px;
+  gap: 6px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
-.suggestion-chip {
-  border: 0;
-  border-radius: 8px;
-  padding: 10px 14px;
-  background: rgba(236, 253, 245, 0.8);
-  color: var(--portal-primary-dark);
-  font-size: 13px;
+.chat-stage.home .suggestions {
+  display: none;
+}
+
+.home-action-chips {
+  width: min(520px, 100%);
+  margin: 22px auto 0;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.home-action-chip {
+  height: 38px;
+  border: 1px solid rgba(15, 23, 42, 0.11);
+  border-radius: 999px;
+  background: #fff;
+  color: #8a8a8e;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 520;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+}
+
+.home-action-chip:hover {
+  border-color: rgba(13, 148, 136, 0.28);
+  background: #f2faf8;
+  color: var(--portal-primary-dark);
+}
+
+.home-action-chip .el-icon {
+  font-size: 17px;
+  color: var(--portal-primary);
+}
+
+.suggestion-chip {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .suggestion-chip:hover {
-  background: #ccfbf1;
-  transform: translateY(-2px);
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--portal-primary-dark);
 }
 
 .messages-wrap {
@@ -3107,12 +3537,12 @@ onMounted(async () => {
     right: 20px;
   }
 
-  .home-kicker {
-    font-size: 30px;
+  .home-center {
+    width: min(820px, 100%);
   }
 
   .composer-input :deep(.el-textarea__inner) {
-    font-size: 20px;
+    font-size: 15px;
   }
 }
 
@@ -3127,6 +3557,38 @@ onMounted(async () => {
 
   .creation-stage {
     padding: 18px;
+  }
+
+  .creation-service-hint {
+    width: 100%;
+    padding: 22px;
+    gap: 16px;
+  }
+
+  .creation-empty-hero strong {
+    font-size: 20px;
+  }
+
+  .creation-empty-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .creation-empty-step {
+    min-height: 0;
+  }
+
+  .creation-empty-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .creation-service-actions {
+    justify-content: stretch;
+  }
+
+  .creation-service-actions :deep(.el-button) {
+    flex: 1;
+    margin-left: 0;
   }
 
   .creation-workspace-head {
@@ -3153,6 +3615,153 @@ onMounted(async () => {
 
   .chat-stage {
     padding: 12px 12px 18px;
+  }
+
+  .chat-stage.home .premium-model-picker {
+    display: none;
+  }
+}
+
+/* Premium Enhancements */
+.home-greeting {
+  text-align: center;
+  margin-bottom: 30px;
+  animation: portalHomeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.chat-home-title {
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 680;
+  color: var(--portal-ink);
+  margin-bottom: 10px;
+  letter-spacing: 0;
+}
+.chat-home-subtitle {
+  font-size: 18px;
+  color: #64748b;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.chat-home-subtitle span {
+  color: var(--portal-primary);
+  font-weight: 750;
+}
+
+.premium-tools {
+  margin-top: 12px;
+}
+.premium-icon-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  font-size: 20px;
+}
+.premium-icon-btn:hover {
+  background: var(--portal-primary-soft);
+  color: var(--portal-primary-dark);
+}
+
+.premium-icon-btn.active {
+  background: var(--portal-primary-soft);
+  color: var(--portal-primary-dark);
+}
+
+.premium-model-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.premium-model-picker:hover {
+  background: var(--portal-primary-soft);
+  color: var(--portal-primary-dark);
+}
+
+.premium-send-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #e7efed;
+  color: #8ba9a4;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 18px;
+}
+.premium-send-btn.active {
+  background: var(--portal-primary);
+  color: #fff;
+}
+.premium-send-btn.active:hover {
+  background: var(--portal-primary-dark);
+  transform: translateY(-1px);
+}
+.premium-send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.message-row.user {
+  flex-direction: row-reverse;
+}
+.message-row.user .premium-bubble {
+  background: #f1f5f9;
+  color: var(--portal-ink);
+  border: none;
+  border-radius: 16px;
+  border-bottom-right-radius: 4px;
+  padding: 14px 20px;
+  font-size: 15px;
+}
+.message-row.assistant .premium-bubble {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+}
+.premium-avatar {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+@media (max-width: 880px) {
+  .home-center {
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .home-center h1 {
+    font-size: 28px;
+    margin-bottom: 18px;
+  }
+
+  .service-context {
+    margin-bottom: 14px;
+  }
+
+  .input-card,
+  .suggestions {
+    width: 100%;
   }
 }
 </style>

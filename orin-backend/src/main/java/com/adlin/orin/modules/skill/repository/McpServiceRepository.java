@@ -27,6 +27,8 @@ public interface McpServiceRepository extends JpaRepository<McpService, Long> {
      */
     List<McpService> findByStatus(McpService.McpStatus status);
 
+    List<McpService> findByOwnerUserIdOrOwnerUserIdIsNull(Long ownerUserId);
+
     /**
      * 检查服务名称是否存在
      */

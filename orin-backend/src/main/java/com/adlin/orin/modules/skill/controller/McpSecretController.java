@@ -3,13 +3,16 @@ package com.adlin.orin.modules.skill.controller;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.audit.service.AuditHelper;
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -35,19 +38,18 @@ public class McpSecretController {
 
     @GetMapping
     @Operation(summary = "列出 MCP env 密钥")
-    @PreAuthorize("hasRole('ADMIN')")
     public List<McpSecretView> list() {
         return gatewaySecretService.listMcpEnvSecrets().stream()
                 .filter(s -> s.getStatus() != GatewaySecret.SecretStatus.DELETED)
+                .filter(this::canRead)
                 .map(this::toView)
                 .collect(Collectors.toList());
     }
 
     @PostMapping
     @Operation(summary = "创建 MCP env 密钥")
-    @PreAuthorize("hasRole('ADMIN')")
-    public McpSecretView create(@RequestBody CreateMcpSecretRequest request,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+    public McpSecretView create(@RequestBody CreateMcpSecretRequest request) {
+        String userId = currentUserId();
         GatewaySecret secret = gatewaySecretService.createMcpEnvSecret(
                 request.getName(), request.getSecret(), request.getDescription(), userId);
         auditHelper.log(userId, "MCP_SECRET_CREATE", "/api/v1/mcp/secrets",
@@ -57,10 +59,10 @@ public class McpSecretController {
 
     @PatchMapping("/{secretId}/status")
     @Operation(summary = "启用/禁用 MCP env 密钥")
-    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> updateStatus(@PathVariable String secretId,
-            @RequestBody UpdateStatusRequest request,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+            @RequestBody UpdateStatusRequest request) {
+        String userId = currentUserId();
+        assertCanManage(secretId);
         GatewaySecret.SecretStatus status = Boolean.TRUE.equals(request.getEnabled())
                 ? GatewaySecret.SecretStatus.ACTIVE
                 : GatewaySecret.SecretStatus.DISABLED;
@@ -72,9 +74,9 @@ public class McpSecretController {
 
     @DeleteMapping("/{secretId}")
     @Operation(summary = "删除 MCP env 密钥")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Map<String, Object> delete(@PathVariable String secretId,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+    public Map<String, Object> delete(@PathVariable String secretId) {
+        String userId = currentUserId();
+        assertCanManage(secretId);
         boolean success = gatewaySecretService.deleteBySecretId(secretId, userId);
         auditHelper.log(userId, "MCP_SECRET_DELETE", "/api/v1/mcp/secrets/" + secretId,
                 "删除 MCP 密钥: " + secretId, success, null);
@@ -83,10 +85,10 @@ public class McpSecretController {
 
     @PostMapping("/{secretId}/rotate")
     @Operation(summary = "轮换 MCP env 密钥")
-    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> rotate(@PathVariable String secretId,
-            @RequestBody RotateSecretRequest request,
-            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "default-user") String userId) {
+            @RequestBody RotateSecretRequest request) {
+        String userId = currentUserId();
+        assertCanManage(secretId);
         boolean success = gatewaySecretService.rotateProviderCredential(secretId, request.getSecret(), userId)
                 .isPresent();
         auditHelper.log(userId, "MCP_SECRET_ROTATE", "/api/v1/mcp/secrets/" + secretId + "/rotate",
@@ -104,6 +106,35 @@ public class McpSecretController {
                 .createdAt(secret.getCreatedAt())
                 .updatedAt(secret.getUpdatedAt())
                 .build();
+    }
+
+    private boolean canRead(GatewaySecret secret) {
+        return isAdmin() || currentUserId().equals(secret.getUserId());
+    }
+
+    private void assertCanManage(String secretId) {
+        GatewaySecret secret = gatewaySecretService.findBySecretId(secretId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "MCP 密钥不存在"));
+        if (!canRead(secret)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该 MCP 密钥");
+        }
+    }
+
+    private String currentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "当前请求缺少用户上下文");
+        }
+        return authentication.getPrincipal().toString();
+    }
+
+    private boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_SUPER_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_PLATFORM_ADMIN".equals(authority.getAuthority())
+                        || "ADMIN".equals(authority.getAuthority()));
     }
 
     @Data

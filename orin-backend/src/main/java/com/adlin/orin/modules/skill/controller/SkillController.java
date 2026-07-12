@@ -4,6 +4,7 @@ import com.adlin.orin.modules.skill.dto.SkillRequest;
 import com.adlin.orin.modules.skill.dto.SkillResponse;
 import com.adlin.orin.modules.skill.entity.SkillEntity;
 import com.adlin.orin.modules.skill.service.SkillService;
+import com.adlin.orin.modules.skill.service.SkillOwnershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 技能管理控制器
@@ -26,11 +28,14 @@ import java.util.Map;
 public class SkillController {
 
     private final SkillService skillService;
+    private final SkillOwnershipService ownershipService;
 
     @PostMapping
     @Operation(summary = "创建技能")
     public ResponseEntity<SkillResponse> createSkill(@RequestBody SkillRequest request) {
         log.info("REST request to create skill: {}", request.getSkillName());
+        ownershipService.assertCanCreateType(request.getSkillType());
+        request.setCreatedBy(ownershipService.currentUserKey());
         SkillResponse response = skillService.createSkill(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -41,6 +46,7 @@ public class SkillController {
             @PathVariable Long id,
             @RequestBody SkillRequest request) {
         log.info("REST request to update skill: {}", id);
+        ownershipService.assertCanManage(id);
         SkillResponse response = skillService.updateSkill(id, request);
         return ResponseEntity.ok(response);
     }
@@ -49,6 +55,7 @@ public class SkillController {
     @Operation(summary = "删除技能")
     public ResponseEntity<Void> deleteSkill(@PathVariable Long id) {
         log.info("REST request to delete skill: {}", id);
+        ownershipService.assertCanManage(id);
         skillService.deleteSkill(id);
         return ResponseEntity.noContent().build();
     }
@@ -57,6 +64,7 @@ public class SkillController {
     @Operation(summary = "获取技能详情")
     public ResponseEntity<SkillResponse> getSkill(@PathVariable Long id) {
         log.info("REST request to get skill: {}", id);
+        ownershipService.assertCanRead(id);
         SkillResponse response = skillService.getSkillById(id);
         return ResponseEntity.ok(response);
     }
@@ -77,13 +85,16 @@ public class SkillController {
             skills = skillService.getAllSkills();
         }
 
-        return ResponseEntity.ok(skills);
+        return ResponseEntity.ok(skills.stream()
+                .filter(skill -> ownershipService.canRead(skill.getCreatedBy()))
+                .toList());
     }
 
     @GetMapping("/{id}/skill-md")
     @Operation(summary = "获取技能的 SKILL.md 内容")
     public ResponseEntity<Map<String, String>> getSkillMd(@PathVariable Long id) {
         log.info("REST request to get SKILL.md for skill: {}", id);
+        ownershipService.assertCanExecute(id);
         String skillMd = skillService.generateSkillMd(id);
         return ResponseEntity.ok(Map.of("content", skillMd));
     }
@@ -95,7 +106,9 @@ public class SkillController {
             @RequestParam String reference,
             @RequestBody Map<String, Object> config) {
         log.info("REST request to import skill from platform: {}, reference: {}", platform, reference);
-        SkillResponse response = skillService.importExternalSkill(platform, reference, config);
+        Map<String, Object> ownedConfig = new HashMap<>(config);
+        ownedConfig.put("createdBy", ownershipService.currentUserKey());
+        SkillResponse response = skillService.importExternalSkill(platform, reference, ownedConfig);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -105,6 +118,7 @@ public class SkillController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> inputs) {
         log.info("REST request to execute skill: {}", id);
+        ownershipService.assertCanRead(id);
         Map<String, Object> result = skillService.executeSkill(id, inputs);
         return ResponseEntity.ok(result);
     }
@@ -113,6 +127,7 @@ public class SkillController {
     @Operation(summary = "验证技能配置")
     public ResponseEntity<Map<String, Boolean>> validateSkill(@RequestBody SkillRequest request) {
         log.info("REST request to validate skill configuration");
+        ownershipService.assertCanCreateType(request.getSkillType());
         boolean isValid = skillService.validateSkillConfig(request);
         return ResponseEntity.ok(Map.of("valid", isValid));
     }

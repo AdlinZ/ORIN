@@ -26,8 +26,18 @@ public class ConversationLogService {
     }
 
     public Page<ConversationSummary> getGroupedLogs(Pageable pageable) {
+        return getGroupedLogs(pageable, null);
+    }
+
+    public Page<ConversationSummary> getGroupedLogsForUser(String userId, Pageable pageable) {
+        return getGroupedLogs(pageable, userId);
+    }
+
+    private Page<ConversationSummary> getGroupedLogs(Pageable pageable, String userId) {
         // 获取原始结果
-        Page<Object[]> rawResults = repository.findGroupedByConversationRaw(pageable);
+        Page<Object[]> rawResults = userId == null
+                ? repository.findGroupedByConversationRaw(pageable)
+                : repository.findGroupedByConversationRawForUser(userId, pageable);
 
         // 获取所有 conversationId 并查询累计 tokens
         List<String> conversationIds = rawResults.getContent().stream()
@@ -37,7 +47,10 @@ public class ConversationLogService {
 
         final Map<String, Integer> cumulativeTokensMap;
         if (!conversationIds.isEmpty()) {
-            cumulativeTokensMap = repository.findCumulativeTokensByConversationIds(conversationIds)
+            List<Object[]> cumulativeRows = userId == null
+                    ? repository.findCumulativeTokensByConversationIds(conversationIds)
+                    : repository.findCumulativeTokensByConversationIdsForUser(conversationIds, userId);
+            cumulativeTokensMap = cumulativeRows
                     .stream()
                     .collect(Collectors.toMap(
                             row -> (String) row[0],
@@ -79,5 +92,9 @@ public class ConversationLogService {
 
     public List<ConversationLog> getConversationHistory(String conversationId) {
         return repository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+    }
+
+    public List<ConversationLog> getConversationHistoryForUser(String conversationId, String userId) {
+        return repository.findByConversationIdAndUserIdOrderByCreatedAtAsc(conversationId, userId);
     }
 }

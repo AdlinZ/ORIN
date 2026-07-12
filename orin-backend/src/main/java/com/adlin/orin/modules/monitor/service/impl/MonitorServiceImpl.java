@@ -22,6 +22,8 @@ import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
+import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +65,7 @@ public class MonitorServiceImpl implements MonitorService {
         private final ProviderRegistry providerRegistry;
         private final KnowledgeBaseRepository knowledgeBaseRepository;
         private final KnowledgeDocumentRepository knowledgeDocumentRepository;
+        private final AgentMetadataRepository agentMetadataRepository;
         private final JdbcTemplate jdbcTemplate;
 
         // Dedicated thread pool for Prometheus queries to avoid using the common
@@ -253,7 +256,43 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public List<AgentHealthStatus> getAgentList() {
-                return healthStatusRepository.findAll();
+                Map<String, AgentMetadata> metadataById = agentMetadataRepository.findAll().stream()
+                                .collect(Collectors.toMap(
+                                                AgentMetadata::getAgentId,
+                                                metadata -> metadata,
+                                                (left, right) -> left));
+
+                return healthStatusRepository.findAll().stream()
+                                .peek(status -> enrichAgentStatus(status, metadataById.get(status.getAgentId())))
+                                .toList();
+        }
+
+        private void enrichAgentStatus(AgentHealthStatus status, AgentMetadata metadata) {
+                if (status == null || metadata == null) {
+                        return;
+                }
+                status.setOwnerUserId(metadata.getOwnerUserId());
+                boolean defaultPersonalAgent = isDefaultPersonalAgent(metadata.getAgentId());
+                status.setDefaultPersonalAgent(defaultPersonalAgent);
+                if (metadata.getName() != null && !metadata.getName().isBlank()) {
+                        status.setAgentName(metadata.getName());
+                }
+                if (metadata.getProviderType() != null && !metadata.getProviderType().isBlank()) {
+                        status.setProviderType(metadata.getProviderType());
+                }
+                if (metadata.getModelName() != null && !metadata.getModelName().isBlank()) {
+                        status.setModelName(metadata.getModelName());
+                }
+                if (metadata.getViewType() != null && !metadata.getViewType().isBlank()) {
+                        status.setViewType(metadata.getViewType());
+                }
+                if (defaultPersonalAgent) {
+                        status.setManagementHint("系统为个人用户自动生成的默认助手；可进入控制台调整提示词和运行参数，模型与密钥使用全局 provider 配置。");
+                }
+        }
+
+        private boolean isDefaultPersonalAgent(String agentId) {
+                return agentId != null && agentId.startsWith("personal-default-");
         }
 
         @Override

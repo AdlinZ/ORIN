@@ -3,11 +3,12 @@ package com.adlin.orin.modules.trace.controller;
 import com.adlin.orin.modules.observability.service.LangfuseObservabilityService;
 import com.adlin.orin.modules.trace.entity.WorkflowTraceEntity;
 import com.adlin.orin.modules.trace.service.TraceService;
+import com.adlin.orin.modules.trace.service.TraceOwnershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -20,24 +21,42 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping({"/api/traces", "/api/v1/traces"})
-@RequiredArgsConstructor
 @Tag(name = "Trace Management", description = "追踪管理 API")
 public class TraceController {
 
     private final TraceService traceService;
     private final LangfuseObservabilityService langfuseService;
+    private final TraceOwnershipService ownershipService;
+
+    @Autowired
+    public TraceController(
+            TraceService traceService,
+            LangfuseObservabilityService langfuseService,
+            TraceOwnershipService ownershipService) {
+        this.traceService = traceService;
+        this.langfuseService = langfuseService;
+        this.ownershipService = ownershipService;
+    }
+
+    /** Compatibility constructor retained for focused standalone controller tests. */
+    public TraceController(TraceService traceService, LangfuseObservabilityService langfuseService) {
+        this(traceService, langfuseService, null);
+    }
 
     @GetMapping("/recent")
     @Operation(summary = "获取最近调用链路摘要")
     public ResponseEntity<List<Map<String, Object>>> getRecentTraces(
             @RequestParam(required = false, defaultValue = "20") int size) {
         log.info("REST request to get recent traces: size={}", size);
-        return ResponseEntity.ok(traceService.getRecentTraceSummaries(size));
+        return ResponseEntity.ok(ownershipService == null || ownershipService.isCurrentUserPrivileged()
+                ? traceService.getRecentTraceSummaries(size)
+                : traceService.getRecentTraceSummariesByUserId(ownershipService.currentUserId(), size));
     }
 
     @GetMapping("/{traceId}")
     @Operation(summary = "获取完整调用链路")
     public ResponseEntity<List<WorkflowTraceEntity>> getTraceChain(@PathVariable String traceId) {
+        assertCanReadTrace(traceId);
         log.info("REST request to get trace chain: {}", traceId);
         List<WorkflowTraceEntity> traces = traceService.queryTracesByTraceId(traceId);
         return ResponseEntity.ok(traces);
@@ -46,6 +65,7 @@ public class TraceController {
     @GetMapping("/instance/{instanceId}")
     @Operation(summary = "获取实例的所有追踪")
     public ResponseEntity<List<WorkflowTraceEntity>> getInstanceTraces(@PathVariable Long instanceId) {
+        if (ownershipService != null) ownershipService.assertCanReadInstance(instanceId);
         log.info("REST request to get instance traces: {}", instanceId);
         List<WorkflowTraceEntity> traces = traceService.queryTracesByInstanceId(instanceId);
         return ResponseEntity.ok(traces);
@@ -54,6 +74,7 @@ public class TraceController {
     @GetMapping("/{traceId}/stats")
     @Operation(summary = "获取追踪统计信息")
     public ResponseEntity<Map<String, Object>> getTraceStats(@PathVariable String traceId) {
+        assertCanReadTrace(traceId);
         log.info("REST request to get trace stats: {}", traceId);
         Map<String, Object> stats = traceService.getTraceStats(traceId);
         return ResponseEntity.ok(stats);
@@ -62,6 +83,7 @@ public class TraceController {
     @GetMapping("/{traceId}/summary")
     @Operation(summary = "获取追踪关联对象脱敏摘要")
     public ResponseEntity<Map<String, Object>> getTraceSummary(@PathVariable String traceId) {
+        assertCanReadTrace(traceId);
         log.info("REST request to get trace summary: {}", traceId);
         Map<String, Object> summary = traceService.getTraceSummary(traceId);
         Map<String, Object> langfuse = new HashMap<>();
@@ -82,6 +104,7 @@ public class TraceController {
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "10") int size) {
         log.info("Search traces by traceId: {}", traceId);
+        assertCanReadTrace(traceId);
 
         List<WorkflowTraceEntity> traces = traceService.queryTracesByTraceId(traceId);
 
@@ -102,6 +125,7 @@ public class TraceController {
     @GetMapping("/{traceId}/link")
     @Operation(summary = "获取 Langfuse 深链跳转")
     public ResponseEntity<Map<String, Object>> getLangfuseLink(@PathVariable String traceId) {
+        assertCanReadTrace(traceId);
         Map<String, Object> result = new HashMap<>();
 
         if (!langfuseService.isEnabled()) {
@@ -114,5 +138,11 @@ public class TraceController {
         result.put("traceId", traceId);
         result.put("link", langfuseService.getDashboardUrl() + "/project/traces?filter=trace_id:" + traceId);
         return ResponseEntity.ok(result);
+    }
+
+    private void assertCanReadTrace(String traceId) {
+        if (ownershipService != null) {
+            ownershipService.assertCanReadTrace(traceId);
+        }
     }
 }

@@ -5,6 +5,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.Transient;
 
 /**
  * 智能体健康状态聚合实体
@@ -75,4 +76,22 @@ public class AgentHealthStatus {
      * 例如: CHAT, STT, TTI, WORKFLOW
      */
     private String viewType;
+
+    /**
+     * 元数据 owner，仅用于管理端展示，不持久化到 health 表。
+     */
+    @Transient
+    private Long ownerUserId;
+
+    /**
+     * 是否为个人账号自动生成的默认助手。
+     */
+    @Transient
+    private Boolean defaultPersonalAgent;
+
+    /**
+     * 默认助手等系统兜底资源的管理提示。
+     */
+    @Transient
+    private String managementHint;
 }

@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -298,6 +300,26 @@ public class McpServiceServiceImpl implements McpServiceService {
             if (!secret.isActive()) {
                 throw new ValidationException("引用的密钥未启用: " + secretId);
             }
+            assertSecretVisibleToCurrentUser(secret);
+        }
+    }
+
+    private void assertSecretVisibleToCurrentUser(GatewaySecret secret) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return;
+        }
+        boolean admin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_SUPER_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_PLATFORM_ADMIN".equals(authority.getAuthority())
+                        || "ADMIN".equals(authority.getAuthority()));
+        if (admin) {
+            return;
+        }
+        String currentUserId = String.valueOf(authentication.getPrincipal());
+        if (!currentUserId.equals(secret.getUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权引用该 MCP 密钥");
         }
     }
 

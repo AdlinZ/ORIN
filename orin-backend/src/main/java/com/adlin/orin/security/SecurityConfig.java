@@ -61,11 +61,10 @@ public class SecurityConfig {
                         // 统一网关端点 (/v1/**) - 需要API密钥认证
                         // 由 WebConfig 中的 ApiKeyAuthInterceptor 进行 API 密钥校验
                         .requestMatchers("/v1/**").permitAll()
-                        // Agent 管理端点
-                        .requestMatchers("/api/v1/agents/**").permitAll()
-                        .requestMatchers("/api/v1/model-config/**").permitAll()
-                        .requestMatchers("/api/v1/conversation-logs/**").permitAll()
-                        .requestMatchers("/api/v1/knowledge/diagnose/**").permitAll()
+                        // 工作台业务端点统一走 JWT；资源可见性由各模块 owner ACL 收口。
+                        .requestMatchers("/api/v1/agents/**").authenticated()
+                        .requestMatchers("/api/v1/model-config/**").authenticated()
+                        .requestMatchers("/api/v1/conversation-logs/**").authenticated()
                         // 管理端点（需要JWT认证）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())

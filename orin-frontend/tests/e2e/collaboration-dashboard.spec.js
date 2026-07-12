@@ -395,25 +395,32 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     ]))
   })
 
-  test('shows the full dashboard navigation for admins and redirects regular users', async ({ page }) => {
+  test('separates admin and workspace navigation while blocking regular users from admin', async ({ page }) => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_ADMIN'])
     await page.goto('/dashboard')
 
-    await expect(page).toHaveURL(/\/dashboard\/control\/admin-overview/)
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/admin-overview')
     const adminNav = page.locator('.navbar-menu')
     await expect(adminNav.getByText('平台控制')).toBeVisible()
     await expect(adminNav.getByText('运行观测')).toBeVisible()
+    await expect(adminNav.getByText('应用构建')).toHaveCount(0)
+    await expect(adminNav.getByText('资源知识')).toHaveCount(0)
+
+    await page.getByRole('button', { name: '工作台', exact: true }).click()
+    await expect(page).toHaveURL((url) => url.pathname === '/workspace/developer')
     await expect(adminNav.getByText('应用构建')).toBeVisible()
     await expect(adminNav.getByText('资源知识')).toBeVisible()
+    await expect(adminNav.getByText('平台控制')).toHaveCount(0)
+    await expect(adminNav.getByText('运行观测')).toHaveCount(0)
 
     await authenticate(page, ['ROLE_USER'])
     await page.goto('/dashboard/control/users')
     await expect(page).toHaveURL(/\/chat/)
   })
 
-  test('keeps regular users on the API relay station instead of dashboard modules', async ({ page }) => {
+  test('keeps regular users out of admin while allowing their workspace resources', async ({ page }) => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_USER'])
@@ -421,7 +428,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
 
     await expect(page).toHaveURL(/\/chat/)
     await page.goto('/dashboard/applications/agents')
-    await expect(page).toHaveURL(/\/chat/)
+    await expect(page).toHaveURL((url) => url.pathname === '/workspace/agents')
   })
 
   test('lets regular users manage only self-service API keys from the platform route', async ({ page }) => {

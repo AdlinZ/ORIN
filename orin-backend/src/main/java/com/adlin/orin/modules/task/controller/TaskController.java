@@ -5,6 +5,7 @@ import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
 import com.adlin.orin.modules.task.service.TaskService;
+import com.adlin.orin.modules.task.service.TaskOwnershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.HandlerMapping;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +37,27 @@ public class TaskController {
 
     private final TaskService taskService;
     private final AuditHelper auditHelper;
+    private final TaskOwnershipService ownershipService;
+
+    /** Apply owner checks to every JWT task/workflow path without affecting the API-key /v1 route. */
+    @ModelAttribute
+    public void enforceJwtOwnership(HttpServletRequest request) {
+        if (!isJwtWorkspaceRequest(request)) {
+            return;
+        }
+        Object rawVariables = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+        if (!(rawVariables instanceof Map<?, ?> variables)) {
+            return;
+        }
+        Object taskId = variables.get("taskId");
+        if (taskId != null) {
+            ownershipService.assertCanManageTask(taskId.toString());
+        }
+        Object workflowId = variables.get("workflowId");
+        if (workflowId != null) {
+            ownershipService.assertCanManageWorkflow(Long.valueOf(workflowId.toString()));
+        }
+    }
 
     /**
      * 查询任务状态
@@ -96,7 +121,9 @@ public class TaskController {
     @PostMapping("/{taskId}/replay")
     public ResponseEntity<Map<String, Object>> replayTask(
             @PathVariable String taskId,
-            @RequestHeader(value = "X-User-Id", defaultValue = "SYSTEM") String userId) {
+            @RequestHeader(value = "X-User-Id", defaultValue = "SYSTEM") String headerUserId,
+            HttpServletRequest request) {
+        String userId = effectiveUserId(request, headerUserId);
         try {
             TaskEntity newTask = taskService.replayTask(taskId);
             Map<String, Object> result = new HashMap<>();
@@ -134,7 +161,9 @@ public class TaskController {
     @PostMapping("/{taskId}/cancel")
     public ResponseEntity<Map<String, Object>> cancelTask(
             @PathVariable String taskId,
-            @RequestHeader(value = "X-User-Id", defaultValue = "SYSTEM") String userId) {
+            @RequestHeader(value = "X-User-Id", defaultValue = "SYSTEM") String headerUserId,
+            HttpServletRequest request) {
+        String userId = effectiveUserId(request, headerUserId);
         try {
             TaskEntity task = taskService.cancelTask(taskId);
             Map<String, Object> result = new HashMap<>();
@@ -196,7 +225,10 @@ public class TaskController {
     @GetMapping("/queued")
     public ResponseEntity<Map<String, Object>> getQueuedTasks(
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+
+        requirePrivilegedQueueView(request);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "priority").and(Sort.by(Sort.Direction.ASC, "createdAt")));
         Page<TaskEntity> tasks = taskService.getQueuedTasks(pageable);
@@ -212,7 +244,10 @@ public class TaskController {
     @GetMapping("/running")
     public ResponseEntity<Map<String, Object>> getRunningTasks(
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+
+        requirePrivilegedQueueView(request);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "startedAt"));
         Page<TaskEntity> tasks = taskService.getRunningTasks(pageable);
@@ -228,7 +263,10 @@ public class TaskController {
     @GetMapping("/failed")
     public ResponseEntity<Map<String, Object>> getFailedTasks(
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+
+        requirePrivilegedQueueView(request);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
         Page<TaskEntity> tasks = taskService.getFailedTasks(pageable);
@@ -244,7 +282,10 @@ public class TaskController {
     @GetMapping("/dead")
     public ResponseEntity<Map<String, Object>> getDeadTasks(
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+
+        requirePrivilegedQueueView(request);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
         Page<TaskEntity> tasks = taskService.getDeadTasks(pageable);
@@ -260,7 +301,10 @@ public class TaskController {
     @GetMapping("/cancelled")
     public ResponseEntity<Map<String, Object>> getCancelledTasks(
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest request) {
+
+        requirePrivilegedQueueView(request);
 
         Pageable pageable = PageRequest.of(page, size);
         Page<TaskEntity> tasks = taskService.getCancelledTasks(pageable);
@@ -274,7 +318,8 @@ public class TaskController {
      */
     @Operation(summary = "任务统计", description = "获取任务队列统计信息")
     @GetMapping("/statistics")
-    public ResponseEntity<Map<String, Object>> getStatistics() {
+    public ResponseEntity<Map<String, Object>> getStatistics(HttpServletRequest request) {
+        requirePrivilegedQueueView(request);
         Map<String, Long> statusStats = taskService.getTaskStatistics();
         Map<String, Long> priorityStats = taskService.getPendingPriorityStatistics();
 
@@ -291,7 +336,8 @@ public class TaskController {
      */
     @Operation(summary = "待处理任务优先级统计", description = "获取排队、运行和重试任务的优先级分布")
     @GetMapping("/priority-statistics")
-    public ResponseEntity<Map<String, Long>> getPriorityStatistics() {
+    public ResponseEntity<Map<String, Long>> getPriorityStatistics(HttpServletRequest request) {
+        requirePrivilegedQueueView(request);
         return ResponseEntity.ok(taskService.getPendingPriorityStatistics());
     }
 
@@ -302,7 +348,13 @@ public class TaskController {
     @Operation(summary = "创建任务", description = "创建一个新的任务并加入队列")
     @PostMapping
     public ResponseEntity<Map<String, Object>> createTask(
-            @RequestBody TaskCreateRequest request) {
+            @RequestBody TaskCreateRequest request,
+            HttpServletRequest servletRequest) {
+
+        if (isJwtWorkspaceRequest(servletRequest)) {
+            ownershipService.assertCanManageWorkflow(request.getWorkflowId());
+            request.setTriggeredBy(ownershipService.currentUserKey());
+        }
 
         TaskPriority priority = TaskPriority.fromString(request.getPriority());
 
@@ -361,6 +413,20 @@ public class TaskController {
         auditHelper.log(userId, "WORKFLOW_TASK_" + action,
                 "/api/v1/workflow-tasks/" + taskId + "/" + action.toLowerCase(),
                 detail, success, errorCode);
+    }
+
+    private boolean isJwtWorkspaceRequest(HttpServletRequest request) {
+        return request != null && request.getRequestURI().startsWith("/api/v1/workflow-tasks");
+    }
+
+    private String effectiveUserId(HttpServletRequest request, String headerUserId) {
+        return isJwtWorkspaceRequest(request) ? ownershipService.currentUserKey() : headerUserId;
+    }
+
+    private void requirePrivilegedQueueView(HttpServletRequest request) {
+        if (isJwtWorkspaceRequest(request)) {
+            ownershipService.requirePrivilegedQueueView();
+        }
     }
 
     /**

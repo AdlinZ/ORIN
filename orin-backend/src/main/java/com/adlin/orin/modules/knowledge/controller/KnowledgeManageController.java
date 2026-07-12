@@ -902,6 +902,8 @@ public class KnowledgeManageController {
 
     @Operation(summary = "诊断 Milvus 向量库状态")
     @GetMapping("/diagnose/milvus")
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasAnyRole('ADMIN', 'SUPER_ADMIN', 'PLATFORM_ADMIN')")
     public Map<String, Object> diagnoseMilvus() {
         Map<String, Object> result = new HashMap<>();
 

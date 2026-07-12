@@ -21,6 +21,9 @@ export function toAgentListViewModel(payload) {
       viewType: item.viewType || item.type || 'CHAT',
       status,
       lastHeartbeat: item.lastHeartbeat || item.updatedAt || item.createTime || null,
+      ownerUserId: item.ownerUserId ?? item.ownerId ?? null,
+      defaultPersonalAgent: Boolean(item.defaultPersonalAgent),
+      managementHint: item.managementHint || '',
       raw: item
     }
   })

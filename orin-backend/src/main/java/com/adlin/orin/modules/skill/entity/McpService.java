@@ -23,6 +23,10 @@ public class McpService {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** NULL denotes a platform-level MCP service managed by administrators. */
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 

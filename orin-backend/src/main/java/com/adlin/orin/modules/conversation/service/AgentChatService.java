@@ -68,6 +68,7 @@ public class AgentChatService {
     private final ToolExecutionLogService toolExecutionLogService;
     private final SkillService skillService;
     private final ObjectMapper objectMapper;
+    private final ChatSessionOwnershipResolver sessionOwnershipResolver;
 
     private KbStructureTool kbStructureTool;
     private KbSearchTool kbSearchTool;
@@ -95,7 +96,8 @@ public class AgentChatService {
             ToolExecutor toolExecutor,
             ToolExecutionLogService toolExecutionLogService,
             SkillService skillService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ChatSessionOwnershipResolver sessionOwnershipResolver) {
         this.sessionRepository = sessionRepository;
         this.agentManageService = agentManageService;
         this.conversationLogService = conversationLogService;
@@ -118,6 +120,7 @@ public class AgentChatService {
         this.toolExecutionLogService = toolExecutionLogService;
         this.skillService = skillService;
         this.objectMapper = objectMapper;
+        this.sessionOwnershipResolver = sessionOwnershipResolver;
         // Initialize tools
         this.kbStructureTool = new KbStructureTool(knowledgeBaseRepository, documentRepository);
         this.kbSearchTool = new KbSearchTool(retrievalService);
@@ -136,7 +139,8 @@ public class AgentChatService {
         session.setAgentId(request.getAgentId());
         session.setTitle(request.getTitle() != null ? request.getTitle() : "新会话");
         session.setHistory("[]");
-        
+        session.setOwnerUserId(sessionOwnershipResolver.currentUserId());
+
         sessionRepository.save(session);
         
         SessionResponse response = new SessionResponse();
@@ -152,7 +156,10 @@ public class AgentChatService {
      * 获取会话列表
      */
     public List<SessionResponse> listSessions(String agentId) {
-        List<AgentChatSession> sessions = sessionRepository.findByAgentIdOrderByUpdatedAtDesc(agentId);
+        List<AgentChatSession> sessions = sessionOwnershipResolver.isCurrentUserPrivileged()
+                ? sessionRepository.findByAgentIdOrderByUpdatedAtDesc(agentId)
+                : sessionRepository.findByAgentIdAndOwnerUserIdOrderByUpdatedAtDesc(
+                        agentId, sessionOwnershipResolver.currentUserId());
         
         return sessions.stream().map(s -> {
             SessionResponse r = new SessionResponse();
@@ -168,8 +175,7 @@ public class AgentChatService {
      * 获取会话详情
      */
     public Map<String, Object> getSession(String sessionId) {
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("id", session.getSessionId());
@@ -191,8 +197,7 @@ public class AgentChatService {
      * @param beforeIndex 窗口上界(不含);null 表示从尾部取,非空表示取索引 [0, beforeIndex)
      */
     public Map<String, Object> getSessionMessages(String sessionId, Integer limit, Integer beforeIndex) {
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
 
         Map<String, Object> result = new HashMap<>();
         List<Map<String, Object>> all;
@@ -229,8 +234,7 @@ public class AgentChatService {
     @Transactional
     @SuppressWarnings("unchecked")
     public void saveMessageHistory(String sessionId, Map<String, Object> body) {
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
 
         Object rawMessages = body != null ? body.get("messages") : null;
         if (!(rawMessages instanceof List<?> rawList)) {
@@ -295,8 +299,7 @@ public class AgentChatService {
                 "status", "running",
                 "message", "开始处理请求"));
 
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
 
         // 提前检测模型是否支持 tool calling，决定 KB 工具链走哪条路
         AgentMetadata agentMetadata = agentManageService.getAgentMetadata(session.getAgentId());
@@ -562,7 +565,7 @@ public class AgentChatService {
         ConversationLog conversationLog = ConversationLog.builder()
                 .conversationId(sessionId)
                 .agentId(session.getAgentId())
-                .userId(null)
+                .userId(session.getOwnerUserId() != null ? session.getOwnerUserId().toString() : null)
                 .model(modelName)
                 .query(request.getMessage())
                 .response(aiResponse)
@@ -1544,8 +1547,7 @@ public class AgentChatService {
      */
     @Transactional
     public void attachKnowledgeBase(String sessionId, String kbId) {
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
         
         List<String> kbIds = session.getAttachedKbIds();
         if (!kbIds.contains(kbId)) {
@@ -1560,8 +1562,7 @@ public class AgentChatService {
      */
     @Transactional
     public void detachKnowledgeBase(String sessionId, String kbId) {
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
         
         session.getAttachedKbIds().remove(kbId);
         sessionRepository.save(session);
@@ -1571,8 +1572,7 @@ public class AgentChatService {
      * 获取会话附加的知识库
      */
     public List<String> getAttachedKnowledgeBases(String sessionId) {
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
         
         return session.getAttachedKbIds();
     }
@@ -1582,7 +1582,8 @@ public class AgentChatService {
      */
     @Transactional
     public void deleteSession(String sessionId) {
-        sessionRepository.deleteBySessionId(sessionId);
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
+        sessionRepository.delete(session);
     }
 
     /**
@@ -1590,8 +1591,7 @@ public class AgentChatService {
      */
     @Transactional
     public void updateKbDocFilters(String sessionId, Map<String, List<String>> kbDocFilters) {
-        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        AgentChatSession session = sessionOwnershipResolver.requireOwnedSession(sessionId);
         session.setKbDocFilters(kbDocFilters);
         sessionRepository.save(session);
     }

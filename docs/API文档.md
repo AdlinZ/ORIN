@@ -20,10 +20,10 @@
 | 接口前缀 | 鉴权 | 说明 |
 |----------|------|------|
 | `/v1/*` | API Key | OpenAI 兼容网关，header `Authorization: Bearer sk-orin-xxx` 或 `X-API-Key: sk-orin-xxx` |
-| `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token |
+| `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token；个人用户可通过 `/api/v1/auth/register` 自助创建 `ROLE_USER` 账号 |
 | `/v1/health` · `/api/v1/health` | 无 | 健康检查公开 |
 
-API Key 创建：管理员在管理台 `/dashboard/control/gateway` 的访问凭据区域创建；开发者 / API 调用方在 `/platform` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
+API Key 创建：管理员在管理台 `/admin/gateway` 的访问凭据区域创建；开发者 / API 调用方在 `/platform` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
 
 对外产品化域名建议使用 `api.<your-domain>/chat/completions`，由网关 / Nginx 转发到后端实际协议入口 `/v1/chat/completions`。代码层继续保持 `/v1/*` 作为 API Key 对外协议前缀，避免新增并行接口前缀。
 
@@ -39,10 +39,15 @@ API Key 生命周期接口：
 
 权限语义：
 
-- `ROLE_ADMIN`、`ROLE_SUPER_ADMIN`、`ROLE_PLATFORM_ADMIN` 具备全局 API Key 治理能力，可管理全部 `CLIENT_ACCESS` Key，并可管理供应商凭据和 MCP env 密钥。
-- `ROLE_OPERATOR`、`ROLE_USER` 只能管理自己拥有的 `CLIENT_ACCESS` Key。所有权来自 JWT 当前用户；`X-User-Id` 与请求体 `targetUserId` 不会覆盖自助用户归属。
-- 自助用户访问非本人 Key 时统一返回 `404`；访问明文回显、配额重置、供应商凭据或 MCP env 密钥接口返回 `403`。
+- `ROLE_ADMIN`、`ROLE_SUPER_ADMIN`、`ROLE_PLATFORM_ADMIN` 具备全局 API Key 治理能力，可管理全部 `CLIENT_ACCESS`、供应商凭据和 MCP env 密钥。
+- `ROLE_OPERATOR`、`ROLE_USER` 只能管理自己拥有的 `CLIENT_ACCESS` 与 `MCP_ENV` 密钥。所有权来自 JWT 当前用户；`X-User-Id` 与请求体 `targetUserId` 不会覆盖自助用户归属。
+- 自助用户访问非本人 Key 时统一返回 `404`；访问明文回显、配额重置或 `PROVIDER_CREDENTIAL` 接口返回 `403`。MCP env 引用也会校验 owner，不能跨用户引用。
 - 自助用户创建 / 轮换后只会获得一次明文 `secretKey`，不能再次 reveal 旧密钥。
+
+其他管理面权限边界：
+
+- `/api/v1/model-config/**`、旧全局任务队列 `/api/v1/tasks/**` 与基础设施诊断 `/api/v1/knowledge/diagnose/**` 仅限管理员角色。
+- `/api/v1/conversation-logs/**` 对管理员提供全局视图；普通用户仅能按 JWT userId 查询本人日志，读取会话历史时还会校验会话 owner。
 
 创建、禁用、启用、轮换、删除、配额重置、明文回显、调用历史读取均写审计日志；审计详情只记录 `keyId / userId / action / success` 等摘要，不记录 API Key 原文、JWT、provider token、完整请求体或完整响应体。
 
@@ -85,7 +90,23 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 
 后续请求附加：`Authorization: Bearer <token>`
 
-### 4.2 统一网关：聊天补全（OpenAI 兼容）
+### 4.2 个人用户注册
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "demo-user",
+    "password": "StrongPass123",
+    "nickname": "Demo User",
+    "rememberMe": true
+  }'
+# → { "token": "...", "user": { "userId": 2, "username": "demo-user", ... }, "roles": ["ROLE_USER"] }
+```
+
+注册开关由 `ORIN_AUTH_SELF_REGISTRATION_ENABLED` 控制。开启后仅创建普通用户，不创建管理员、部门或组织权限。
+
+### 4.3 统一网关：聊天补全（OpenAI 兼容）
 
 ```bash
 ORIN_API_KEY=<CLIENT_ACCESS_KEY>
@@ -102,7 +123,7 @@ curl -X POST http://localhost:8080/v1/chat/completions \
   }'
 ```
 
-### 4.3 统一网关：文本向量
+### 4.4 统一网关：文本向量
 
 ```bash
 ORIN_API_KEY=<CLIENT_ACCESS_KEY>
@@ -115,7 +136,7 @@ curl -X POST http://localhost:8080/v1/embeddings \
   }'
 ```
 
-### 4.4 统一网关：模型列表
+### 4.5 统一网关：模型列表
 
 ```bash
 ORIN_API_KEY=<CLIENT_ACCESS_KEY>
@@ -123,7 +144,7 @@ curl http://localhost:8080/v1/models \
   --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")"
 ```
 
-### 4.4.1 网关端点 Public Demo 开放范围
+### 4.5.1 网关端点 Public Demo 开放范围
 
 | Endpoint | Public Demo | 说明 |
 |----------|------------|------|
@@ -133,7 +154,7 @@ curl http://localhost:8080/v1/models \
 | `/v1/health` | ✅ 公开 | 健康检查 |
 | `/v1/capabilities` | ✅ 公开 | 能力清单 |
 
-### 4.4.2 OpenAI SDK 集成
+### 4.5.2 OpenAI SDK 集成
 
 ORIN 统一网关兼容 OpenAI SDK，只需替换 `base_url` 和 `api_key`。
 
@@ -171,7 +192,7 @@ console.log(completion.choices[0].message.content);
 
 > **注意:** `base_url` / `baseURL` 必须以 `/v1` 结尾，与 OpenAI 官方 API 路径约定一致。
 
-### 4.4.3 Public Demo 错误语义
+### 4.5.3 Public Demo 错误语义
 
 ORIN Gateway 统一错误响应格式：
 
@@ -193,7 +214,7 @@ ORIN Gateway 统一错误响应格式：
 | `503` | `service_unavailable` | 当前无可用 provider（provider 凭据未配置或全部不可达） | 稍后重试；联系管理员确认 provider 配置 |
 | `500` | `internal_error` | 网关内部错误（provider 异常、超时等），响应不包含 provider 原始错误 | 记录 `traceId`，联系管理员排查 |
 
-### 4.4.4 如何理解 traceId
+### 4.5.4 如何理解 traceId
 
 每次 `/v1/chat/completions` 和 `/v1/embeddings` 请求都会在响应头 `X-Trace-Id` 中返回一个唯一标识。
 
@@ -225,7 +246,7 @@ completion = response.parse()
 print(completion.choices[0].message.content)
 ```
 
-### 4.4.5 curl 快速接入
+### 4.5.5 curl 快速接入
 
 **获取模型列表：**
 
@@ -276,7 +297,7 @@ curl -i -sS "${ORIN_BASE}/v1/embeddings" \
 # {"code": "not_implemented", "message": "Embeddings endpoint is disabled...", ...}
 ```
 
-### 4.5 智能体管理
+### 4.6 智能体管理
 
 ```bash
 # 列表
@@ -293,7 +314,7 @@ curl -X POST http://localhost:8080/api/v1/agents/{agentId}/chat \
   -d '{ "message": "..." }'
 ```
 
-#### 4.5.1 智能体对话会话（ROLE_USER /chat 入口）
+#### 4.6.1 智能体对话会话（ROLE_USER /chat 入口）
 
 `/api/v1/agents/chat/sessions/**` 是 `/chat` 页面使用的会话 / 消息 / 知识库附加接口，前端走 `src/api/agent-chat.js`，全部归入既有 `/api/v1/agents/chat/` 前缀。
 
@@ -340,9 +361,9 @@ curl -X DELETE http://localhost:8080/api/v1/agents/chat/sessions/<sessionId> \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-错误响应统一带 `traceId`（与 `4.4.4` 同源），前端 `request.js → buildErrorMessage` 会把它附在 message 末尾，ROLE_USER 的 `/chat` 对话区会展示该 traceId 便于排错。
+错误响应统一带 `traceId`（与 `4.5.4` 同源），前端 `request.js → buildErrorMessage` 会把它附在 message 末尾，ROLE_USER 的 `/chat` 对话区会展示该 traceId 便于排错。
 
-### 4.6 知识库
+### 4.7 知识库
 
 ```bash
 # 列表
@@ -367,7 +388,7 @@ curl http://localhost:8080/api/v1/knowledge/sync/client/{agentId}/changes \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 4.7 工作流
+### 4.8 工作流
 
 ```bash
 # 管理
@@ -396,7 +417,7 @@ Workflow task 运行态接口保持在 `/api/v1/workflow-tasks/**`，兼容旧 `
 - 任务中心与 Workflow 执行页会在 `FAILED / DEAD` 重放前展示失败原因、死信原因、重试次数和 traceId；重放成功后返回并展示 `originalTaskId / newTaskId`。
 - Workflow 创建请求可在顶层 `retryPolicy.maxRetries` 覆盖该 Workflow task 最大重试次数；设为 `0` 表示失败后直接进入 `FAILED` 终态，不进入 `RETRYING / DEAD`。
 
-### 4.8 协作
+### 4.9 协作
 
 ```bash
 # 创建任务包
@@ -431,7 +452,7 @@ curl -X POST http://localhost:8080/api/v1/collaboration/packages/{packageId}/man
   -d '{"result":"manual result"}'
 ```
 
-### 4.9 Trace 与监控
+### 4.10 Trace 与监控
 
 ```bash
 curl http://localhost:8080/api/traces/{traceId} -H "Authorization: Bearer $TOKEN"

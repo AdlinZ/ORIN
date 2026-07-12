@@ -244,7 +244,7 @@ created_at
 
 任务：
 
-- 收敛 `/dashboard/control/gateway` 页面信息架构。
+- 收敛 `/admin/gateway` 页面信息架构（历史 `/dashboard/control/gateway` 仅保留重定向）。
 - 明确 `CLIENT_ACCESS` 与 provider credential 的区别。
 - 增加模型 alias 映射展示。
 - 增加 key 级调用历史。

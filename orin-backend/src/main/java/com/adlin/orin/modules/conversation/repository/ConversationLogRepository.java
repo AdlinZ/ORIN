@@ -15,6 +15,8 @@ public interface ConversationLogRepository extends JpaRepository<ConversationLog
 
     List<ConversationLog> findByConversationIdOrderByCreatedAtAsc(String conversationId);
 
+    List<ConversationLog> findByConversationIdAndUserIdOrderByCreatedAtAsc(String conversationId, String userId);
+
     List<ConversationLog> findByAgentIdOrderByCreatedAtDesc(String agentId);
 
     @Query(value = "SELECT cl.id, cl.conversation_id, cl.agent_id, cl.user_id, " +
@@ -31,6 +33,28 @@ public interface ConversationLogRepository extends JpaRepository<ConversationLog
             nativeQuery = true)
     Page<Object[]> findGroupedByConversationRaw(Pageable pageable);
 
+    @Query(value = "SELECT cl.id, cl.conversation_id, cl.agent_id, cl.user_id, " +
+            "cl.model, cl.query, cl.response, " +
+            "cl.prompt_tokens, cl.completion_tokens, cl.total_tokens, " +
+            "cl.total_tokens, " +
+            "cl.response_time, cl.success, cl.error_message, cl.created_at " +
+            "FROM conversation_logs cl " +
+            "WHERE cl.user_id = :userId AND cl.created_at = (" +
+            "  SELECT MAX(inner_cl.created_at) FROM conversation_logs inner_cl " +
+            "  WHERE inner_cl.conversation_id = cl.conversation_id AND inner_cl.user_id = :userId" +
+            ") ORDER BY cl.created_at DESC",
+            countQuery = "SELECT COUNT(DISTINCT conversation_id) FROM conversation_logs WHERE user_id = :userId",
+            nativeQuery = true)
+    Page<Object[]> findGroupedByConversationRawForUser(
+            @org.springframework.data.repository.query.Param("userId") String userId,
+            Pageable pageable);
+
     @Query("SELECT c.conversationId, COALESCE(SUM(c.totalTokens), 0) FROM ConversationLog c WHERE c.conversationId IN :conversationIds GROUP BY c.conversationId")
     List<Object[]> findCumulativeTokensByConversationIds(List<String> conversationIds);
+
+    @Query("SELECT c.conversationId, COALESCE(SUM(c.totalTokens), 0) FROM ConversationLog c " +
+            "WHERE c.userId = :userId AND c.conversationId IN :conversationIds GROUP BY c.conversationId")
+    List<Object[]> findCumulativeTokensByConversationIdsForUser(
+            @org.springframework.data.repository.query.Param("conversationIds") List<String> conversationIds,
+            @org.springframework.data.repository.query.Param("userId") String userId);
 }

@@ -195,6 +195,7 @@ public class SkillServiceImplEnhanced implements SkillService {
                 .description((String) config.getOrDefault("description", "Imported from " + platform))
                 .externalPlatform(platform)
                 .externalReference(reference)
+                .createdBy((String) config.get("createdBy"))
                 .build();
 
         return createSkill(request);

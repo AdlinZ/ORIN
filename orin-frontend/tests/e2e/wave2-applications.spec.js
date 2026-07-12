@@ -72,6 +72,16 @@ async function authenticate(page) {
 }
 
 async function mockWave2Backends(page) {
+  await page.route('https://fonts.googleapis.com/**', async (route) => route.fulfill({
+    status: 200,
+    contentType: 'text/css',
+    body: ''
+  }))
+  await page.route('https://fonts.gstatic.com/**', async (route) => route.fulfill({
+    status: 200,
+    contentType: 'font/woff2',
+    body: ''
+  }))
   await page.route('**/api/v1/setup/status', async (route) => route.fulfill(json({
     completed: true,
     canInitialize: false

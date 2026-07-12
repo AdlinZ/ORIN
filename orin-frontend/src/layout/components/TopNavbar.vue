@@ -5,6 +5,19 @@
       <BrandingLogo :height="44" />
     </div>
 
+    <div class="product-switcher" aria-label="产品切换">
+      <button
+        v-for="surface in availableSurfaces"
+        :key="surface.id"
+        type="button"
+        class="product-switcher-button"
+        :class="{ active: currentSurface === surface.id }"
+        @click="switchSurface(surface.path)"
+      >
+        {{ surface.shortTitle }}
+      </button>
+    </div>
+
     <!-- 中间菜单区域 -->
     <nav class="navbar-menu">
       <div 
@@ -24,7 +37,7 @@
         <!-- 下拉二级菜单 -->
         <transition name="dropdown">
           <div
-            v-show="activeDropdown === menu.id"
+            v-show="activeDropdown === menu.id || menu.id === activeMenuId"
             class="dropdown-menu"
             @mouseenter="keepDropdownOpen(menu.id)"
             @mouseleave="handleMenuLeave"
@@ -307,7 +320,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { ROUTES } from '@/router/routes'
-import { getVisibleMenus, getActiveMenuId, getDefaultHomeByRoles } from '@/router/topMenuConfig'
+import {
+  getActiveMenuId,
+  getAvailableProductSurfaces,
+  getDefaultHomeByRoles,
+  getProductSurfaceByPath,
+  getVisibleMenus,
+} from '@/router/topMenuConfig'
 import NotificationCenter from './NotificationCenter.vue'
 import {
   Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
@@ -349,13 +368,18 @@ const userInfo = computed(() => {
   }
 })
 
-const visibleMenus = computed(() => getVisibleMenus(userStore.roles || []))
+const currentSurface = computed(() => getProductSurfaceByPath(route.path))
+const availableSurfaces = computed(() => getAvailableProductSurfaces(userStore.roles || []))
+const visibleMenus = computed(() => getVisibleMenus(userStore.roles || [], currentSurface.value))
 const activeMenuId = computed(() => getActiveMenuId(route.path))
 
 const isMenuSection = (item = {}) => item.type === 'section' || item.divider
 
 // Methods
 const goHome = () => router.push(getDefaultHomeByRoles(userStore.roles || []))
+const switchSurface = (path) => {
+  if (path && path !== route.path) router.push(path)
+}
 
 const handleRefresh = () => {
   // 触发页面刷新事件
@@ -615,10 +639,10 @@ const showSystemAI = () => {
 const handleUserCommand = (command) => {
   switch (command) {
     case 'profile':
-      router.push(ROUTES.PROFILE)
+      router.push(currentSurface.value === 'admin' ? ROUTES.PROFILE : ROUTES.CHAT_PROFILE)
       break
     case 'settings':
-      router.push(ROUTES.PROFILE)
+      router.push(currentSurface.value === 'admin' ? ROUTES.PROFILE : ROUTES.CHAT_PROFILE)
       break
     case 'logout':
       handleLogout()
@@ -642,13 +666,41 @@ onMounted(() => {
   border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(150px, 220px) auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
   padding: 0 28px;
   position: sticky;
   top: 0;
   z-index: 1000;
+}
+
+.product-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--neutral-gray-200);
+  border-radius: 10px;
+  background: var(--neutral-gray-50);
+}
+
+.product-switcher-button {
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--neutral-gray-600);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.product-switcher-button.active {
+  color: var(--orin-primary);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
 /* Logo 区域 */

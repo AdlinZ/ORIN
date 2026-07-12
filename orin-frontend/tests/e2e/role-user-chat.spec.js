@@ -8,8 +8,8 @@ import { expect, test } from '@playwright/test'
  * - ROLE_USER 顶栏只有「对话 → ORIN Chat」
  * - 看到智能体列表、选中、新建会话、发消息（含 mock 流式 + 错误 traceId）
  * - 刷新后能恢复最近会话
- * - 直接粘贴 /dashboard/* 路径会被重定向到 /chat
- * - /dashboard/profile 仍可访问
+ * - 工作台资源域可访问，管理台治理域仍会被重定向到 /chat
+ * - 个人中心使用独立的 /chat/profile 页面
  *
  * 全部用 page.route mock 后端，无需真实 Java 服务。
  */
@@ -80,6 +80,20 @@ function buildChatBackend({
         description: '默认客服智能体',
         modelName: 'demo-model',
         status: 'active'
+      }]))
+    }
+
+    // monitored agents list (workspace AgentListV2 调用的真实端点)
+    if (request.method() === 'GET' && path === '/monitor/agents/list') {
+      return route.fulfill(json([{
+        id: AGENT_ID,
+        name: AGENT_NAME,
+        description: '默认客服智能体',
+        modelName: 'demo-model',
+        providerType: 'Local',
+        viewType: 'CHAT',
+        status: 'active',
+        ownerUserId: 7
       }]))
     }
 
@@ -260,17 +274,39 @@ test.describe('ROLE_USER /chat browser acceptance', () => {
     await expect(page).toHaveURL(/\/chat/, { timeout: 8000 })
     await expect(page.getByText(AGENT_NAME).first()).toBeVisible()
 
-    // 3) /chat 页面呈现用户可用的导航入口（新对话 / AI 创作 / 服务 / 头像菜单）
+    // 3) /chat 页面只呈现已闭环的导航入口
     await expect(page.getByRole('button', { name: /新对话/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: /AI 创作/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: /服务/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'AI 创作', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: /可用服务/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /搜索聊天|文件库|已安排|更多/ })).toHaveCount(0)
     // 头像菜单里没有「管理端」（非 admin）
     const userButton = page.locator('.portal-user-wrapper')
     await userButton.click()
     await expect(page.getByRole('menuitem', { name: '管理端' })).toHaveCount(0)
-    // 但有「API Key 自助」与「退出登录」
+    // 但有「ORIN 工作台」「API Key 自助」与「退出登录」
+    await expect(page.getByRole('menuitem', { name: 'ORIN 工作台' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: 'API Key 自助' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: '退出登录' })).toBeVisible()
+  })
+
+  test('首页快捷操作均有真实行为', async ({ page }) => {
+    const backend = buildChatBackend()
+    await authenticate(page, ['ROLE_USER'])
+    await page.route('**/api/v1/**', backend.route)
+
+    await gotoChat(page)
+
+    await page.getByRole('button', { name: '生成图片' }).click()
+    await expect(page.locator('.creation-stage')).toBeVisible()
+    await expect(page.getByRole('button', { name: '图像', exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: '返回对话' }).click()
+    const composer = page.locator('.composer-input textarea').first()
+    await page.getByRole('button', { name: '撰写或编辑' }).click()
+    await expect(composer).toHaveValue(/撰写或编辑/)
+
+    await page.getByRole('button', { name: '查找资料' }).click()
+    await expect(composer).toHaveValue(/参考资料/)
   })
 
   test('ROLE_USER 在 /chat 可看到智能体、发送消息并看到助手回复（流式或 blocking 兜底）', async ({ page }) => {
@@ -344,13 +380,14 @@ test.describe('ROLE_USER /chat browser acceptance', () => {
     await expect(page.locator('.chat-stage').getByText(/trace-(stream|blocking)-err-1/)).toBeVisible({ timeout: 10000 })
   })
 
-  test('ROLE_USER 直接访问 /dashboard/applications/agents 被重定向到 /chat', async ({ page }) => {
+  test('ROLE_USER 可以进入工作台智能体列表', async ({ page }) => {
     const backend = buildChatBackend()
     await authenticate(page, ['ROLE_USER'])
     await page.route('**/api/v1/**', backend.route)
 
     await page.goto('/dashboard/applications/agents')
-    await expect(page).toHaveURL(/\/chat/, { timeout: 8000 })
+    await expect(page).toHaveURL((url) => url.pathname === '/workspace/agents', { timeout: 8000 })
+    await expect(page.getByText('智能体列表').first()).toBeVisible()
     await expect(page.getByText(AGENT_NAME).first()).toBeVisible()
   })
 
@@ -363,7 +400,7 @@ test.describe('ROLE_USER /chat browser acceptance', () => {
     await expect(page).toHaveURL(/\/chat/, { timeout: 8000 })
   })
 
-  test('ROLE_USER 直接访问 /dashboard/profile 不会被重定向', async ({ page }) => {
+  test('ROLE_USER 访问旧 /dashboard/profile 会进入独立个人中心', async ({ page }) => {
     const backend = buildChatBackend()
     await authenticate(page, ['ROLE_USER'])
     await page.route('**/api/v1/**', backend.route)
@@ -372,7 +409,7 @@ test.describe('ROLE_USER /chat browser acceptance', () => {
     )
 
     await page.goto('/dashboard/profile')
-    // profile 应当停留；UI 中至少能看到「个人中心」或等价文案
-    await expect(page).toHaveURL(/\/dashboard\/profile/, { timeout: 8000 })
+    await expect(page).toHaveURL(/\/chat\/profile/, { timeout: 8000 })
+    await expect(page.getByRole('heading', { name: '个人中心' })).toBeVisible()
   })
 })

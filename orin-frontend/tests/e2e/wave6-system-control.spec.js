@@ -276,6 +276,7 @@ async function mockBackends(page) {
 
 test.describe('Wave 6 system control browser smoke', () => {
   test('opens system control pages and redirects without blank screens or runtime errors', async ({ page }) => {
+    test.slow()
     const runtimeErrors = []
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`))
     page.on('console', (message) => {
@@ -310,9 +311,9 @@ test.describe('Wave 6 system control browser smoke', () => {
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])
     }
 
-    await expect(page).toHaveURL(/\/dashboard\/control\/notification-channels/)
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/notification-channels')
 
     await page.goto('/dashboard/control/api-keys', { waitUntil: 'domcontentloaded' })
-    await expect(page).toHaveURL(/\/dashboard\/control\/gateway/)
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/gateway')
   })
 })

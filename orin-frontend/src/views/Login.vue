@@ -75,6 +75,12 @@
               登录
             </el-button>
           </el-form>
+          <div class="register-entry">
+            <span>还没有账号?</span>
+            <el-button link type="primary" @click="router.push('/register')">
+              注册个人账号
+            </el-button>
+          </div>
           <div class="security-note">
             <span>组织级访问控制</span>
             <span>会话有效期由管理员统一配置</span>
@@ -154,7 +160,9 @@ const handleLogin = async () => {
         const userRoles = roles || ['ROLE_USER'];
         userStore.login(token, user, userRoles);
 
-        if (isAdminLike(userRoles)) {
+        // 管理员默认进入侧边栏模式；其他角色尊重用户在 localStorage 的偏好（默认 sidebar）。
+        // 双 nav（sidebar / topbar）允许用户在工作台任意时刻切换，不在登录时强覆盖。
+        if (isAdminLike(userRoles) && !appStore.menuMode) {
           appStore.setMenuMode('sidebar');
         }
 
@@ -290,6 +298,16 @@ const handleLogin = async () => {
 .form-subtitle { color: var(--neutral-gray-400); margin-bottom: 35px; font-size: 14px; }
 
 .login-btn { width: 100%; height: 48px; font-size: 16px; font-weight: 600; border-radius: var(--radius-lg); margin-top: 20px; }
+
+.register-entry {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--text-secondary, #64748b);
+  font-size: 14px;
+}
 .extra-actions { display: flex; justify-content: space-between; align-items: center; margin-top: -10px; margin-bottom: 10px; }
 
 .security-note {

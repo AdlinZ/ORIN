@@ -14,5 +14,5 @@ public interface AgentChatSessionRepository extends JpaRepository<AgentChatSessi
 
     List<AgentChatSession> findByAgentIdOrderByUpdatedAtDesc(String agentId);
 
-    void deleteBySessionId(String sessionId);
+    List<AgentChatSession> findByAgentIdAndOwnerUserIdOrderByUpdatedAtDesc(String agentId, Long ownerUserId);
 }

@@ -161,6 +161,7 @@ public class GatewaySecretService {
                 .encryptedSecret(encryptionUtil.encrypt(secretValue))
                 .last4(secretValue.substring(Math.max(0, secretValue.length() - 4)))
                 .description(description)
+                .userId(operator)
                 .rotationAt(LocalDateTime.now())
                 .createdBy(operator)
                 .updatedBy(operator)

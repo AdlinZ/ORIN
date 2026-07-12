@@ -2,6 +2,7 @@ package com.adlin.orin.modules.collaboration.controller;
 
 import com.adlin.orin.modules.collaboration.entity.CollaborationTask;
 import com.adlin.orin.modules.collaboration.service.CollaborationService;
+import com.adlin.orin.modules.collaboration.service.CollaborationOwnershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,12 +24,12 @@ import java.util.Map;
 public class CollaborationController {
 
     private final CollaborationService collaborationService;
+    private final CollaborationOwnershipService ownershipService;
 
     @Operation(summary = "创建协作任务")
     @PostMapping("/tasks")
     public ResponseEntity<CollaborationTask> createTask(
-            @RequestBody Map<String, Object> request,
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+            @RequestBody Map<String, Object> request) {
         
         String name = (String) request.get("name");
         String description = (String) request.get("description");
@@ -37,30 +38,32 @@ public class CollaborationController {
         List<String> agentIds = (List<String>) request.get("agentIds");
         
         CollaborationTask task = collaborationService.createTask(
-                name, description, taskType, agentIds, userId);
+                name, description, taskType, agentIds, ownershipService.currentUserKey());
         
         return ResponseEntity.ok(task);
     }
 
     @Operation(summary = "获取当前用户的协作任务列表")
     @GetMapping("/tasks")
-    public ResponseEntity<List<CollaborationTask>> getMyTasks(
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+    public ResponseEntity<List<CollaborationTask>> getMyTasks() {
         
-        List<CollaborationTask> tasks = collaborationService.getTasksByUser(userId);
+        List<CollaborationTask> tasks = collaborationService.getTasksByUser(ownershipService.currentUserKey());
         return ResponseEntity.ok(tasks);
     }
 
     @Operation(summary = "获取所有协作任务列表")
     @GetMapping("/tasks/all")
     public ResponseEntity<List<CollaborationTask>> getAllTasks() {
-        List<CollaborationTask> tasks = collaborationService.getAllTasks();
+        List<CollaborationTask> tasks = ownershipService.isCurrentUserPrivileged()
+                ? collaborationService.getAllTasks()
+                : collaborationService.getTasksByUser(ownershipService.currentUserKey());
         return ResponseEntity.ok(tasks);
     }
 
     @Operation(summary = "获取协作任务详情")
     @GetMapping("/tasks/{id}")
     public ResponseEntity<CollaborationTask> getTask(@PathVariable Long id) {
+        ownershipService.assertCanManageTask(id);
         return collaborationService.getTask(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -69,6 +72,7 @@ public class CollaborationController {
     @Operation(summary = "开始执行协作任务")
     @PostMapping("/tasks/{id}/start")
     public ResponseEntity<CollaborationTask> startTask(@PathVariable Long id) {
+        ownershipService.assertCanManageTask(id);
         try {
             CollaborationTask task = collaborationService.updateTaskStatus(id, "RUNNING", null, null);
             return ResponseEntity.ok(task);
@@ -80,6 +84,7 @@ public class CollaborationController {
     @Operation(summary = "执行下一个 Agent")
     @PostMapping("/tasks/{id}/next")
     public ResponseEntity<CollaborationTask> executeNextAgent(@PathVariable Long id) {
+        ownershipService.assertCanManageTask(id);
         try {
             CollaborationTask task = collaborationService.executeNextAgent(id);
             return ResponseEntity.ok(task);
@@ -95,6 +100,7 @@ public class CollaborationController {
             @RequestBody Map<String, String> request) {
         
         try {
+            ownershipService.assertCanManageTask(id);
             String result = request.get("result");
             CollaborationTask task = collaborationService.updateTaskStatus(id, "COMPLETED", result, null);
             return ResponseEntity.ok(task);
@@ -110,6 +116,7 @@ public class CollaborationController {
             @RequestBody Map<String, String> request) {
         
         try {
+            ownershipService.assertCanManageTask(id);
             String errorMessage = request.get("errorMessage");
             CollaborationTask task = collaborationService.updateTaskStatus(id, "FAILED", null, errorMessage);
             return ResponseEntity.ok(task);
@@ -122,6 +129,7 @@ public class CollaborationController {
     @DeleteMapping("/tasks/{id}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         try {
+            ownershipService.assertCanManageTask(id);
             collaborationService.deleteTask(id);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
@@ -132,7 +140,11 @@ public class CollaborationController {
     @Operation(summary = "获取正在运行的任务")
     @GetMapping("/tasks/running")
     public ResponseEntity<List<CollaborationTask>> getRunningTasks() {
-        List<CollaborationTask> tasks = collaborationService.getRunningTasks();
+        List<CollaborationTask> tasks = ownershipService.isCurrentUserPrivileged()
+                ? collaborationService.getRunningTasks()
+                : collaborationService.getTasksByUser(ownershipService.currentUserKey()).stream()
+                        .filter(task -> "RUNNING".equals(task.getStatus()))
+                        .toList();
         return ResponseEntity.ok(tasks);
     }
 }

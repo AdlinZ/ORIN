@@ -1,7 +1,9 @@
 package com.adlin.orin.modules.system.controller;
 
 import com.adlin.orin.modules.system.dto.LoginDTO;
+import com.adlin.orin.modules.system.dto.RegisterDTO;
 import com.adlin.orin.modules.system.dto.UserResponseDTO;
+import com.adlin.orin.modules.system.service.dto.AuthResult;
 import com.adlin.orin.modules.system.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,7 +34,7 @@ public class LoginController {
     public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO, jakarta.servlet.http.HttpServletRequest request) {
         String ipAddress = request.getRemoteAddr();
         String userAgent = request.getHeader("User-Agent");
-        Map<String, Object> authResult = null;
+        AuthResult authResult = null;
 
         try {
             authResult = authService.login(loginDTO.getUsername(), loginDTO.getPassword());
@@ -48,15 +50,10 @@ public class LoginController {
         }
 
         if (authResult != null) {
-            com.adlin.orin.modules.system.entity.SysUser user = (com.adlin.orin.modules.system.entity.SysUser) authResult
-                    .get("user");
-            java.util.List<String> roles = (java.util.List<String>) authResult.get("roles");
+            com.adlin.orin.modules.system.entity.SysUser user = authResult.user();
+            java.util.List<String> roles = authResult.roles();
 
-            Map<String, Object> extraClaims = new HashMap<>();
-            extraClaims.put("roles", roles);
-
-            boolean rememberMe = loginDTO.isRememberMe();
-            String token = jwtService.generateToken(String.valueOf(user.getUserId()), user.getUsername(), extraClaims, rememberMe);
+            String token = buildToken(user, roles, loginDTO.isRememberMe());
 
             // Log Success
             auditLogService.logApiCall(
@@ -82,6 +79,57 @@ public class LoginController {
             error.put("message", "用户名或密码错误");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
+    }
+
+    @Operation(summary = "用户自助注册", description = "创建个人账号，默认授予 ROLE_USER 并返回可直接进入 /chat 的 JWT")
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterDTO registerDTO, jakarta.servlet.http.HttpServletRequest request) {
+        String ipAddress = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        AuthResult authResult;
+
+        try {
+            authResult = authService.register(registerDTO);
+        } catch (RuntimeException e) {
+            String username = registerDTO != null ? registerDTO.getUsername() : null;
+            auditLogService.logApiCall(
+                    username, null, "SYSTEM", "AUTH",
+                    "/api/v1/auth/register", "POST", null, ipAddress, userAgent,
+                    "username=" + username,
+                    "Register Failed: " + e.getMessage(),
+                    400, 0L, 0, 0, 0.0, false, e.getMessage());
+            throw e;
+        }
+
+        com.adlin.orin.modules.system.entity.SysUser user = authResult.user();
+        java.util.List<String> roles = authResult.roles();
+        String token = buildToken(user, roles, registerDTO != null && registerDTO.isRememberMe());
+
+        auditLogService.logApiCall(
+                String.valueOf(user.getUserId()), null, "SYSTEM", "AUTH",
+                "/api/v1/auth/register", "POST", "UserRegister", ipAddress, userAgent,
+                "username=" + user.getUsername(), "Register Success",
+                200, 0L, 0, 0, 0.0, true, null);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("user", UserResponseDTO.fromEntity(user));
+        response.put("roles", roles);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "注册能力状态", description = "返回当前环境是否开放个人账号自助注册")
+    @GetMapping("/registration-status")
+    public Map<String, Object> registrationStatus() {
+        return Map.of("enabled", authService.isSelfRegistrationEnabled());
+    }
+
+    private String buildToken(com.adlin.orin.modules.system.entity.SysUser user,
+                              java.util.List<String> roles,
+                              boolean rememberMe) {
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("roles", roles);
+        return jwtService.generateToken(String.valueOf(user.getUserId()), user.getUsername(), extraClaims, rememberMe);
     }
 
     @Operation(summary = "刷新Token", description = "使用当前有效的Token获取新Token，延长登录有效期")

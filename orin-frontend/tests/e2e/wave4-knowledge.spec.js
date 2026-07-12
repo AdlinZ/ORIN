@@ -182,9 +182,9 @@ test.describe('Wave 4 knowledge domain browser smoke', () => {
     }
 
     await page.goto('/dashboard/resources/embedding-lab', { waitUntil: 'networkidle' })
-    await expect(page).toHaveURL(/\/dashboard\/resources\/retrieval/)
+    await expect(page).toHaveURL((url) => url.pathname === '/workspace/knowledge/retrieval')
 
     await page.goto('/dashboard/resources/graph', { waitUntil: 'networkidle' })
-    await expect(page).toHaveURL(/\/dashboard\/resources\/assets/)
+    await expect(page).toHaveURL((url) => url.pathname === '/workspace/knowledge/assets')
   })
 })

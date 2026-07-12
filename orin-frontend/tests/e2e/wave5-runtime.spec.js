@@ -275,6 +275,6 @@ test.describe('Wave 5 runtime monitoring browser smoke', () => {
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])
     }
 
-    await expect(page).toHaveURL(/\/dashboard\/runtime\/tasks/)
+    await expect(page).toHaveURL((url) => url.pathname === '/admin/runtime/tasks')
   })
 })

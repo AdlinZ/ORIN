@@ -7,6 +7,27 @@
       </div>
     </div>
 
+    <div class="surface-switcher" :class="{ 'is-collapsed': appStore.isCollapse }" aria-label="产品切换">
+      <el-tooltip
+        v-for="surface in availableSurfaces"
+        :key="surface.id"
+        :content="surface.title"
+        placement="right"
+        :disabled="!appStore.isCollapse"
+      >
+        <button
+          type="button"
+          class="surface-button"
+          :class="{ active: currentSurface === surface.id }"
+          :aria-label="surface.title"
+          @click="switchSurface(surface.path)"
+        >
+          <el-icon><component :is="getIconComponent(surface.icon)" /></el-icon>
+          <span v-if="!appStore.isCollapse">{{ surface.shortTitle }}</span>
+        </button>
+      </el-tooltip>
+    </div>
+
     <!-- Menu Section (scrollable) -->
     <div class="menu-wrapper">
       <el-menu
@@ -18,7 +39,11 @@
       >
         <!-- 动态渲染一级模块 -->
         <template v-for="menu in visibleMenus" :key="menu.id">
-          <el-sub-menu :index="getSubMenuIndex('menu', menu)" :class="`menu-${menu.id}`">
+          <el-sub-menu
+            :index="getSubMenuIndex('menu', menu)"
+            :class="`menu-${menu.id}`"
+            :default-opened="menu.id === activeMenuId"
+          >
             <template #title>
               <el-icon :style="{ color: menu.color }">
                 <component :is="getIconComponent(menu.icon)" />
@@ -114,6 +139,16 @@
             @click="toggleTheme"
           />
         </el-tooltip>
+        <el-tooltip content="切换为顶部导航" placement="right">
+          <el-button
+            text
+            :icon="Menu"
+            class="action-btn"
+            aria-label="切换为顶部导航"
+            title="切换为顶部导航"
+            @click="appStore.toggleMenuMode"
+          />
+        </el-tooltip>
         <el-tooltip content="通知中心" placement="right">
           <el-button
             text
@@ -140,8 +175,13 @@ import BrandingLogo from '@/components/BrandingLogo.vue'
 import NotificationCenter from './NotificationCenter.vue'
 import { ElMessage } from 'element-plus'
 import { ROUTES } from '@/router/routes'
-import { getVisibleMenus } from '@/router/topMenuConfig'
-import { Refresh, Moon, Sunny, Bell, User, SwitchButton } from '@element-plus/icons-vue'
+import {
+  getActiveMenuId,
+  getAvailableProductSurfaces,
+  getProductSurfaceByPath,
+  getVisibleMenus,
+} from '@/router/topMenuConfig'
+import { Refresh, Moon, Sunny, Bell, User, SwitchButton, Menu } from '@element-plus/icons-vue'
 import { useUser } from '@/composables/useUser'
 import { useTheme } from '@/composables/useTheme'
 import { getIconComponent } from '@/utils/iconMap'
@@ -159,9 +199,16 @@ const { userInfo, checkLoginStatus, handleLogout } = useUser()
 const { isDarkMode, toggleTheme } = useTheme()
 
 const activeMenu = computed(() => route.fullPath)
+const currentSurface = computed(() => getProductSurfaceByPath(route.path))
+const availableSurfaces = computed(() => getAvailableProductSurfaces(userStore.roles || []))
+const activeMenuId = computed(() => getActiveMenuId(route.path))
 
 // 可见菜单（根据权限过滤）
-const visibleMenus = computed(() => getVisibleMenus(userStore.roles || []))
+const visibleMenus = computed(() => getVisibleMenus(userStore.roles || [], currentSurface.value))
+
+const switchSurface = (path) => {
+  if (path && path !== route.path) router.push(path)
+}
 
 const getSubMenuIndex = (level, item, parentId = '') => {
   const identity = item.id || item.path || item.title || 'menu'
@@ -239,7 +286,7 @@ const handleCommand = (command) => {
       handleLogout(false)
       break
     case 'profile':
-      router.push(ROUTES.PROFILE)
+      router.push(currentSurface.value === 'admin' ? ROUTES.PROFILE : ROUTES.CHAT_PROFILE)
       break
     case 'refresh_page':
       handleRefresh()
@@ -315,6 +362,46 @@ router.afterEach(() => {
   border-bottom: 1px solid var(--neutral-gray-100);
   flex-shrink: 0;
   transition: all 0.3s;
+}
+
+.surface-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--neutral-gray-100);
+}
+
+.surface-switcher.is-collapsed {
+  grid-template-columns: 1fr;
+  padding: 8px 12px;
+}
+
+.surface-button {
+  min-width: 0;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--neutral-gray-500);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.surface-button:hover {
+  color: var(--orin-primary);
+  background: var(--neutral-gray-50);
+}
+
+.surface-button.active {
+  color: var(--orin-primary);
+  background: var(--orin-primary-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orin-primary) 20%, transparent);
 }
 
 .sidebar-container.collapsed .logo-container {

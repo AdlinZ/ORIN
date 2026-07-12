@@ -75,6 +75,7 @@ docker compose --env-file .env up --build -d
 启动后访问：
 
 - 官网入口：<http://localhost:5173>
+- 注册账号：<http://localhost:5173/register>
 - ORIN Chat：<http://localhost:5173/chat>
 - 开发者平台：<http://localhost:5173/platform>
 - 管理员控制台：<http://localhost:5173/dashboard>

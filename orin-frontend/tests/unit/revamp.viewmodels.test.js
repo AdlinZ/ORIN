@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  toAgentListViewModel,
   toKnowledgeListViewModel,
   toKnowledgeAssetListViewModel,
   toKnowledgeDocumentListViewModel,
@@ -14,6 +15,22 @@ import {
 } from '@/viewmodels'
 
 describe('revamp viewmodel adapters', () => {
+  it('preserves default personal agent management metadata', () => {
+    const [agent] = toAgentListViewModel([{
+      agentId: 'personal-default-11',
+      agentName: '默认助手',
+      status: 'ACTIVE',
+      ownerUserId: 11,
+      defaultPersonalAgent: true,
+      managementHint: '系统兜底资源'
+    }])
+
+    expect(agent.status).toBe('RUNNING')
+    expect(agent.ownerUserId).toBe(11)
+    expect(agent.defaultPersonalAgent).toBe(true)
+    expect(agent.managementHint).toBe('系统兜底资源')
+  })
+
   it('normalizes knowledge payload', () => {
     const rows = toKnowledgeListViewModel([
       { id: 1, name: 'KB-A', type: 'DOCUMENT', docCount: 2 },

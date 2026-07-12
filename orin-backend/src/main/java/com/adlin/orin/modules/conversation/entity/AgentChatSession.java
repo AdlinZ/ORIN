@@ -45,6 +45,12 @@ public class AgentChatSession {
     @Column(name = "kb_doc_filters", columnDefinition = "JSON")
     private String kbDocFiltersJson;
 
+    /**
+     * 资源归属 — 来自 JWT 主体（null 表示历史/系统级会话，仅管理员/运维可见）。
+     */
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
     // Transient cache for in-memory access
     @Transient
     private List<String> attachedKbIds = new ArrayList<>();
@@ -150,6 +156,14 @@ public class AgentChatSession {
         } catch (JsonProcessingException e) {
             this.kbDocFiltersJson = "{}";
         }
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 
     @PrePersist

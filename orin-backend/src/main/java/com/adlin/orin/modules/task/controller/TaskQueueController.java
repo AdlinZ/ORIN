@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +24,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/tasks")
 @RequiredArgsConstructor
 @Tag(name = "Task Queue", description = "任务队列管理")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'PLATFORM_ADMIN')")
 public class TaskQueueController {
 
     private final TaskQueueService taskService;
@@ -30,13 +33,14 @@ public class TaskQueueController {
     @PostMapping
     public ResponseEntity<TaskQueue> createTask(
             @RequestBody Map<String, Object> request,
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+            Authentication authentication) {
         
         String name = (String) request.get("name");
         String taskType = (String) request.getOrDefault("taskType", "GENERAL");
         String content = (String) request.get("content");
         Integer priority = (Integer) request.getOrDefault("priority", 5);
         
+        String userId = authentication != null ? authentication.getName() : "system";
         TaskQueue task = taskService.createTask(name, taskType, content, priority, userId);
         return ResponseEntity.ok(task);
     }

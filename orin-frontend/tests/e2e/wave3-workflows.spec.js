@@ -154,6 +154,6 @@ test.describe('Wave 3 workflow domain browser smoke', () => {
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])
     }
 
-    await expect(page).toHaveURL(/\/dashboard\/applications\/workflows\/visual/)
+    await expect(page).toHaveURL((url) => url.pathname === '/workspace/workflows/visual')
   })
 })

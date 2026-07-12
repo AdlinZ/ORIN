@@ -11,12 +11,16 @@ import com.adlin.orin.modules.collaboration.metrics.CollaborationMetricsService;
 import com.adlin.orin.modules.collaboration.service.CollaborationExecutor;
 import com.adlin.orin.modules.collaboration.service.CollaborationMemoryService;
 import com.adlin.orin.modules.collaboration.service.CollaborationOrchestrator;
+import com.adlin.orin.modules.collaboration.service.CollaborationOwnershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.HandlerMapping;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,6 +45,7 @@ public class CollaborationOrchestratorController {
     private final CollaborationMemoryService memoryService;
     private final CollaborationMetricsService metricsService;
     private final CollaborationResultListener resultListener;
+    private final CollaborationOwnershipService ownershipService;
 
     @Autowired
     public CollaborationOrchestratorController(
@@ -49,13 +54,25 @@ public class CollaborationOrchestratorController {
             CollaborationExecutor executor,
             CollaborationMemoryService memoryService,
             CollaborationMetricsService metricsService,
-            CollaborationResultListener resultListener) {
+            CollaborationResultListener resultListener,
+            CollaborationOwnershipService ownershipService) {
         this.orchestrator = orchestrator;
         this.eventBus = eventBus;
         this.executor = executor;
         this.memoryService = memoryService;
         this.metricsService = metricsService;
         this.resultListener = resultListener;
+        this.ownershipService = ownershipService;
+    }
+
+    public CollaborationOrchestratorController(
+            CollaborationOrchestrator orchestrator,
+            CollaborationEventBus eventBus,
+            CollaborationExecutor executor,
+            CollaborationMemoryService memoryService,
+            CollaborationMetricsService metricsService,
+            CollaborationResultListener resultListener) {
+        this(orchestrator, eventBus, executor, memoryService, metricsService, resultListener, null);
     }
 
     public CollaborationOrchestratorController(
@@ -64,14 +81,29 @@ public class CollaborationOrchestratorController {
             CollaborationExecutor executor,
             CollaborationMemoryService memoryService,
             CollaborationMetricsService metricsService) {
-        this(orchestrator, eventBus, executor, memoryService, metricsService, null);
+        this(orchestrator, eventBus, executor, memoryService, metricsService, null, null);
+    }
+
+    /** Enforce package ownership once for every package-scoped HTTP handler. */
+    @ModelAttribute
+    public void enforcePackageOwnership(HttpServletRequest request) {
+        if (ownershipService == null) {
+            return;
+        }
+        Object rawVariables = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+        if (!(rawVariables instanceof Map<?, ?> variables)) {
+            return;
+        }
+        Object packageId = variables.get("packageId");
+        if (packageId != null && !packageId.toString().isBlank()) {
+            ownershipService.assertCanManagePackage(packageId.toString());
+        }
     }
 
     @Operation(summary = "创建协作任务包")
     @PostMapping("/packages")
     public ResponseEntity<CollaborationPackage> createPackage(
             @RequestBody Map<String, Object> request,
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId,
             @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
 
         String intent = (String) request.get("intent");
@@ -92,7 +124,7 @@ public class CollaborationOrchestratorController {
         copyIfPresent(request, strategyOverrides, "bidWeightCost");
 
         CollaborationPackage pkg = orchestrator.createPackage(
-                intent, category, priority, complexity, mode, userId, traceId, strategyOverrides
+                intent, category, priority, complexity, mode, currentUserKey(), traceId, strategyOverrides
         );
         return ResponseEntity.ok(pkg);
     }
@@ -202,20 +234,23 @@ public class CollaborationOrchestratorController {
     @Operation(summary = "获取所有任务包")
     @GetMapping("/packages")
     public ResponseEntity<List<CollaborationPackage>> getAllPackages() {
-        return ResponseEntity.ok(orchestrator.getAllPackages());
+        return ResponseEntity.ok(isPrivileged()
+                ? orchestrator.getAllPackages()
+                : orchestrator.getPackagesByUser(currentUserKey()));
     }
 
     @Operation(summary = "获取用户的任务包")
     @GetMapping("/packages/user")
-    public ResponseEntity<List<CollaborationPackage>> getMyPackages(
-            @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
-        return ResponseEntity.ok(orchestrator.getPackagesByUser(userId));
+    public ResponseEntity<List<CollaborationPackage>> getMyPackages() {
+        return ResponseEntity.ok(orchestrator.getPackagesByUser(currentUserKey()));
     }
 
     @Operation(summary = "获取协作统计")
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getCollaborationStats() {
-        List<CollaborationPackage> allPackages = orchestrator.getAllPackages();
+        List<CollaborationPackage> allPackages = isPrivileged()
+                ? orchestrator.getAllPackages()
+                : orchestrator.getPackagesByUser(currentUserKey());
         long total = allPackages.size();
         long planning = allPackages.stream().filter(p -> "PLANNING".equals(p.getStatus())).count();
         long decomposing = allPackages.stream().filter(p -> "DECOMPOSING".equals(p.getStatus())).count();
@@ -226,8 +261,12 @@ public class CollaborationOrchestratorController {
         long cancelled = allPackages.stream().filter(p -> "CANCELLED".equals(p.getStatus())).count();
 
         // 基于协作指标服务做聚合
-        Map<String, CollaborationMetricsService.AgentMetrics> allAgentMetrics = metricsService.getAllAgentMetrics();
-        long activeAgents = executor.getAvailableAgents() != null ? executor.getAvailableAgents().size() : 0;
+        Map<String, CollaborationMetricsService.AgentMetrics> allAgentMetrics = isPrivileged()
+                ? metricsService.getAllAgentMetrics()
+                : Map.of();
+        long activeAgents = isPrivileged() && executor.getAvailableAgents() != null
+                ? executor.getAvailableAgents().size()
+                : 0;
 
         long todayTokens = allAgentMetrics.values().stream()
                 .mapToLong(CollaborationMetricsService.AgentMetrics::getTotalTokens)
@@ -270,7 +309,8 @@ public class CollaborationOrchestratorController {
             @RequestParam(required = false) String createdBy,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) String category) {
-        return ResponseEntity.ok(orchestrator.filterPackages(status, createdBy, priority, category));
+        String effectiveCreatedBy = isPrivileged() ? createdBy : currentUserKey();
+        return ResponseEntity.ok(orchestrator.filterPackages(status, effectiveCreatedBy, priority, category));
     }
 
     @Operation(summary = "获取任务包的子任务列表")
@@ -603,6 +643,7 @@ public class CollaborationOrchestratorController {
     @Operation(summary = "获取 Agent 指标")
     @GetMapping("/metrics/agent/{agentId}")
     public ResponseEntity<CollaborationMetricsService.AgentMetrics> getAgentMetrics(@PathVariable String agentId) {
+        requirePrivileged();
         return ResponseEntity.ok(metricsService.getAgentMetrics(agentId));
     }
 
@@ -612,6 +653,8 @@ public class CollaborationOrchestratorController {
             @RequestParam String agentId,
             @RequestParam(required = false, defaultValue = "10.0") Double budgetThreshold,
             @RequestParam(required = false, defaultValue = "5000") Long latencyThresholdMs) {
+
+        requirePrivileged();
 
         String suggestion = metricsService.getDegradationSuggestion(agentId, budgetThreshold, latencyThresholdMs);
         CollaborationMetricsService.AgentMetrics metrics = metricsService.getAgentMetrics(agentId);
@@ -710,6 +753,20 @@ public class CollaborationOrchestratorController {
     private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
         if (source.containsKey(key) && source.get(key) != null) {
             target.put(key, source.get(key));
+        }
+    }
+
+    private String currentUserKey() {
+        return ownershipService != null ? ownershipService.currentUserKey() : "system";
+    }
+
+    private boolean isPrivileged() {
+        return ownershipService == null || ownershipService.isCurrentUserPrivileged();
+    }
+
+    private void requirePrivileged() {
+        if (!isPrivileged()) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "该协作指标仅限管理员查看");
         }
     }
 

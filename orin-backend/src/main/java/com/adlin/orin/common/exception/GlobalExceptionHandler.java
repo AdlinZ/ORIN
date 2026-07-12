@@ -274,6 +274,14 @@ public class GlobalExceptionHandler {
      */
     private HttpStatus determineHttpStatus(ErrorCode errorCode) {
         String code = errorCode.getCode();
+        if (code.startsWith("1")) {
+            // 通用错误 (1xxxx)
+            if (code.equals("10001")) return HttpStatus.BAD_REQUEST;       // INVALID_PARAMETER
+            if (code.equals("10003")) return HttpStatus.UNAUTHORIZED;      // UNAUTHORIZED
+            if (code.equals("10004")) return HttpStatus.FORBIDDEN;         // FORBIDDEN（BaseOwnershipResolver 等 ACL 拒绝路径）
+            if (code.equals("10005")) return HttpStatus.TOO_MANY_REQUESTS; // TOO_MANY_REQUESTS
+            return HttpStatus.INTERNAL_SERVER_ERROR;                       // 10000 SYSTEM_ERROR / 10002 OPERATION_FAILED
+        }
         if (code.startsWith("2")) {
             // 20002 RESOURCE_ALREADY_EXISTS → 409 Conflict
             // 20003 RESOURCE_CONFLICT       → 409 Conflict

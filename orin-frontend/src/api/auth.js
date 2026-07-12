@@ -12,6 +12,27 @@ export function login(data) {
 }
 
 /**
+ * 用户自助注册
+ */
+export function register(data) {
+    return request({
+        url: '/auth/register',
+        method: 'post',
+        data
+    });
+}
+
+/**
+ * 注册能力状态
+ */
+export function getRegistrationStatus() {
+    return request({
+        url: '/auth/registration-status',
+        method: 'get'
+    });
+}
+
+/**
  * 刷新Token
  * 使用当前有效的Token获取新Token
  */

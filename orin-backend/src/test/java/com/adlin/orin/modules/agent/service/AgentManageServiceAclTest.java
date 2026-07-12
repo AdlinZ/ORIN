@@ -3,6 +3,7 @@ package com.adlin.orin.modules.agent.service;
 import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.common.exception.ResourceNotFoundException;
 import com.adlin.orin.modules.agent.dto.AgentOnboardRequest;
+import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.repository.AgentJobRepository;
@@ -29,6 +30,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -140,6 +142,30 @@ class AgentManageServiceAclTest {
         verify(metadataRepository).findAll();
     }
 
+    @Test
+    @DisplayName("ACL-read: 普通用户无智能体时自动创建默认助手")
+    void getAll_regularUser_createsDefaultPersonalAgentWhenEmpty() {
+        when(ownershipResolver.isCurrentUserPrivileged()).thenReturn(false);
+        when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(USER_ID);
+        when(metadataRepository.findByOwnerUserId(USER_ID)).thenReturn(List.of());
+        when(metadataRepository.findById("personal-default-" + USER_ID)).thenReturn(Optional.empty());
+        when(metadataRepository.save(any(AgentMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<AgentMetadata> result = service.getAllAgents();
+
+        assertEquals(1, result.size());
+        assertEquals("personal-default-" + USER_ID, result.get(0).getAgentId());
+        assertEquals(USER_ID, result.get(0).getOwnerUserId());
+        assertEquals("默认助手", result.get(0).getName());
+        assertEquals("SiliconFlow", result.get(0).getProviderType());
+        assertEquals("CHAT", result.get(0).getViewType());
+
+        ArgumentCaptor<AgentAccessProfile> profileCaptor = ArgumentCaptor.forClass(AgentAccessProfile.class);
+        verify(accessProfileRepository).save(profileCaptor.capture());
+        assertEquals("personal-default-" + USER_ID, profileCaptor.getValue().getAgentId());
+        verify(healthStatusRepository).save(any());
+    }
+
     // ============================================================
     // updateAgent / updateAgentConfig 写路径
     // ============================================================
@@ -190,6 +216,21 @@ class AgentManageServiceAclTest {
                 .when(ownershipResolver).assertCanManage(existing);
 
         assertThrows(BusinessException.class, () -> service.deleteAgent("agent-1"));
+        verify(accessProfileRepository, never()).deleteById(anyString());
+        verify(metadataRepository, never()).deleteById(anyString());
+        verify(healthStatusRepository, never()).deleteById(anyString());
+    }
+
+    @Test
+    @DisplayName("ACL-delete: 默认助手为系统兜底资源,禁止删除")
+    void delete_defaultPersonalAgent_throwsResourceLocked() {
+        String agentId = "personal-default-" + USER_ID;
+        AgentMetadata existing = metadata(agentId, USER_ID);
+        when(metadataRepository.findById(agentId)).thenReturn(Optional.of(existing));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.deleteAgent(agentId));
+
+        assertEquals(com.adlin.orin.common.exception.ErrorCode.RESOURCE_LOCKED, ex.getErrorCode());
         verify(accessProfileRepository, never()).deleteById(anyString());
         verify(metadataRepository, never()).deleteById(anyString());
         verify(healthStatusRepository, never()).deleteById(anyString());

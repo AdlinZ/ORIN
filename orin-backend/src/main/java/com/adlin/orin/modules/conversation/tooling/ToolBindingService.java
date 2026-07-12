@@ -10,7 +10,7 @@ import com.adlin.orin.modules.conversation.repository.AgentToolBindingRepository
 import com.adlin.orin.modules.conversation.repository.SessionToolBindingRepository;
 import com.adlin.orin.modules.skill.entity.McpService;
 import com.adlin.orin.modules.skill.entity.SkillEntity;
-import com.adlin.orin.modules.skill.repository.McpServiceRepository;
+import com.adlin.orin.modules.skill.service.McpServiceOwnershipService;
 import com.adlin.orin.modules.skill.repository.SkillRepository;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class ToolBindingService {
     private final AgentToolBindingRepository agentToolBindingRepository;
     private final SessionToolBindingRepository sessionToolBindingRepository;
     private final SkillRepository skillRepository;
-    private final McpServiceRepository mcpServiceRepository;
+    private final McpServiceOwnershipService mcpOwnershipService;
 
     @Value("${orin.conversation.default-bind-active-skills:false}")
     private boolean defaultBindActiveSkills;
@@ -50,7 +50,9 @@ public class ToolBindingService {
         binding.setToolIds(normalizeStringList(request.getToolIds()));
         binding.setKbIds(normalizeStringList(request.getKbIds()));
         binding.setSkillIds(normalizeLongList(request.getSkillIds()));
-        binding.setMcpIds(normalizeLongList(request.getMcpIds()));
+        List<Long> mcpIds = normalizeLongList(request.getMcpIds());
+        mcpOwnershipService.assertCanUseIds(mcpIds);
+        binding.setMcpIds(mcpIds);
 
         if (request.getEnableSuggestions() != null) binding.setEnableSuggestions(request.getEnableSuggestions());
         if (request.getShowRetrievedContext() != null) binding.setShowRetrievedContext(request.getShowRetrievedContext());
@@ -73,7 +75,9 @@ public class ToolBindingService {
         binding.setToolIds(normalizeStringList(request.getToolIds()));
         binding.setKbIds(normalizeStringList(request.getKbIds()));
         binding.setSkillIds(normalizeLongList(request.getSkillIds()));
-        binding.setMcpIds(normalizeLongList(request.getMcpIds()));
+        List<Long> mcpIds = normalizeLongList(request.getMcpIds());
+        mcpOwnershipService.assertCanUseIds(mcpIds);
+        binding.setMcpIds(mcpIds);
 
         return toDto(sessionToolBindingRepository.save(binding));
     }
@@ -115,12 +119,14 @@ public class ToolBindingService {
                 agentBinding != null ? agentBinding.getMcpIds() : null,
                 List.of());
         if (defaultBindConnectedMcp && !explicitToolSelection && effectiveMcpIds.isEmpty()) {
-            effectiveMcpIds = mcpServiceRepository.findByStatus(McpService.McpStatus.CONNECTED).stream()
+            effectiveMcpIds = mcpOwnershipService.visibleServices().stream()
+                    .filter(service -> service.getStatus() == McpService.McpStatus.CONNECTED)
                     .filter(service -> Boolean.TRUE.equals(service.getEnabled()))
                     .map(McpService::getId)
                     .filter(id -> id != null)
                     .collect(Collectors.toList());
         }
+        mcpOwnershipService.assertCanUseIds(effectiveMcpIds);
 
         List<String> effectiveToolIds = firstNonEmpty(
                 request != null ? request.getToolIds() : null,

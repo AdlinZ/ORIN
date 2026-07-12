@@ -105,7 +105,15 @@ function createMockBackend() {
     }
 
     if (request.method() === 'GET' && path === '/traces/trace-task-failed') {
-      return route.fulfill(json(traceSummary))
+      return route.fulfill(json([{
+        traceId: 'trace-task-failed',
+        spanId: 'span-task-failed',
+        operationName: 'workflow.task',
+        status: 'FAILED',
+        durationMs: 60_000,
+        startTime: now,
+        errorMessage: 'AI Engine timeout after 60s'
+      }]))
     }
 
     if (request.method() === 'GET' && path === '/traces/trace-task-failed/summary') {
@@ -161,13 +169,14 @@ test.describe('Task Queue page interactions', () => {
 
     await page.goto('/dashboard/runtime/tasks')
 
-    // Should show failed task
-    await expect(page.getByText('task-replayable').first()).toBeVisible()
-    await expect(page.getByText('FAILED').first()).toBeVisible()
-
-    // Should show queued task
+    // The page renders one status queue at a time. Verify the default queued
+    // queue first, then switch to the failed queue.
     await expect(page.getByText('task-queued').first()).toBeVisible()
     await expect(page.getByText('QUEUED').first()).toBeVisible()
+
+    await page.locator('.el-radio-button').filter({ hasText: '失败' }).click()
+    await expect(page.getByText('task-replayable').first()).toBeVisible()
+    await expect(page.getByText('FAILED').first()).toBeVisible()
   })
 
   test('replay button on failed task creates new QUEUED task', async ({ page }) => {
@@ -178,8 +187,9 @@ test.describe('Task Queue page interactions', () => {
     await page.goto('/dashboard/runtime/tasks')
 
     // Open failed task replay
+    await page.locator('.el-radio-button').filter({ hasText: '失败' }).click()
     const failedRow = page.locator('.el-table__row').filter({ hasText: 'task-replayable' })
-    await failedRow.getByRole('button', { name: '重试' }).click()
+    await failedRow.getByRole('button', { name: '重放' }).click()
     await page.getByRole('button', { name: '确定' }).last().click()
 
     // Verify API was called
@@ -220,10 +230,8 @@ test.describe('Trace summary links to workflow tasks and collaboration packages'
     await expect(page.getByText('trace-task-failed').first()).toBeVisible()
     await expect(page.getByText('FAILED').first()).toBeVisible()
 
-    // Open trace detail
-    await page.getByRole('button', { name: '查看' }).first().click()
-
-    // Summary should show workflow task link
+    // Searching an exact trace id opens the detail view directly.
+    await page.getByRole('tab', { name: '关联对象' }).click()
     await expect(page.getByText('task-replayable').first()).toBeVisible()
     await expect(page.getByText('pkg-demo').first()).toBeVisible()
     await expect(page.getByText('audit-1').first()).toBeVisible()

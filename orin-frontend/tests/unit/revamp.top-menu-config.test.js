@@ -4,6 +4,9 @@ import {
   getActiveMenuId,
   getDashboardGuardRedirect,
   getDefaultHomeByRoles,
+  getAvailableProductSurfaces,
+  getProductSurfaceByPath,
+  PRODUCT_SURFACES,
   getVisibleMenus
 } from '@/router/topMenuConfig'
 
@@ -26,7 +29,7 @@ describe('top menu IA behavior', () => {
     expect(userMenus.map((menu) => menu.id)).toEqual(['chat'])
     expect(adminMenus.find((menu) => menu.id === 'control').children).toContainEqual(expect.objectContaining({
       title: '统一网关',
-      path: ROUTES.SYSTEM.GATEWAY,
+      path: ROUTES.ADMIN_PATHS.GATEWAY,
     }))
   })
 
@@ -46,11 +49,14 @@ describe('top menu IA behavior', () => {
   })
 
   it('shows the complete dashboard menu for admins', () => {
-    const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
+    const adminMenus = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.ADMIN)
+    const workspaceMenus = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.WORKSPACE)
 
     expect(adminMenus.map((menu) => menu.title)).toEqual([
       '平台控制',
       '运行观测',
+    ])
+    expect(workspaceMenus.map((menu) => menu.title)).toEqual([
       '应用构建',
       '资源知识',
     ])
@@ -90,50 +96,51 @@ describe('top menu IA behavior', () => {
   })
 
   it('keeps workflow management under application building', () => {
-    const applicationMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'applications')
+    const applicationMenu = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.WORKSPACE).find((menu) => menu.id === 'applications')
 
-    expect(applicationMenu).toMatchObject({ path: ROUTES.AGENTS.ROOT })
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Connection' }))
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL, icon: 'Edit' }))
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay' }))
+    expect(applicationMenu).toMatchObject({ path: ROUTES.WORKSPACE_PATHS.ROOT })
+    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '工作流中心', path: ROUTES.WORKSPACE_PATHS.WORKFLOWS, icon: 'Connection' }))
+    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '可视化编排', path: ROUTES.WORKSPACE_PATHS.WORKFLOW_VISUAL, icon: 'Edit' }))
+    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '执行记录', path: ROUTES.WORKSPACE_PATHS.WORKFLOW_EXECUTION, icon: 'VideoPlay' }))
   })
 
   it('keeps multi-agent collaboration visible under application building', () => {
-    const applicationMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'applications')
+    const applicationMenu = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.WORKSPACE).find((menu) => menu.id === 'applications')
 
     expect(applicationMenu.children).toContainEqual(expect.objectContaining({
       title: '多智能体协同',
-      path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
+      path: ROUTES.WORKSPACE_PATHS.COLLABORATION,
       icon: 'Connection',
     }))
   })
 
   it('exposes extension tabs as navigation entries while keeping platform MCP configuration', () => {
-    const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
-    const applicationMenu = adminMenus.find((menu) => menu.id === 'applications')
+    const adminMenus = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.ADMIN)
+    const workspaceMenus = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.WORKSPACE)
+    const applicationMenu = workspaceMenus.find((menu) => menu.id === 'applications')
     const controlMenu = adminMenus.find((menu) => menu.id === 'control')
 
-    expect(ROUTES.MCP.SERVERS).toBe('/dashboard/applications/extensions?tab=mcp')
-    expect(ROUTES.AGENTS.SKILLS).toBe('/dashboard/applications/extensions?tab=skills')
-    expect(ROUTES.AGENTS.MODEL_TOOLS).toBe('/dashboard/applications/extensions?tab=bindings')
+    expect(ROUTES.MCP.SERVERS).toBe('/workspace/extensions?tab=mcp')
+    expect(ROUTES.AGENTS.SKILLS).toBe('/workspace/extensions?tab=skills')
+    expect(ROUTES.AGENTS.MODEL_TOOLS).toBe('/workspace/extensions?tab=bindings')
     expect(applicationMenu.children).toContainEqual(expect.objectContaining({
       title: 'Skills',
-      path: ROUTES.AGENTS.SKILLS,
+      path: `${ROUTES.WORKSPACE_PATHS.EXTENSIONS}?tab=skills`,
       icon: 'Star',
     }))
     expect(applicationMenu.children).toContainEqual(expect.objectContaining({
       title: 'MCP 服务',
-      path: ROUTES.MCP.SERVERS,
+      path: `${ROUTES.WORKSPACE_PATHS.EXTENSIONS}?tab=mcp`,
       icon: 'Connection',
     }))
     expect(applicationMenu.children).toContainEqual(expect.objectContaining({
       title: '模型工具',
-      path: ROUTES.AGENTS.MODEL_TOOLS,
+      path: `${ROUTES.WORKSPACE_PATHS.EXTENSIONS}?tab=bindings`,
       icon: 'Setting',
     }))
     expect(controlMenu.children).toContainEqual(expect.objectContaining({
       title: 'MCP 服务',
-      path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE,
+      path: ROUTES.ADMIN_PATHS.MCP,
       icon: 'Connection',
     }))
   })
@@ -157,15 +164,16 @@ describe('top menu IA behavior', () => {
     expect(adminMenus.some((menu) => menu.id === 'chat')).toBe(false)
   })
 
-  it('redirects ROLE_USER away from /dashboard/* to /chat via the guard helper', () => {
+  it('allows ROLE_USER into workspace routes but keeps admin routes protected', () => {
     expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard')).toBe(ROUTES.CHAT)
-    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/applications/agents')).toBe(ROUTES.CHAT)
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/applications/agents')).toBeNull()
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/resources/assets')).toBeNull()
     expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/runtime/overview')).toBe(ROUTES.CHAT)
     expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/control/users')).toBe(ROUTES.CHAT)
   })
 
-  it('lets ROLE_USER stay on /dashboard/profile (shared page)', () => {
-    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/profile')).toBeNull()
+  it('redirects ROLE_USER from the legacy dashboard profile to the chat profile', () => {
+    expect(getDashboardGuardRedirect(['ROLE_USER'], '/dashboard/profile')).toBe(ROUTES.CHAT_PROFILE)
   })
 
   it('does not redirect ROLE_ADMIN away from any /dashboard/* page', () => {
@@ -184,5 +192,29 @@ describe('top menu IA behavior', () => {
     expect(getDashboardGuardRedirect([], '/dashboard/applications/agents')).toBe(ROUTES.CHAT)
     expect(getDashboardGuardRedirect(['ROLE_USER'], '')).toBeNull()
     expect(getDashboardGuardRedirect(undefined, '/dashboard/applications/agents')).toBe(ROUTES.CHAT)
+  })
+
+  it('keeps product surfaces separate and exposes a role-aware switcher', () => {
+    expect(getProductSurfaceByPath('/dashboard/applications/agents')).toBe(PRODUCT_SURFACES.WORKSPACE)
+    expect(getProductSurfaceByPath('/workspace/agents')).toBe(PRODUCT_SURFACES.WORKSPACE)
+    expect(getProductSurfaceByPath('/dashboard/control/users')).toBe(PRODUCT_SURFACES.ADMIN)
+    expect(getProductSurfaceByPath('/admin/runtime/traces')).toBe(PRODUCT_SURFACES.ADMIN)
+
+    expect(getAvailableProductSurfaces(['ROLE_USER']).map((surface) => surface.id)).toEqual([
+      PRODUCT_SURFACES.CHAT,
+      PRODUCT_SURFACES.WORKSPACE,
+    ])
+    expect(getAvailableProductSurfaces(['ROLE_ADMIN']).map((surface) => surface.id)).toEqual([
+      PRODUCT_SURFACES.WORKSPACE,
+      PRODUCT_SURFACES.ADMIN,
+    ])
+  })
+
+  it('shows owned-resource workspace navigation to ROLE_USER without admin governance', () => {
+    const workspaceMenus = getVisibleMenus(['ROLE_USER'], PRODUCT_SURFACES.WORKSPACE)
+
+    expect(workspaceMenus.map((menu) => menu.id)).toEqual(['applications', 'resources'])
+    expect(workspaceMenus.some((menu) => menu.id === 'control')).toBe(false)
+    expect(workspaceMenus.some((menu) => menu.id === 'runtime')).toBe(false)
   })
 })

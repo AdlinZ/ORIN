@@ -4,6 +4,7 @@ import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.common.exception.ErrorCode;
@@ -100,6 +101,18 @@ public class AgentManageServiceImpl implements AgentManageService {
     private final com.adlin.orin.modules.agent.service.KimiAgentManageService kimiAgentManageService;
     private final com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService;
     private final com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService;
+
+    @Value("${orin.agent.default-personal-agent-enabled:true}")
+    private boolean defaultPersonalAgentEnabled = true;
+
+    @Value("${siliconflow.api.base-url:https://api.siliconflow.cn/v1}")
+    private String defaultPersonalAgentEndpoint = "https://api.siliconflow.cn/v1";
+
+    @Value("${siliconflow.api.key:}")
+    private String defaultPersonalAgentApiKey = "";
+
+    @Value("${siliconflow.chat.model:${SILICONFLOW_CHAT_MODEL:Qwen/Qwen3-8B}}")
+    private String defaultPersonalAgentModel = "Qwen/Qwen3-8B";
 
     // Explicit constructor injection to ensure all dependencies are handled
     // correctly
@@ -433,14 +446,85 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
-    @Cacheable(value = "agent_list")
+    @Transactional
     public java.util.List<AgentMetadata> getAllAgents() {
         // 资源级 ACL 第 2 刀: admin / operator 看全部, 普通用户按 owner 过滤
         if (ownershipResolver.isCurrentUserPrivileged()) {
             return metadataRepository.findAll();
         }
         Long currentUserId = ownershipResolver.resolveFromCurrentRequest();
-        return metadataRepository.findByOwnerUserId(currentUserId);
+        java.util.List<AgentMetadata> ownedAgents = metadataRepository.findByOwnerUserId(currentUserId);
+        if (!ownedAgents.isEmpty() || !defaultPersonalAgentEnabled) {
+            return ownedAgents;
+        }
+        return java.util.List.of(createDefaultPersonalAgent(currentUserId));
+    }
+
+    private AgentMetadata createDefaultPersonalAgent(Long ownerUserId) {
+        String agentId = "personal-default-" + ownerUserId;
+        return metadataRepository.findById(agentId).orElseGet(() -> {
+            LocalDateTime now = LocalDateTime.now();
+            AgentAccessProfile profile = AgentAccessProfile.builder()
+                    .agentId(agentId)
+                    .endpointUrl(blankToNull(defaultPersonalAgentEndpoint))
+                    .apiKey(configuredApiKeyOrNull(defaultPersonalAgentApiKey))
+                    .createdAt(now)
+                    .connectionStatus("ACTIVE")
+                    .updatedAt(now)
+                    .build();
+            accessProfileRepository.save(profile);
+
+            AgentMetadata metadata = AgentMetadata.builder()
+                    .agentId(agentId)
+                    .ownerUserId(ownerUserId)
+                    .name("默认助手")
+                    .description("面向个人账号的通用对话服务，使用系统默认模型配置。")
+                    .icon("ORIN")
+                    .mode("chat")
+                    .modelName(blankToNull(defaultPersonalAgentModel) != null
+                            ? defaultPersonalAgentModel.trim()
+                            : "Qwen/Qwen3-8B")
+                    .providerType("SiliconFlow")
+                    .viewType("CHAT")
+                    .temperature(0.7)
+                    .topP(0.7)
+                    .maxTokens(2000)
+                    .systemPrompt("你是 ORIN 默认助手，回答要准确、清晰，并在缺少上下文时主动说明需要哪些信息。")
+                    .syncTime(now)
+                    .build();
+            AgentMetadata saved = metadataRepository.save(metadata);
+
+            AgentHealthStatus healthStatus = AgentHealthStatus.builder()
+                    .agentId(agentId)
+                    .agentName(saved.getName())
+                    .status(AgentStatus.RUNNING)
+                    .healthScore(100)
+                    .lastHeartbeat(System.currentTimeMillis())
+                    .providerType(saved.getProviderType())
+                    .modelName(saved.getModelName())
+                    .viewType(saved.getViewType())
+                    .build();
+            healthStatusRepository.save(healthStatus);
+
+            log.info("Created default personal agent for user {}", ownerUserId);
+            return saved;
+        });
+    }
+
+    private String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String configuredApiKeyOrNull(String value) {
+        return isConfiguredApiKey(value) ? value.trim() : null;
+    }
+
+    private boolean isDefaultPersonalAgent(String agentId) {
+        return agentId != null && agentId.startsWith("personal-default-");
     }
 
     @Override
@@ -675,6 +759,11 @@ public class AgentManageServiceImpl implements AgentManageService {
                 .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
                         "AgentMetadata", agentId));
         ownershipResolver.assertCanManage(metadata);
+        if (isDefaultPersonalAgent(agentId)) {
+            throw new BusinessException(
+                    ErrorCode.RESOURCE_LOCKED,
+                    "默认助手是系统兜底资源，不能删除；可关闭 ORIN_AGENT_DEFAULT_PERSONAL_AGENT_ENABLED 或在控制台调整配置");
+        }
 
         accessProfileRepository.deleteById(agentId);
         metadataRepository.deleteById(agentId);
@@ -883,7 +972,10 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     private boolean isConfiguredApiKey(String value) {
-        return value != null && !value.isBlank() && !"sk-placeholder".equals(value) && !"sk-dummy".equals(value);
+        return value != null && !value.isBlank()
+                && !"sk-placeholder".equals(value)
+                && !"sk-dummy".equals(value)
+                && !"-sk-dummy".equals(value);
     }
 
     private boolean isSiliconFlowAuthFailure(Object respObj) {

@@ -229,7 +229,27 @@
           table-layout="auto"
           @row-click="goConsole"
         >
-          <el-table-column prop="agentName" label="智能体名称" min-width="280" show-overflow-tooltip />
+          <el-table-column prop="agentName" label="智能体名称" min-width="300" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div class="agent-name-cell">
+                <span>{{ row.agentName }}</span>
+                <el-tooltip
+                  v-if="row.defaultPersonalAgent"
+                  :content="row.managementHint || '系统为个人用户自动生成的默认助手'"
+                  placement="top"
+                >
+                  <el-tag size="small" type="warning" effect="light">
+                    个人默认
+                  </el-tag>
+                </el-tooltip>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="ownerUserId" label="Owner" width="100" align="center">
+            <template #default="{ row }">
+              <span>{{ row.ownerUserId || '-' }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="providerType" label="服务商" width="120" />
           <el-table-column prop="viewType" label="类型" width="110" show-overflow-tooltip>
             <template #default="{ row }">
@@ -259,7 +279,18 @@
               <el-button link type="primary" @click.stop="openConsole(row)">
                 控制台
               </el-button>
-              <el-button link type="danger" @click.stop="handleDelete(row)">
+              <el-tooltip
+                v-if="row.defaultPersonalAgent"
+                :content="row.managementHint || '默认助手不可删除，可在控制台调整参数，或关闭默认助手开关'"
+                placement="top"
+              >
+                <span class="disabled-action">
+                  <el-button link type="info" disabled @click.stop>
+                    删除
+                  </el-button>
+                </span>
+              </el-tooltip>
+              <el-button v-else link type="danger" @click.stop="handleDelete(row)">
                 删除
               </el-button>
             </template>
@@ -432,6 +463,10 @@ const handleDelete = async (row) => {
     ElMessage.warning('该记录缺少 ID，无法删除')
     return
   }
+  if (row.defaultPersonalAgent) {
+    ElMessage.warning(row.managementHint || '默认助手是系统兜底资源，不能删除')
+    return
+  }
   await ElMessageBox.confirm(`确认删除智能体「${row.agentName}」吗？`, '删除确认', { type: 'warning' })
   await deleteAgent(row.id)
   ElMessage.success('删除成功')
@@ -528,6 +563,23 @@ onMounted(loadData)
 </script>
 
 <style scoped>
+.agent-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agent-name-cell span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disabled-action {
+  display: inline-flex;
+}
+
 .agent-overview-board {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
