@@ -59,7 +59,7 @@
           <template #header>
             <div class="panel-header">
               <span>我的 API Key</span>
-              <el-button link type="primary" @click="router.push(ROUTES.SYSTEM.API_KEYS)">
+              <el-button link type="primary" @click="router.push(ROUTES.PLATFORM)">
                 管理
               </el-button>
             </div>
@@ -97,7 +97,7 @@
           <template #header>
             <div class="panel-header">
               <span>最近调用链路</span>
-              <el-button link type="primary" @click="router.push(ROUTES.MONITOR.TRACES)">
+              <el-button link type="primary" @click="router.push(ROUTES.AGENTS.WORKFLOW_EXECUTION)">
                 查看全部
               </el-button>
             </div>
@@ -107,9 +107,7 @@
               <el-table :data="summary.recentTraces || []" stripe size="small">
                 <el-table-column prop="traceId" label="Trace ID" min-width="200" show-overflow-tooltip>
                   <template #default="{ row }">
-                    <el-button link type="primary" size="small" @click="openTrace(row.traceId)">
-                      {{ row.traceId }}
-                    </el-button>
+                    <code class="trace-id">{{ row.traceId }}</code>
                   </template>
                 </el-table-column>
                 <el-table-column prop="operationName" label="操作" min-width="200" show-overflow-tooltip />
@@ -146,7 +144,7 @@
           </template>
           <div class="quick-links">
             <el-button
-              v-for="link in summary.quickLinks"
+              v-for="link in normalizedQuickLinks"
               :key="link.path"
               type="primary"
               plain
@@ -213,6 +211,18 @@ const kpiMetrics = computed(() => [
   }
 ])
 
+const QUICK_LINK_PATHS = Object.freeze({
+  '/dashboard/applications/workspace': ROUTES.AGENTS.WORKSPACE,
+  '/dashboard/applications/workflows': ROUTES.AGENTS.WORKFLOWS,
+  '/dashboard/control/unified-gateway': ROUTES.PLATFORM_DOCS,
+  '/dashboard/applications/playground': ROUTES.AGENTS.PLAYGROUND,
+})
+
+const normalizedQuickLinks = computed(() => (summary.value.quickLinks || []).map((link) => ({
+  ...link,
+  path: QUICK_LINK_PATHS[link.path] || link.path,
+})))
+
 const loadSummary = async () => {
   loadingState.status = 'loading'
   agentsState.status = 'loading'
@@ -236,12 +246,6 @@ const loadSummary = async () => {
 
 const loadAll = () => {
   loadSummary()
-}
-
-const openTrace = (traceId) => {
-  if (traceId) {
-    router.push(ROUTES.MONITOR.TRACE_DETAIL.replace(':traceId', traceId))
-  }
 }
 
 const formatTokens = (val) => {

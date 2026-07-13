@@ -283,8 +283,8 @@ test.describe('ROLE_USER /chat browser acceptance', () => {
     const userButton = page.locator('.portal-user-wrapper')
     await userButton.click()
     await expect(page.getByRole('menuitem', { name: '管理端' })).toHaveCount(0)
-    // 但有「ORIN 工作台」「API Key 自助」与「退出登录」
-    await expect(page.getByRole('menuitem', { name: 'ORIN 工作台' })).toBeVisible()
+    // Chat 不提供任何后台产品切换入口
+    await expect(page.getByRole('menuitem', { name: 'ORIN 工作台' })).toHaveCount(0)
     await expect(page.getByRole('menuitem', { name: 'API Key 自助' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: '退出登录' })).toBeVisible()
   })

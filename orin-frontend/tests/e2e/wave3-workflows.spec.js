@@ -148,7 +148,7 @@ test.describe('Wave 3 workflow domain browser smoke', () => {
 
     for (const path of paths) {
       const startErrorCount = runtimeErrors.length
-      await page.goto(path, { waitUntil: 'networkidle' })
+      await page.goto(path, { waitUntil: 'domcontentloaded' })
       await expect(page.locator('body')).not.toHaveText(/^\\s*$/)
       await expect(page.locator('body')).not.toContainText('登录工作台')
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])

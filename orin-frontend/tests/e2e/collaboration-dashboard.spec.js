@@ -334,7 +334,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
 
     await page.goto('/dashboard/applications/collaboration/dashboard')
 
-    await expect(page.getByText('多智能体协作').first()).toBeVisible()
+    await expect(page.locator('.page-container').getByText('多智能体协作').first()).toBeVisible()
     await expect(page.getByText('3 个结果')).toBeVisible()
     await expect(page.getByText('pkg-exec').first()).toBeVisible()
     await expect(page.getByText('EXECUTING').first()).toBeVisible()
@@ -396,24 +396,29 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
   })
 
   test('separates admin and workspace navigation while blocking regular users from admin', async ({ page }) => {
-    await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
+    await page.route('**/api/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_ADMIN'])
-    await page.goto('/dashboard')
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
 
     await expect(page).toHaveURL((url) => url.pathname === '/admin/admin-overview')
     const adminNav = page.locator('.navbar-menu')
-    await expect(adminNav.getByText('平台控制')).toBeVisible()
-    await expect(adminNav.getByText('运行观测')).toBeVisible()
-    await expect(adminNav.getByText('应用构建')).toHaveCount(0)
-    await expect(adminNav.getByText('资源知识')).toHaveCount(0)
+    await expect(adminNav.getByText('平台总览', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('组织权限', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('AI 基础设施', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('开放平台', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('运行运维', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('系统治理', { exact: true })).toBeVisible()
+    await expect(page.locator('.product-switcher')).toHaveCount(0)
 
-    await page.getByRole('button', { name: '工作台', exact: true }).click()
+    await page.goto('/workspace/developer')
     await expect(page).toHaveURL((url) => url.pathname === '/workspace/developer')
-    await expect(adminNav.getByText('应用构建')).toBeVisible()
-    await expect(adminNav.getByText('资源知识')).toBeVisible()
-    await expect(adminNav.getByText('平台控制')).toHaveCount(0)
-    await expect(adminNav.getByText('运行观测')).toHaveCount(0)
+    await expect(adminNav.getByText('首页', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('智能体', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('工作流', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('知识库', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('扩展能力', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('平台总览', { exact: true })).toHaveCount(0)
 
     await authenticate(page, ['ROLE_USER'])
     await page.goto('/dashboard/control/users')
@@ -424,10 +429,10 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_USER'])
-    await page.goto('/dashboard')
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
 
     await expect(page).toHaveURL(/\/chat/)
-    await page.goto('/dashboard/applications/agents')
+    await page.goto('/dashboard/applications/agents', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL((url) => url.pathname === '/workspace/agents')
   })
 

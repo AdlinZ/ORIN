@@ -154,8 +154,9 @@ bash scripts/smoke-test.sh
 
 - 组合式 API（`<script setup>`），**禁用** Options API 写新代码
 - 状态管理用 Pinia；组件间 props/emit 优先，跨页才用 store
-- 路由常量集中在 `src/router/routes.js`，菜单暴露见 `src/router/topMenuConfig.js`
-- 当前主入口以 `topMenuConfig.js` 的角色可见菜单为准：`/dashboard/applications/*`、`/dashboard/resources/*`、`/dashboard/runtime/*`、`/dashboard/control/*`。旧 `/dashboard/agents/*`、`/dashboard/system/*` 只按历史重定向处理。
+- 路由常量集中在 `src/router/routes.js`，菜单配置按产品面拆分见 `src/router/menuConfig/{workspaceMenu,adminMenu,chatMenu,shared}.js`；`topMenuConfig.js` 保留为兼容层（角色常量、product-surface 解析、`getDashboardGuardRedirect` 历史重定向判断）
+- 当前主入口以 menuConfig 按产品面独立导出为准：`/chat/*`、`/workspace/*`、`/admin/*`。旧 `/dashboard/applications/*`、`/dashboard/resources/*`、`/dashboard/runtime/*`、`/dashboard/control/*` 由 `LEGACY_ROUTE_REDIRECTS` 自动重定向到 canonical。
+- 工作台使用 `WorkspaceLayout`，管理台使用 `AdminLayout`，两者不互相提供切换入口
 - API 请求统一走 `src/api/*`，**禁止**组件直调 `axios`
 - 表格优先用项目内 `ResizableTable` 包装组件，不裸用 `el-table`
 

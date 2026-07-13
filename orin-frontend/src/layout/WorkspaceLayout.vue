@@ -1,19 +1,19 @@
 <template>
-  <div class="main-layout">
+  <div class="workspace-layout main-layout">
     <!-- 顶部导航栏 -->
     <TopNavbar
       v-if="appStore.menuMode === 'topbar'"
       :menus="visibleMenus"
-      :surface-label="surfaceLabel"
+      surface-label="ORIN 工作台"
       :profile-route="profileRoute"
-      :home-route="homeRoute"
+      :home-route="ROUTES.WORKSPACE"
     />
 
     <!-- 侧边栏模式 -->
     <Sidebar
       v-if="appStore.menuMode === 'sidebar'"
       :menus="visibleMenus"
-      :surface-label="surfaceLabel"
+      surface-label="ORIN 工作台"
       :profile-route="profileRoute"
     />
 
@@ -24,8 +24,7 @@
         'with-sidebar': appStore.menuMode === 'sidebar',
         'collapsed': appStore.menuMode === 'sidebar' && appStore.isCollapse,
         'is-workspace-page': isWorkspaceRoute,
-        'has-topbar': appStore.menuMode === 'topbar',
-        'is-notification-channels-page': isNotificationChannelsRoute
+        'has-topbar': appStore.menuMode === 'topbar'
       }"
     >
       <div class="content-inner">
@@ -46,9 +45,7 @@ import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 import TopNavbar from './components/TopNavbar.vue'
 import Sidebar from './components/Sidebar.vue'
-import { getProductSurfaceByPath, PRODUCT_SURFACES } from '@/router/topMenuConfig'
 import { WORKSPACE_MENU } from '@/router/menuConfig/workspaceMenu'
-import { ADMIN_MENU } from '@/router/menuConfig/adminMenu'
 import { buildVisibleMenus } from '@/router/menuConfig/shared'
 import { ROUTES } from '@/router/routes'
 
@@ -57,6 +54,11 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 
 const routeViewKey = computed(() => $route.path)
+
+const profileRoute = computed(() => ROUTES.WORKSPACE_PATHS.PROFILE)
+
+const visibleMenus = computed(() => buildVisibleMenus(WORKSPACE_MENU, userStore.roles || []))
+
 const WORKSPACE_ROUTE_NAMES = new Set([
   'ApplicationWorkspace',
   'AgentConsole',
@@ -64,41 +66,10 @@ const WORKSPACE_ROUTE_NAMES = new Set([
   'PlaygroundRun',
 ])
 const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.name || '')))
-const isNotificationChannelsRoute = computed(() => String($route.path || '') === '/dashboard/control/notification-channels')
-
-const currentSurface = computed(() => getProductSurfaceByPath($route.path))
-
-const visibleMenus = computed(() => {
-  if (currentSurface.value === PRODUCT_SURFACES.WORKSPACE) {
-    return buildVisibleMenus(WORKSPACE_MENU, userStore.roles || [])
-  }
-  if (currentSurface.value === PRODUCT_SURFACES.ADMIN) {
-    return buildVisibleMenus(ADMIN_MENU, userStore.roles || [])
-  }
-  return []
-})
-
-const surfaceLabel = computed(() => {
-  if (currentSurface.value === PRODUCT_SURFACES.WORKSPACE) return 'ORIN 工作台'
-  if (currentSurface.value === PRODUCT_SURFACES.ADMIN) return 'ORIN 管理台'
-  return 'ORIN'
-})
-
-const profileRoute = computed(() => {
-  if (currentSurface.value === PRODUCT_SURFACES.ADMIN) return ROUTES.ADMIN_PATHS.PROFILE
-  if (currentSurface.value === PRODUCT_SURFACES.WORKSPACE) return ROUTES.WORKSPACE_PATHS.PROFILE
-  return ROUTES.CHAT_PROFILE
-})
-
-const homeRoute = computed(() => {
-  if (currentSurface.value === PRODUCT_SURFACES.ADMIN) return ROUTES.ADMIN
-  if (currentSurface.value === PRODUCT_SURFACES.WORKSPACE) return ROUTES.WORKSPACE
-  return ROUTES.CHAT
-})
 </script>
 
 <style scoped>
-.main-layout {
+.workspace-layout {
   min-height: 100vh;
   background: #ffffff;
 }
@@ -112,14 +83,6 @@ const homeRoute = computed(() => {
 .content-inner {
   width: 100%;
   margin: 0 auto;
-}
-
-/* 全宽页面（监控总览、邮件客户端、工作流编辑器）不受比例限制 */
-.content-inner:has(.command-center-root),
-.content-inner:has(.gmail-layout),
-.content-inner:has(.visual-workflow-editor),
-.content-inner:has(.workflow-editor) {
-  width: 100%;
 }
 
 .content-area.with-sidebar {
@@ -138,8 +101,7 @@ const homeRoute = computed(() => {
   overflow: hidden;
 }
 
-.content-area.is-workspace-page .content-inner,
-.content-area.is-notification-channels-page .content-inner {
+.content-area.is-workspace-page .content-inner {
   max-width: none;
   height: 100%;
 }
@@ -148,21 +110,6 @@ const homeRoute = computed(() => {
   height: calc(100vh - var(--header-height, 64px));
 }
 
-.content-area.is-notification-channels-page {
-  height: calc(100vh - var(--header-height, 64px));
-  min-height: calc(100vh - var(--header-height, 64px));
-  box-sizing: border-box;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-bottom: 0;
-}
-
-.content-area.is-notification-channels-page > :deep(*) {
-  height: 100%;
-  min-height: 0;
-}
-
-/* 页面切换动画 */
 .fade-transform-enter-active,
 .fade-transform-leave-active {
   transition: all 0.3s;
@@ -178,23 +125,11 @@ const homeRoute = computed(() => {
   transform: translateX(10px);
 }
 
-/* 深色模式自动从 body/html.dark 继承背景色，无需重复声明 */
-html.dark .main-layout {
+html.dark .workspace-layout {
   background: var(--bg-color);
 }
 
 html.dark .content-area {
   background: transparent;
-}
-
-/* 淡入淡出动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

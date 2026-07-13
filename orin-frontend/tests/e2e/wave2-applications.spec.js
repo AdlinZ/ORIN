@@ -103,6 +103,20 @@ async function mockWave2Backends(page) {
     edges: []
   })))
   await page.route('**/api/playground/api/**', async (route) => route.fulfill(json([])))
+  await page.route('**/api/playground/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/agents')) {
+      return route.fulfill(json(agents.map((agent) => ({ id: agent.id, name: agent.name, skill_ids: [] }))))
+    }
+    if (path.endsWith('/workflows')) return route.fulfill(json(workflows))
+    if (path.endsWith('/workflow-templates')) {
+      return route.fulfill(json([{ id: 'tpl-1', name: '路由专家', type: 'router_specialists' }]))
+    }
+    if (path.endsWith('/skills')) return route.fulfill(json(skills))
+    if (path.endsWith('/settings')) return route.fulfill(json({}))
+    if (path.endsWith('/graph')) return route.fulfill(json({ nodes: [], edges: [] }))
+    return route.fulfill(json([]))
+  })
   await page.route('**/api/v1/agents', async (route) => route.fulfill(json(agents)))
   await page.route('**/api/v1/agents/**', async (route) => route.fulfill(json({})))
   await page.route('**/api/v1/conversation-logs/grouped**', async (route) => route.fulfill(json({

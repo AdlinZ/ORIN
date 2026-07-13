@@ -108,10 +108,8 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-              <el-dropdown-item command="workspace">ORIN 工作台</el-dropdown-item>
               <el-dropdown-item command="apiKeys">API Key 自助</el-dropdown-item>
               <el-dropdown-item command="settings">设置与帮助</el-dropdown-item>
-              <el-dropdown-item v-if="userStore.isAdmin" command="dashboard">管理端</el-dropdown-item>
               <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -1583,14 +1581,6 @@ const handleUserCommand = (command) => {
   }
   if (command === 'apiKeys') {
     router.push(ROUTES.PLATFORM);
-    return;
-  }
-  if (command === 'workspace') {
-    router.push(ROUTES.WORKSPACE);
-    return;
-  }
-  if (command === 'dashboard') {
-    router.push(ROUTES.ADMIN);
     return;
   }
   if (command === 'logout') {

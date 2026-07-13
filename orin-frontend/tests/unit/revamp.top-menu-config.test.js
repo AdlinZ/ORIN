@@ -66,26 +66,24 @@ describe('top menu IA behavior', () => {
     expect(controlMenu.children.map((child) => child.title)).toContain('环境配置')
   })
 
-  it('does not expose role management while the role model is simplified', () => {
+  it('exposes role management as a first-class organization entry', () => {
     const controlMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'control')
 
-    expect(controlMenu.children).not.toContainEqual(expect.objectContaining({
+    expect(controlMenu.children).toContainEqual(expect.objectContaining({
       title: '角色管理',
-      path: ROUTES.SYSTEM.ROLES,
+      path: '/admin/roles',
     }))
   })
 
-  it('keeps section headers only when they have visible children', () => {
+  it('keeps visible section entries only when they have visible children', () => {
     const controlMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'control')
 
-    expect(controlMenu.children).toContainEqual(expect.objectContaining({
-      type: 'section',
-      title: '组织权限',
-    }))
-    expect(controlMenu.children).toContainEqual(expect.objectContaining({
-      type: 'section',
-      title: '平台配置',
-    }))
+    controlMenu.children.forEach((child) => {
+      // section markers should not leak alone; every surrounding leaf is also visible
+      if (child.type === 'section' || child.divider) return
+      expect(child.path).toBeTruthy()
+    })
+    expect(controlMenu.children.some((child) => child.type === 'section')).toBe(false)
   })
 
   it('matches active top-level domain by route path', () => {
@@ -108,9 +106,9 @@ describe('top menu IA behavior', () => {
     const applicationMenu = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.WORKSPACE).find((menu) => menu.id === 'applications')
 
     expect(applicationMenu.children).toContainEqual(expect.objectContaining({
-      title: '多智能体协同',
+      title: '多智能体协作',
       path: ROUTES.WORKSPACE_PATHS.COLLABORATION,
-      icon: 'Connection',
+      icon: 'Share',
     }))
   })
 

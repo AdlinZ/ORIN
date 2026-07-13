@@ -2,12 +2,24 @@
  * ORIN 系统路由常量
  * 集中管理所有路由路径，避免硬编码
  *
- * 菜单结构：
- * 1. 智能体管理 - 智能体列表、智能体工作台、多智能体协同、扩展管理
- * 2. 工作流管理 - 工作流中心
- * 3. 知识库管理 - 知识库、知识资产、同步管理
- * 4. 运行监控 - 监控总览、链路与分析、告警与事件、运维操作
- * 5. 系统设置 - 组织权限、平台设置、模型管理、统一网关、支持维护
+ * 菜单结构（按产品面拆分）：
+ * 1. ORIN 工作台（/workspace）
+ *    - 首页：我的概览、最近使用、执行动态
+ *    - 智能体：智能体列表、智能体工作台、会话记录
+ *    - 工作流：工作流中心、可视化编排、执行记录、多智能体协作
+ *    - 知识库：知识中心、知识资产、检索实验
+ *    - 扩展能力：Skills、MCP 服务、模型工具
+ * 2. ORIN 管理台（/admin）
+ *    - 平台总览：运行摘要、资源统计、异常概览
+ *    - 组织权限：用户管理、部门管理、角色管理
+ *    - AI 基础设施：模型管理、Provider 配置、定价配置、环境配置
+ *    - 开放平台：API Key、统一网关、MCP 服务
+ *    - 运行运维：服务器监控、任务队列、调用链路、用量统计、性能分析、告警与日志
+ *    - 系统治理：通知设置、数据资产、审计日志、系统维护
+ * 3. ORIN Chat（/chat）
+ *
+ * 工作台使用 WorkspaceLayout，管理台使用 AdminLayout，
+ * 不再共用 MainLayout。MainLayout 保留为历史 /dashboard/* 兜底壳。
  */
 
 const agentRoutes = {
@@ -141,6 +153,7 @@ const mcpRoutes = {
 const workspacePaths = {
     ROOT: '/workspace',
     HOME: '/workspace/developer',
+    PROFILE: '/workspace/profile',
     AGENT_WORKSPACE: '/workspace/workspace',
     AGENTS: '/workspace/agents',
     CONVERSATIONS: '/workspace/conversations',
@@ -157,6 +170,7 @@ const workspacePaths = {
 const adminPaths = {
     ROOT: '/admin',
     HOME: '/admin/admin-overview',
+    PROFILE: '/admin/profile',
     USERS: '/admin/users',
     DEPARTMENTS: '/admin/departments',
     MODELS: '/admin/models',
@@ -232,6 +246,7 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/applications/collaboration/tasks': ROUTES.AGENTS.COLLABORATION,
     '/dashboard/applications/collaboration/config': ROUTES.AGENTS.COLLABORATION,
     '/dashboard/applications/collaboration/dashboard': ROUTES.AGENTS.COLLABORATION_DASHBOARD,
+    '/dashboard/applications/collaboration/workflows': ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
     '/dashboard/applications/playground/workflows': ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
     '/dashboard/applications/version': ROUTES.AGENTS.WORKFLOW_EXECUTION,
     '/dashboard/applications/test': ROUTES.AGENTS.WORKFLOW_EXECUTION,

@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layout/MainLayout.vue'
+import WorkspaceLayout from '../layout/WorkspaceLayout.vue'
+import AdminLayout from '../layout/AdminLayout.vue'
 import Cookies from 'js-cookie'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
@@ -261,7 +263,7 @@ const routes = [
     // 子路径的旧形态由 LEGACY_ROUTE_REDIRECTS 兜底 redirect 到 canonical。
     {
         path: `${ROUTES.WORKSPACE_ROOT}/knowledge`,
-        component: MainLayout,
+        component: WorkspaceLayout,
         meta: { title: '资源知识', category: 'resources', surface: 'workspace', roles: WORKSPACE_ROUTE_ROLES },
         children: [
             {
@@ -271,7 +273,7 @@ const routes = [
             {
                 path: 'center',
                 name: 'ResourcesKnowledgeCenter',
-                redirect: '/workspace/knowledge/retrieval',
+                component: () => import('@/views/Knowledge/EmbeddingLab.vue'),
                 meta: { title: '知识检索', icon: 'Reading' }
             },
             {
@@ -354,9 +356,15 @@ const routes = [
     },
     {
         path: ROUTES.WORKSPACE_ROOT,
-        component: MainLayout,
+        component: WorkspaceLayout,
         meta: { title: '应用构建', category: 'applications', surface: 'workspace', roles: WORKSPACE_ROUTE_ROLES },
         children: [
+            {
+                path: 'profile',
+                name: 'WorkspaceProfile',
+                component: () => import('@/views/Profile.vue'),
+                meta: { title: '个人中心', hidden: true, roles: WORKSPACE_ROUTE_ROLES }
+            },
             {
                 path: 'agents',
                 name: 'ApplicationAgents',
@@ -542,7 +550,7 @@ const routes = [
     },
     {
         path: `${ROUTES.ADMIN_ROOT}/runtime`,
-        component: MainLayout,
+        component: AdminLayout,
         meta: { title: '运行监控', category: 'runtime', roles: MONITOR_ROUTE_ROLES },
         children: [
             // 监控总览
@@ -660,9 +668,15 @@ const routes = [
     },
     {
         path: ROUTES.ADMIN_ROOT,
-        component: MainLayout,
+        component: AdminLayout,
         meta: { title: '平台控制', category: 'control', surface: 'admin', requiresAdmin: true, roles: ADMIN_ROUTE_ROLES },
         children: [
+        {
+            path: 'profile',
+            name: 'AdminProfile',
+            component: () => import('@/views/Profile.vue'),
+            meta: { title: '个人中心', hidden: true, roles: ADMIN_ROUTE_ROLES }
+        },
             // 平台总览
         {
             path: 'admin-overview',
