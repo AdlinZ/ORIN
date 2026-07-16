@@ -14,7 +14,8 @@ const isDark = useDark();
 const props = defineProps({
   title: String,
   data: { type: Array, default: () => [] }, // Array of { name, value }
-  height: { type: String, default: '300px' }
+  height: { type: String, default: '300px' },
+  showLegend: { type: Boolean, default: true }
 });
 
 const chartRef = ref(null);
@@ -50,6 +51,7 @@ const updateOption = () => {
       shadowColor: 'rgba(0,0,0,0.1)'
     },
     legend: { 
+      show: props.showLegend,
       bottom: '0%', 
       left: 'center',
       icon: 'circle',
@@ -90,7 +92,7 @@ const updateOption = () => {
   chartInstance.setOption(option);
 };
 
-watch(() => props.data, updateOption, { deep: true });
+watch(() => [props.data, props.showLegend], updateOption, { deep: true });
 watch(isDark, () => { initChart(); });
 
 onMounted(() => {

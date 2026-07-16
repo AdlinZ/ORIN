@@ -53,6 +53,32 @@ const mockCommon = async (page) => {
 }
 
 test.describe('product surface boundaries', () => {
+    test('guests can open /chat without calling protected APIs', async ({ page }) => {
+        await mockCommon(page)
+        let protectedApiCalls = 0
+        await page.route('**/api/v1/agents/**', (route) => {
+            protectedApiCalls += 1
+            return route.fulfill(json({}, { status: 401 }))
+        })
+
+        await page.goto('/chat')
+
+        await expect(page).toHaveURL(/\/chat/, { timeout: 8000 })
+        await expect(page.getByText('欢迎来到 ORIN Chat')).toBeVisible()
+        await expect(page.getByRole('button', { name: '登录后开始对话', exact: true })).toBeVisible()
+        expect(protectedApiCalls).toBe(0)
+    })
+
+    test('ROLE_ADMIN can enter /chat', async ({ page }) => {
+        await authenticate(page, { username: 'admin', roles: ['ROLE_ADMIN'] })
+        await mockCommon(page)
+
+        await page.goto('/chat')
+
+        await expect(page).toHaveURL(/\/chat/, { timeout: 8000 })
+        await expect(page.getByText('欢迎来到 ORIN Chat')).not.toBeVisible()
+    })
+
     test('ROLE_USER is redirected away from /admin/users to /chat', async ({ page }) => {
         await authenticate(page, { username: 'alice', roles: ['ROLE_USER'] })
         await mockCommon(page)
@@ -95,6 +121,20 @@ test.describe('product surface boundaries', () => {
 
         expect(await page.locator('.surface-switcher').count()).toBe(0)
         expect(await page.locator('.product-switcher').count()).toBe(0)
+    })
+
+    test('AI infrastructure and open-platform pages stay in the admin layout', async ({ page }) => {
+        await authenticate(page, { username: 'admin', roles: ['ROLE_ADMIN'] })
+        await mockCommon(page)
+
+        await page.goto('/admin/models')
+        await expect(page).toHaveURL(/\/admin\/models/, { timeout: 8000 })
+        await expect(page.locator('.navbar-surface-label').first()).toContainText('ORIN 管理台')
+        await expect(page.locator('.navbar-surface-label')).not.toContainText('ORIN 工作台')
+
+        await page.goto('/admin/gateway')
+        await expect(page).toHaveURL(/\/admin\/gateway/, { timeout: 8000 })
+        await expect(page.locator('.navbar-surface-label').first()).toContainText('ORIN 管理台')
     })
 
     test('ROLE_ADMIN does not have cross-product switcher in WorkspaceLayout', async ({ page }) => {

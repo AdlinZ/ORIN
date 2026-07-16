@@ -1,5 +1,8 @@
 <template>
-  <div class="page-header-wrapper" :class="{ 'is-flat': flat }">
+  <div
+    class="page-header-wrapper"
+    :class="[`is-${variant}`, { 'is-flat': flat }]"
+  >
     <div class="page-header-container">
       <div class="header-main">
         <div class="header-content">
@@ -11,7 +14,7 @@
               {{ title }}
             </h1>
             <el-tag
-              v-if="tagText"
+              v-if="tagText || $slots['tag-content']"
               :type="tagType"
               effect="plain"
               round
@@ -26,7 +29,7 @@
             {{ description }}
           </p>
         </div>
-        <div class="header-actions">
+        <div v-if="$slots.actions" class="header-actions">
           <slot name="actions" />
         </div>
       </div>
@@ -58,6 +61,11 @@ defineProps({
   tagType: {
     type: String,
     default: 'success'
+  },
+  variant: {
+    type: String,
+    default: 'legacy',
+    validator: (value) => ['legacy', 'plain'].includes(value)
   },
   flat: {
     type: Boolean,
@@ -179,6 +187,67 @@ html.dark .header-filters {
   box-shadow: none !important;
   animation: none !important;
   padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+/* plain 模式：页面身份只保留排版层级，不再制造第二张卡片。 */
+.is-plain {
+  margin-bottom: 0;
+}
+
+.is-plain .page-header-container {
+  padding: 2px 0 0;
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.is-plain .header-main {
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+}
+
+.is-plain .header-icon {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 20px;
+}
+
+.is-plain .page-title {
+  font-size: 26px;
+  line-height: 1.25;
+}
+
+.is-plain .header-description {
+  margin-top: 6px;
+  line-height: 1.55;
+}
+
+html.dark .is-plain .page-header-container {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+@media (max-width: 760px) {
+  .header-main {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .is-plain .page-title {
+    font-size: 24px;
+  }
 }
 
 </style>

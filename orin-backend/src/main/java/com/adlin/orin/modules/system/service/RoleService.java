@@ -47,6 +47,14 @@ public class RoleService {
     }
 
     /**
+     * 在数据库分页前按角色名称、代码或描述筛选。
+     */
+    public Page<SysRole> searchRoles(String search, Pageable pageable) {
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        return roleRepository.findAllFiltered(normalizedSearch, pageable);
+    }
+
+    /**
      * 根据ID获取角色
      */
     public Optional<SysRole> getRoleById(Long roleId) {

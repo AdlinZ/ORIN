@@ -9,6 +9,12 @@ function read(file) {
 }
 
 describe('unified frontend 1.0 guardrails', () => {
+  it('preserves Element Plus plain primary button contrast', () => {
+    const styles = read('src/assets/css/main.css')
+    expect(styles).toContain('.el-button--primary:not(.is-link):not(.is-text):not(.is-plain)')
+    expect(styles).not.toMatch(/\.el-button--primary\s*\{[^}]*background:/)
+  })
+
   it('keeps sidebar as the default enterprise navigation mode', () => {
     const source = read('src/stores/app.js')
     expect(source).toContain("const DEFAULT_MENU_MODE = 'sidebar'")

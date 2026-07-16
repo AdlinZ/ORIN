@@ -134,7 +134,7 @@ export async function sendChatMessageStream(sessionId, data, handlers = {}) {
       }
     });
 
-    if (!dataLines.length) return;
+    if (!dataLines.length) return null;
     const raw = dataLines.join('\n');
     let payload = raw;
     try {
@@ -143,6 +143,7 @@ export async function sendChatMessageStream(sessionId, data, handlers = {}) {
       // keep raw string if not JSON
     }
     dispatch(eventName, payload);
+    return eventName;
   };
 
   let streamDone = false;
@@ -173,7 +174,15 @@ export async function sendChatMessageStream(sessionId, data, handlers = {}) {
       const chunk = buffer.slice(0, separatorIndex);
       buffer = buffer.slice(separatorIndex + separatorLength);
       if (chunk.trim()) {
-        parseEventBlock(chunk);
+        const eventName = parseEventBlock(chunk);
+        // `done` 是 ORIN Chat 的业务终止事件。不要依赖底层 HTTP 连接何时
+        // 关闭，否则代理或 provider 延迟关闭连接时 UI 会一直显示“正在处理”。
+        if (eventName === 'done') {
+          streamDone = true;
+          buffer = '';
+          await reader.cancel();
+          break;
+        }
       }
     }
   }

@@ -33,10 +33,11 @@ vi.mock('element-plus', async (importOriginal) => {
   }
 })
 
-const createWrapper = () => mount(AuditCenterV2, {
+const createWrapper = (props = {}) => mount(AuditCenterV2, {
+  props,
   global: {
     stubs: {
-      OrinPageShell: { template: '<div><slot /><slot name="actions" /></div>' },
+      OrinPageShell: { template: '<div><slot name="actions" /><slot name="filters" /><slot /></div>' },
       OrinAsyncState: { template: '<div><slot /></div>' },
       OrinAuditTable: {
         props: ['rows'],
@@ -107,6 +108,20 @@ describe('AuditCenterV2', () => {
     expect(wrapper.find('.audit-rows').text()).toBe('1')
   })
 
+  it('keeps the embedded audit-log mode on one content surface without the page workbar', async () => {
+    const wrapper = createWrapper({
+      mode: 'logs',
+      showHeader: false,
+      showHeaderActions: false
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(wrapper.find('.audit-workbar').exists()).toBe(false)
+    expect(wrapper.findAll('.audit-content-surface')).toHaveLength(1)
+    expect(wrapper.find('.embedded-table-head').text()).toContain('实时审计记录')
+  })
+
   it('saves audit config with three put requests', async () => {
     const wrapper = createWrapper()
     await Promise.resolve()
@@ -125,6 +140,7 @@ describe('AuditCenterV2', () => {
     const wrapper = createWrapper()
     await Promise.resolve()
     await Promise.resolve()
+    await wrapper.get('[data-test="audit-tab-config"]').trigger('click')
 
     const cleanupBtn = wrapper.findAll('button').find((btn) => btn.text().includes('清理历史日志'))
     expect(cleanupBtn).toBeTruthy()
@@ -142,6 +158,7 @@ describe('AuditCenterV2', () => {
     const wrapper = createWrapper()
     await Promise.resolve()
     await Promise.resolve()
+    await wrapper.get('[data-test="audit-tab-loggers"]').trigger('click')
 
     const resetAllBtn = wrapper.findAll('button').find((btn) => btn.text().includes('全部重置'))
     expect(resetAllBtn).toBeTruthy()
@@ -158,6 +175,7 @@ describe('AuditCenterV2', () => {
     const wrapper = createWrapper()
     await Promise.resolve()
     await Promise.resolve()
+    await wrapper.get('[data-test="audit-tab-loggers"]').trigger('click')
 
     const resetAllBtn = wrapper.findAll('button').find((btn) => btn.text().includes('全部重置'))
     expect(resetAllBtn).toBeTruthy()
@@ -174,6 +192,7 @@ describe('AuditCenterV2', () => {
     const wrapper = createWrapper()
     await Promise.resolve()
     await Promise.resolve()
+    await wrapper.get('[data-test="audit-tab-loggers"]').trigger('click')
 
     const resetBtn = wrapper.findAll('button').find((btn) => btn.text().trim() === '重置')
     expect(resetBtn).toBeTruthy()

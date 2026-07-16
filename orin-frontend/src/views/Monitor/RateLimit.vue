@@ -7,139 +7,144 @@
       domain="运行监控"
     >
       <template #actions>
-        <el-button :icon="Refresh" @click="fetchConfig" :loading="loading">刷新</el-button>
-        <el-button type="primary" :icon="Check" @click="saveConfig" :loading="saving">保存配置</el-button>
+        <el-button :icon="Refresh" :loading="loading" @click="fetchConfig">
+          刷新
+        </el-button>
+        <el-button
+          type="primary"
+          :icon="Check"
+          :loading="saving"
+          @click="saveConfig"
+        >
+          保存配置
+        </el-button>
       </template>
     </OrinPageShell>
 
-    <el-row :gutter="20">
-      <!-- 基本设置 -->
-      <el-col :span="12">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>基本设置</span>
-            </div>
-          </template>
-          
-          <el-form :model="config" label-width="140px">
-            <el-form-item label="启用限流">
-              <el-switch v-model="config.enabled" />
-            </el-form-item>
-            
-            <el-form-item label="每分钟请求数">
-              <el-input-number v-model="config.requestsPerMinute" :min="1" :max="10000" />
-              <span class="form-tip">单个用户/API Key 每分钟最大请求数</span>
-            </el-form-item>
-            
-            <el-form-item label="每天请求数">
-              <el-input-number v-model="config.requestsPerDay" :min="1" :max="1000000" />
-              <span class="form-tip">单个用户/API Key 每天最大请求数</span>
-            </el-form-item>
-            
-            <el-form-item label="限流算法">
-              <el-select v-model="config.algorithm">
-                <el-option label="令牌桶 (Token Bucket)" value="TOKEN_BUCKET" />
-                <el-option label="滑动窗口 (Sliding Window)" value="SLIDING_WINDOW" />
-              </el-select>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-col>
-      
-      <!-- 令牌桶设置 -->
-      <el-col :span="12">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>令牌桶设置</span>
-            </div>
-          </template>
-          
-          <el-form :model="config" label-width="140px">
-            <el-form-item label="令牌桶容量">
-              <el-input-number v-model="config.bucketSize" :min="1" :max="1000" />
-              <span class="form-tip">桶中最多存放的令牌数</span>
-            </el-form-item>
-            
-            <el-form-item label="令牌补充速率">
-              <el-input-number v-model="config.refillRate" :min="0.1" :max="100" :step="0.1" :precision="1" />
-              <span class="form-tip">每秒钟补充的令牌数</span>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-col>
-    </el-row>
-    
-    <el-row :gutter="20" class="margin-top-lg">
-      <!-- 限流维度 -->
-      <el-col :span="12">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>限流维度</span>
-            </div>
-          </template>
-          
-          <el-form :model="config" label-width="160px">
-            <el-form-item label="启用用户级别限流">
-              <el-switch v-model="config.enableUserLimit" />
-              <span class="form-tip">按用户 ID 进行限流</span>
-            </el-form-item>
-            
-            <el-form-item label="启用API Key限流">
-              <el-switch v-model="config.enableApiKeyLimit" />
-              <span class="form-tip">按 API Key 进行限流</span>
-            </el-form-item>
-            
-            <el-form-item label="启用Agent限流">
-              <el-switch v-model="config.enableAgentLimit" />
-              <span class="form-tip">按 Agent ID 进行限流（需传递 agent_id 参数）</span>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-col>
-      
-      <!-- 描述 -->
-      <el-col :span="12">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>配置描述</span>
-            </div>
-          </template>
-          
-          <el-form :model="config" label-width="100px">
-            <el-form-item label="描述">
-              <el-input v-model="config.description" type="textarea" :rows="4" placeholder="限流配置描述..." />
-            </el-form-item>
-          </el-form>
-          
-          <!-- 当前状态 -->
-          <el-divider />
-          
-          <div class="status-info">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="创建时间">
-                {{ config.createdAt || '-' }}
-              </el-descriptions-item>
-              <el-descriptions-item label="更新时间">
-                {{ config.updatedAt || '-' }}
-              </el-descriptions-item>
-            </el-descriptions>
+    <div class="rate-limit-grid">
+      <section class="settings-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>基本设置</h2>
+            <p>控制单个用户或 API Key 的整体请求额度。</p>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
-    
-    <!-- 算法说明 -->
-    <el-card shadow="never" class="margin-top-lg">
-      <template #header>
-        <div class="card-header">
-          <span>算法说明</span>
         </div>
-      </template>
-      
+        <el-form :model="config" label-width="140px">
+          <el-form-item label="启用限流">
+            <el-switch v-model="config.enabled" />
+          </el-form-item>
+            
+          <el-form-item label="每分钟请求数">
+            <el-input-number v-model="config.requestsPerMinute" :min="1" :max="10000" />
+            <span class="form-tip">单个用户/API Key 每分钟最大请求数</span>
+          </el-form-item>
+            
+          <el-form-item label="每天请求数">
+            <el-input-number v-model="config.requestsPerDay" :min="1" :max="1000000" />
+            <span class="form-tip">单个用户/API Key 每天最大请求数</span>
+          </el-form-item>
+            
+          <el-form-item label="限流算法">
+            <el-select v-model="config.algorithm">
+              <el-option label="令牌桶 (Token Bucket)" value="TOKEN_BUCKET" />
+              <el-option label="滑动窗口 (Sliding Window)" value="SLIDING_WINDOW" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </section>
+
+      <section class="settings-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>令牌桶设置</h2>
+            <p>仅在使用令牌桶算法时生效。</p>
+          </div>
+        </div>
+        <el-form :model="config" label-width="140px">
+          <el-form-item label="令牌桶容量">
+            <el-input-number v-model="config.bucketSize" :min="1" :max="1000" />
+            <span class="form-tip">桶中最多存放的令牌数</span>
+          </el-form-item>
+            
+          <el-form-item label="令牌补充速率">
+            <el-input-number
+              v-model="config.refillRate"
+              :min="0.1"
+              :max="100"
+              :step="0.1"
+              :precision="1"
+            />
+            <span class="form-tip">每秒钟补充的令牌数</span>
+          </el-form-item>
+        </el-form>
+      </section>
+
+      <section class="settings-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>限流维度</h2>
+            <p>按调用主体分别启用策略，避免影响无关流量。</p>
+          </div>
+        </div>
+        <el-form :model="config" label-width="160px">
+          <el-form-item label="启用用户级别限流">
+            <el-switch v-model="config.enableUserLimit" />
+            <span class="form-tip">按用户 ID 进行限流</span>
+          </el-form-item>
+            
+          <el-form-item label="启用API Key限流">
+            <el-switch v-model="config.enableApiKeyLimit" />
+            <span class="form-tip">按 API Key 进行限流</span>
+          </el-form-item>
+            
+          <el-form-item label="启用Agent限流">
+            <el-switch v-model="config.enableAgentLimit" />
+            <span class="form-tip">按 Agent ID 进行限流（需传递 agent_id 参数）</span>
+          </el-form-item>
+        </el-form>
+      </section>
+
+      <section class="settings-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>配置说明</h2>
+            <p>记录策略用途，并确认当前生效版本的更新时间。</p>
+          </div>
+        </div>
+        <el-form :model="config" label-width="100px">
+          <el-form-item label="描述">
+            <el-input
+              v-model="config.description"
+              type="textarea"
+              :rows="4"
+              placeholder="限流配置描述..."
+            />
+          </el-form-item>
+        </el-form>
+          
+        <!-- 当前状态 -->
+        <el-divider />
+          
+        <div class="status-info">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="创建时间">
+              {{ config.createdAt || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="更新时间">
+              {{ config.updatedAt || '-' }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </section>
+    </div>
+
+    <section class="reference-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>算法说明</h2>
+          <p>根据流量形态选择限流算法。</p>
+        </div>
+      </div>
       <el-row :gutter="20">
         <el-col :span="12">
           <h4>令牌桶算法 (Token Bucket)</h4>
@@ -158,25 +163,23 @@
           </ul>
         </el-col>
       </el-row>
-    </el-card>
-    
-    <!-- 响应头说明 -->
-    <el-card shadow="never" class="margin-top-lg">
+    </section>
+
+    <OrinDataTable compact class="response-header-table">
       <template #header>
-        <div class="card-header">
-          <span>响应头信息</span>
+        <div class="table-heading">
+          <div>
+            <strong>响应头信息</strong>
+            <span>限流启用后，符合条件的请求会返回以下响应头。</span>
+          </div>
         </div>
       </template>
-      
-      <p>限流启用后，符合条件的请求将获得以下响应头：</p>
-      <OrinDataTable compact>
-      <el-table :data="responseHeaders" border stripe>
+      <el-table :data="responseHeaders">
         <el-table-column prop="header" label="响应头" width="200" />
         <el-table-column prop="desc" label="说明" />
         <el-table-column prop="example" label="示例" width="150" />
       </el-table>
-      </OrinDataTable>
-    </el-card>
+    </OrinDataTable>
   </div>
 </template>
 
@@ -249,11 +252,50 @@ onMounted(() => {
 
 <style scoped>
 .rate-limit-page {
-  padding: 20px;
+  padding: 0;
 }
 
-.card-header {
-  font-weight: 600;
+.rate-limit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.settings-panel,
+.reference-panel {
+  padding: 20px;
+  border: 1px solid var(--orin-border, var(--el-border-color-lighter));
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, var(--el-bg-color));
+}
+
+.reference-panel {
+  margin-bottom: 16px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panel-heading h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.panel-heading p,
+.table-heading span {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .form-tip {
@@ -263,11 +305,18 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.margin-top-lg {
-  margin-top: 20px;
-}
-
 .status-info {
   margin-top: 10px;
+}
+
+.table-heading strong {
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+}
+
+@media (max-width: 960px) {
+  .rate-limit-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

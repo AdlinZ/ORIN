@@ -24,9 +24,13 @@ const MONITOR_ROUTE_ROLES = [...MONITOR_MENU_ROLES]
 const ORGANIZATION_ROUTE_ROLES = [...ORGANIZATION_MENU_ROLES]
 const API_KEY_SELF_SERVICE_ROUTE_ROLES = [...USER_MENU_ROLES]
 const SETUP_COMPLETED_SESSION_KEY = 'orin_setup_completed'
+// 初始化状态在一次浏览器会话内不会因菜单跳转而改变。短缓存会让每隔几次
+// 跳转重新等待 /setup/status，直接把网络延迟带到管理台导航上。
+const SETUP_STATUS_CACHE_TTL_MS = 5 * 60 * 1000
+const SETUP_STATUS_FAILURE_CACHE_TTL_MS = 30 * 1000
 
 let setupStatusCache = null
-let setupStatusFetchedAt = 0
+let setupStatusCacheExpiresAt = 0
 let setupStatusPromise = null
 
 const hasCompletedSetupSession = () => {
@@ -57,24 +61,30 @@ const getSetupStatusCached = async (force = false) => {
     if (!force && hasCompletedSetupSession()) {
         if (!setupStatusCache) {
             setupStatusCache = { completed: true, canInitialize: false }
-            setupStatusFetchedAt = now
+            setupStatusCacheExpiresAt = now + SETUP_STATUS_CACHE_TTL_MS
         }
         return setupStatusCache
     }
-    if (!force && setupStatusCache && now - setupStatusFetchedAt < 10000) {
+    if (!force && setupStatusCache && now < setupStatusCacheExpiresAt) {
         return setupStatusCache
     }
     if (!setupStatusPromise) {
         setupStatusPromise = getSetupStatus()
             .then(status => {
                 setupStatusCache = status
-                setupStatusFetchedAt = Date.now()
+                setupStatusCacheExpiresAt = Date.now() + SETUP_STATUS_CACHE_TTL_MS
                 if (status?.completed) {
                     window.sessionStorage.setItem(SETUP_COMPLETED_SESSION_KEY, 'true')
                 }
                 return status
             })
-            .catch(() => null)
+            .catch(() => {
+                // 初始化服务短暂不可达时，正常的已登录页面不应在每次路由切换都
+                // 被同一个 2 秒超时阻塞；仍保留短暂重试，避免掩盖首次初始化。
+                setupStatusCache = { completed: false, canInitialize: false }
+                setupStatusCacheExpiresAt = Date.now() + SETUP_STATUS_FAILURE_CACHE_TTL_MS
+                return setupStatusCache
+            })
             .finally(() => {
                 setupStatusPromise = null
             })
@@ -115,7 +125,8 @@ const routes = [
         path: '/chat',
         name: 'ChatPortal',
         component: () => import('@/views/UserPortal.vue'),
-        meta: { title: 'ORIN Chat', roles: USER_MENU_ROLES }
+        // Chat 是公开产品入口；登录后由页面按当前身份加载个人会话和可用服务。
+        meta: { title: 'ORIN Chat' }
     },
     {
         path: '/chat/profile',
@@ -360,6 +371,10 @@ const routes = [
         meta: { title: '应用构建', category: 'applications', surface: 'workspace', roles: WORKSPACE_ROUTE_ROLES },
         children: [
             {
+                path: '',
+                redirect: ROUTES.WORKSPACE
+            },
+            {
                 path: 'profile',
                 name: 'WorkspaceProfile',
                 component: () => import('@/views/Profile.vue'),
@@ -443,27 +458,6 @@ const routes = [
                 name: 'MultiAgentCollaborationWorkflows',
                 component: () => import('@/views/Playground/PlaygroundWorkflows.vue'),
                 meta: { title: '多智能体协同', icon: 'Connection' }
-            },
-            {
-                path: 'models',
-                alias: ROUTES.ADMIN_PATHS.MODELS,
-                name: 'ApplicationModels',
-                component: () => import('@/views/ModelConfig/ModelList.vue'),
-                meta: { title: '模型管理', icon: 'Cpu', roles: ADMIN_ROUTE_ROLES }
-            },
-            {
-                path: 'models/add',
-                alias: `${ROUTES.ADMIN_PATHS.MODELS}/add`,
-                name: 'ModelAdd',
-                component: () => import('@/views/ModelConfig/AddModel.vue'),
-                meta: { title: '添加模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
-            },
-            {
-                path: 'models/edit/:id',
-                alias: `${ROUTES.ADMIN_PATHS.MODELS}/edit/:id`,
-                name: 'ModelEdit',
-                component: () => import('@/views/ModelConfig/AddModel.vue'),
-                meta: { title: '编辑模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
             },
             {
                 path: 'skills',
@@ -672,6 +666,10 @@ const routes = [
         meta: { title: '平台控制', category: 'control', surface: 'admin', requiresAdmin: true, roles: ADMIN_ROUTE_ROLES },
         children: [
         {
+            path: '',
+            redirect: ROUTES.ADMIN
+        },
+        {
             path: 'profile',
             name: 'AdminProfile',
             component: () => import('@/views/Profile.vue'),
@@ -702,6 +700,25 @@ const routes = [
             name: 'ControlRoles',
             component: () => import('@/views/System/RoleManagement.vue'),
             meta: { title: '角色管理', icon: 'UserFilled', roles: ORGANIZATION_ROUTE_ROLES }
+        },
+        // AI 基础设施是平台级资源，必须挂在 AdminLayout 下，不能以工作台子路由别名承载。
+        {
+            path: 'models',
+            name: 'ControlModels',
+            component: () => import('@/views/ModelConfig/ModelList.vue'),
+            meta: { title: '模型管理', icon: 'Cpu', roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'models/add',
+            name: 'ControlModelAdd',
+            component: () => import('@/views/ModelConfig/AddModel.vue'),
+            meta: { title: '添加模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
+        },
+        {
+            path: 'models/edit/:id',
+            name: 'ControlModelEdit',
+            component: () => import('@/views/ModelConfig/AddModel.vue'),
+            meta: { title: '编辑模型', hidden: true, roles: ADMIN_ROUTE_ROLES }
         },
         {
             path: 'audit-logs',
@@ -903,7 +920,7 @@ router.beforeEach(async (to, from, next) => {
     const token = getStoredToken()
 
     // 公开页面列表
-    const publicPages = ['/', '/login', '/register', '/setup', '/datawall', '/unified-docs']
+    const publicPages = ['/', '/login', '/register', '/setup', '/chat', '/datawall', '/unified-docs']
     const authRequired = !publicPages.includes(to.path)
 
     if (authRequired && !token) {

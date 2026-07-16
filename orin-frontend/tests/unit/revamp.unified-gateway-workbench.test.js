@@ -12,6 +12,7 @@ const putMock = vi.fn()
 const errorMock = vi.fn()
 const successMock = vi.fn()
 const replaceMock = vi.fn(() => Promise.resolve())
+const getModelListMock = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
@@ -26,6 +27,10 @@ vi.mock('@/utils/request', () => ({
     put: (...args) => putMock(...args),
     delete: vi.fn()
   }
+}))
+
+vi.mock('@/api/model', () => ({
+  getModelList: (...args) => getModelListMock(...args)
 }))
 
 vi.mock('element-plus', async (importOriginal) => {
@@ -83,6 +88,7 @@ describe('gateway workbench revamp', () => {
     errorMock.mockReset()
     successMock.mockReset()
     replaceMock.mockClear()
+    getModelListMock.mockResolvedValue(Array.from({ length: 10 }, (_, index) => ({ id: `model-${index + 1}`, name: `模型 ${index + 1}` })))
     getMock.mockImplementation((url) => {
       if (url === '/system/gateway/workbench') {
         return Promise.resolve({
@@ -158,6 +164,16 @@ describe('gateway workbench revamp', () => {
     expect(wrapper.text()).toContain('后台入口配置')
     expect(wrapper.text()).toContain('上游服务')
     expect(wrapper.text()).toContain('需要处理')
+  })
+
+  it('limits the overview model list to a concise preview', async () => {
+    const wrapper = mount(UnifiedGateway, { global: { stubs } })
+    await Promise.resolve()
+    await nextTick()
+
+    expect(wrapper.findAll('.model-tag')).toHaveLength(8)
+    expect(wrapper.text()).toContain('仅展示前 8 个模型，另有 2 个模型请在模型管理中查看。')
+    expect(wrapper.text()).toContain('查看全部')
   })
 
   it('switches to the API Keys workspace', async () => {

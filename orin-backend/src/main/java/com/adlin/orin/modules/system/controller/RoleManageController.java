@@ -6,7 +6,6 @@ import com.adlin.orin.modules.system.entity.SysRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,7 +20,6 @@ import java.util.Map;
 /**
  * 角色管理控制器
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/roles")
 @RequiredArgsConstructor
@@ -39,25 +37,22 @@ public class RoleManageController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search) {
 
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "roleId"));
-        Page<SysRole> rolePage = roleService.getAllRolesPageable(pageRequest);
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = Math.min(Math.max(size, 1), 100);
+        PageRequest pageRequest = PageRequest.of(
+                normalizedPage,
+                normalizedSize,
+                Sort.by(Sort.Direction.DESC, "roleId"));
+        Page<SysRole> rolePage = roleService.searchRoles(search, pageRequest);
 
         List<SysRole> roles = rolePage.getContent();
-
-        // 如果有搜索条件，过滤结果
-        if (search != null && !search.isEmpty()) {
-            roles = roles.stream()
-                    .filter(r -> r.getRoleName().contains(search) ||
-                            (r.getRoleCode() != null && r.getRoleCode().contains(search)) ||
-                            (r.getDescription() != null && r.getDescription().contains(search)))
-                    .toList();
-        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("data", roles);
         result.put("total", rolePage.getTotalElements());
-        result.put("page", page);
-        result.put("size", size);
+        result.put("page", rolePage.getNumber());
+        result.put("size", rolePage.getSize());
+        result.put("totalPages", rolePage.getTotalPages());
 
         return result;
     }

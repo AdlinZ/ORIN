@@ -41,7 +41,7 @@ const activeWorkspace = computed({
       ? { ...route.query, assetTab: 'sync', tab: route.query.tab || 'changes' }
       : { assetTab: 'files' }
 
-    router.replace({ path: '/dashboard/control/data-assets', query }).catch(() => {})
+    router.replace({ path: '/admin/data-assets', query }).catch(() => {})
   }
 })
 

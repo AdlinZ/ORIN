@@ -2,7 +2,7 @@
  * 新产品面菜单拆分（Slice 3a）
  *
  * - 工作台 5 个一级（首页 / 智能体 / 工作流 / 知识库 / 扩展能力）
- * - 管理台 6 个一级（平台总览 / 组织权限 / AI 基础设施 / 开放平台 / 运行运维 / 系统治理）
+ * - 管理台 6 个一级（平台总览 / 组织权限 / AI 基础设施 / 统一网关 / 运行运维 / 系统治理）
  * - Chat 1 个一级（对话）
  * - 二级 ≤ 6 项，最细功能由页面 Tab 表达
  *
@@ -72,7 +72,7 @@ describe('admin menu IA', () => {
             'admin-overview',
             'admin-organization',
             'admin-ai-infra',
-            'admin-open-platform',
+            'admin-unified-gateway',
             'admin-runtime',
             'admin-governance',
         ])
@@ -90,7 +90,7 @@ describe('admin menu IA', () => {
             'admin-overview',
             'admin-organization',
             'admin-ai-infra',
-            'admin-open-platform',
+            'admin-unified-gateway',
             'admin-runtime',
             'admin-governance',
         ])
@@ -113,6 +113,20 @@ describe('admin menu IA', () => {
         const aiInfra = ADMIN_MENU.find((m) => m.id === 'admin-ai-infra')
         expect(overview.children.map((c) => c.title)).toEqual(['运行摘要'])
         expect(aiInfra.children.map((c) => c.title)).not.toContain('Provider 配置')
+    })
+
+    it('uses unified gateway as the only open-platform group and exposes its four workspaces directly', () => {
+        const gateway = ADMIN_MENU.find((m) => m.id === 'admin-unified-gateway')
+
+        expect(gateway.title).toBe('统一网关')
+        expect(gateway.children.map((c) => c.title)).toEqual(['总览', '统一入口', 'API Keys', '流量策略'])
+        expect(gateway.children.map((c) => c.path)).toEqual([
+            '/admin/gateway',
+            '/admin/gateway?workspace=api',
+            '/admin/gateway?workspace=access',
+            '/admin/gateway?workspace=traffic',
+        ])
+        expect(ADMIN_MENU.flatMap((m) => m.children.map((c) => c.title))).not.toContain('MCP 服务')
     })
 })
 

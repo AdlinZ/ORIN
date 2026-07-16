@@ -2,7 +2,7 @@
  * ORIN 管理台菜单 IA（canonical）。
  *
  * 管理台面向管理员。一级菜单 6 个：
- * 平台总览 / 组织权限 / AI 基础设施 / 开放平台 / 运行运维 / 系统治理。
+ * 平台总览 / 组织权限 / AI 基础设施 / 统一网关 / 运行运维 / 系统治理。
  * 每个一级菜单 ≤ 6 项二级。
  * 「Provider 配置」合并到「模型管理 / 环境配置」共用 admin/models 与 admin/system-env 的现有入口。
  */
@@ -53,17 +53,18 @@ export const ADMIN_MENU = [
     ],
   },
   {
-    id: 'admin-open-platform',
-    title: '开放平台',
-    icon: 'Share',
+    id: 'admin-unified-gateway',
+    title: '统一网关',
+    icon: 'Connection',
     color: '#0891b2',
     path: AP.GATEWAY,
     surface: 'admin',
     roles: ADMIN_MENU_ROLES,
     children: [
-      { title: 'API Key', path: `${AP.GATEWAY}?workspace=access`, icon: 'Key', roles: ADMIN_MENU_ROLES },
-      { title: '统一网关', path: AP.GATEWAY, icon: 'Router', roles: ADMIN_MENU_ROLES },
-      { title: 'MCP 服务', path: AP.MCP, icon: 'Connection', roles: ADMIN_MENU_ROLES },
+      { title: '总览', path: AP.GATEWAY, icon: 'TrendCharts', roles: ADMIN_MENU_ROLES },
+      { title: '统一入口', path: `${AP.GATEWAY}?workspace=api`, icon: 'Share', roles: ADMIN_MENU_ROLES },
+      { title: 'API Keys', path: `${AP.GATEWAY}?workspace=access`, icon: 'Key', roles: ADMIN_MENU_ROLES },
+      { title: '流量策略', path: `${AP.GATEWAY}?workspace=traffic`, icon: 'Operation', roles: ADMIN_MENU_ROLES },
     ],
   },
   {

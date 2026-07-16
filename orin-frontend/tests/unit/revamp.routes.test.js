@@ -35,6 +35,18 @@ describe('route cleanup contracts', () => {
     expect(admin.matched.some((record) => record.path === ROUTES.ADMIN_ROOT)).toBe(true)
   })
 
+  it('keeps AI infrastructure and open-platform routes in the admin product surface', () => {
+    const modelManagement = router.resolve(ROUTES.ADMIN_PATHS.MODELS)
+    const gateway = router.resolve(ROUTES.ADMIN_PATHS.GATEWAY)
+    const workspaceModelRoute = router.resolve('/workspace/models')
+
+    expect(modelManagement.name).toBe('ControlModels')
+    expect(modelManagement.matched.some((record) => record.path === ROUTES.ADMIN_ROOT)).toBe(true)
+    expect(modelManagement.matched.some((record) => record.path === ROUTES.WORKSPACE_ROOT)).toBe(false)
+    expect(gateway.matched.some((record) => record.path === ROUTES.ADMIN_ROOT)).toBe(true)
+    expect(workspaceModelRoute.name).toBe('GlobalNotFound')
+  })
+
   it('redirects collapsed duplicate paths to canonical routes', () => {
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/collaboration/tasks']).toBe(
       ROUTES.AGENTS.COLLABORATION

@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.dashboard.service;
 
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.alert.repository.AlertHistoryRepository;
 import com.adlin.orin.modules.apikey.repository.ApiKeyRepository;
@@ -23,10 +24,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -36,6 +41,8 @@ public class DashboardSummaryService {
 
     private static final List<String> ADMIN_ROLES = List.of("ROLE_ADMIN", "ROLE_PLATFORM_ADMIN", "ROLE_SUPER_ADMIN", "ADMIN");
     private static final List<String> OPERATOR_ROLES = List.of("ROLE_OPERATOR");
+    private static final int TREND_WINDOW_DAYS = 14;
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final AgentMetadataRepository agentMetadataRepository;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
@@ -62,6 +69,8 @@ public class DashboardSummaryService {
         summary.put("metrics", metrics());
         summary.put("recentActivity", recentActivity());
         summary.put("quickLinks", quickLinks(roles));
+        summary.put("trends", trends());
+        summary.put("agentTypes", agentTypes());
         if (isAdmin) {
             summary.put("adminStats", adminStats());
             summary.put("topAlertEvents", topAlertEvents());
@@ -184,6 +193,93 @@ public class DashboardSummaryService {
             log.debug("Alert history count failed for status {}: {}", status, e.getMessage());
             return 0L;
         }
+    }
+
+    private Map<String, Object> trends() {
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(TREND_WINDOW_DAYS - 1L);
+        LocalDateTime startDt = start.atStartOfDay();
+        LocalDateTime endDt = end.plusDays(1L).atStartOfDay().minusNanos(1L);
+
+        Map<LocalDate, Long> requestCounts = new TreeMap<>();
+        Map<LocalDate, Long> tokenUsages = new TreeMap<>();
+        for (int i = 0; i < TREND_WINDOW_DAYS; i++) {
+            LocalDate day = start.plusDays(i);
+            requestCounts.put(day, 0L);
+            tokenUsages.put(day, 0L);
+        }
+
+        try {
+            List<AuditLog> logs = auditLogRepository.findByCreatedAtBetween(startDt, endDt);
+            for (AuditLog log : logs) {
+                if (log.getCreatedAt() == null) continue;
+                LocalDate day = log.getCreatedAt().toLocalDate();
+                if (day.isBefore(start) || day.isAfter(end)) continue;
+                requestCounts.merge(day, 1L, (a, b) -> a + b);
+                if (!"ORIN_CORE".equals(log.getProviderId())
+                        && log.getTotalTokens() != null && log.getTotalTokens() > 0) {
+                    tokenUsages.merge(day, log.getTotalTokens().longValue(), (a, b) -> a + b);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Dashboard trends aggregation failed: {}", e.getMessage());
+        }
+
+        Map<String, Object> trends = new LinkedHashMap<>();
+        trends.put("range", Map.of(
+                "start", start.format(DATE_FMT),
+                "end", end.format(DATE_FMT)
+        ));
+        trends.put("requestCount", toTrendSeries(requestCounts));
+        trends.put("tokenUsage", toTrendSeries(tokenUsages));
+        return trends;
+    }
+
+    private List<Map<String, Object>> toTrendSeries(Map<LocalDate, Long> buckets) {
+        List<Map<String, Object>> series = new ArrayList<>(buckets.size());
+        buckets.forEach((day, value) -> {
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("date", day.format(DATE_FMT));
+            point.put("value", value);
+            series.add(point);
+        });
+        return series;
+    }
+
+    private List<Map<String, Object>> agentTypes() {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        try {
+            List<AgentMetadata> agents = agentMetadataRepository.findAll();
+            for (AgentMetadata agent : agents) {
+                String key = agent.getMode() != null && !agent.getMode().isBlank()
+                        ? agent.getMode().toLowerCase()
+                        : "other";
+                counts.merge(key, 1L, (a, b) -> a + b);
+            }
+        } catch (Exception e) {
+            log.debug("Dashboard agent type aggregation failed: {}", e.getMessage());
+        }
+
+        List<Map<String, Object>> types = new ArrayList<>(counts.size());
+        counts.forEach((key, count) -> {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("key", key);
+            entry.put("label", humanizeAgentType(key));
+            entry.put("count", count);
+            types.add(entry);
+        });
+        return types;
+    }
+
+    private String humanizeAgentType(String key) {
+        if (key == null || key.isBlank()) return "未分类";
+        return switch (key) {
+            case "agent" -> "Agent";
+            case "chat" -> "Chat";
+            case "completion" -> "Completion";
+            case "workflow" -> "Workflow";
+            default -> key.substring(0, 1).toUpperCase() + key.substring(1);
+        };
     }
 
     private List<Map<String, Object>> topAlertEvents() {

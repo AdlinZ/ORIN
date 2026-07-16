@@ -4,18 +4,14 @@ import com.adlin.orin.modules.audit.service.AuditHelper;
 import com.adlin.orin.modules.system.entity.SysUser;
 import com.adlin.orin.modules.system.repository.SysUserRepository;
 import com.adlin.orin.modules.system.service.RoleService;
+import com.adlin.orin.modules.system.service.UserManagementQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +21,6 @@ import java.util.stream.Collectors;
 /**
  * 用户管理控制器
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
@@ -34,6 +29,7 @@ import java.util.stream.Collectors;
 public class UserManageController {
 
     private final SysUserRepository userRepository;
+    private final UserManagementQueryService userManagementQueryService;
     private final RoleService roleService;
     private final AuditHelper auditHelper;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
@@ -44,59 +40,10 @@ public class UserManageController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String role) {
-
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-        Page<SysUser> userPage = userRepository.findAll(pageRequest);
-
-        List<SysUser> users = userPage.getContent();
-
-        // 如果有搜索条件，过滤结果
-        if (search != null && !search.isEmpty()) {
-            users = users.stream()
-                    .filter(u -> u.getUsername().contains(search) ||
-                               (u.getEmail() != null && u.getEmail().contains(search)))
-                    .toList();
-        }
-
-        if (role != null && !role.isEmpty()) {
-            users = users.stream()
-                    .filter(u -> role.equals(u.getRole()))
-                    .toList();
-        }
-
-        // 使用 DTO
-        List<Map<String, Object>> userResponses = users.stream()
-                .map(u -> {
-                    Map<String, Object> map = new LinkedHashMap<>();
-                    map.put("userId", u.getUserId());
-                    map.put("username", u.getUsername());
-                    map.put("nickname", u.getNickname());
-                    map.put("email", u.getEmail());
-                    map.put("avatar", u.getAvatar());
-                    map.put("bio", u.getBio());
-                    map.put("address", u.getAddress());
-                    map.put("phone", u.getPhone());
-                    map.put("status", u.getStatus());
-                    map.put("role", u.getRole());
-                    // 强制添加 departmentId 字段，添加日志
-                    Long deptId = u.getDepartmentId();
-                    log.info("User {} has departmentId: {}", u.getUsername(), deptId);
-                    map.put("departmentId", deptId);
-                    map.put("createTime", u.getCreateTime());
-                    map.put("lastLoginTime", u.getLastLoginTime());
-                    map.put("id", u.getUserId());
-                    return map;
-                })
-                .collect(Collectors.toList());
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("data", userResponses);
-        result.put("total", userPage.getTotalElements());
-        result.put("page", page);
-        result.put("size", size);
-
-        return result;
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String status) {
+        return userManagementQueryService.getUserList(page, size, search, role, departmentId, status);
     }
 
     @Operation(summary = "获取用户详情")
@@ -257,7 +204,7 @@ public class UserManageController {
         }
 
         SysUser user = userOpt.get();
-        user.setStatus(enabled ? "active" : "disabled");
+        user.setStatus(enabled ? "ENABLED" : "DISABLED");
         userRepository.save(user);
 
         auditHelper.log("SYSTEM", "USER_STATUS", "/api/v1/users/" + id + "/status",

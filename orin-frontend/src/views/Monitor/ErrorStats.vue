@@ -15,94 +15,101 @@
         </el-button>
       </template>
       <template #filters>
-        <OrinFilterBar>
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            size="small"
-            class="date-range"
-            @change="handleDateRangeChange"
-          />
-          <div class="auto-refresh">
-            <el-icon><Monitor /></el-icon>
-            <span>自动刷新</span>
-            <el-switch
-              v-model="autoRefresh"
-              active-text=""
-              inactive-text=""
-              size="small"
-              @change="handleAutoRefreshChange"
-            />
+        <div class="error-workbar">
+          <div class="workbar-heading">
+            <h2>错误分析</h2>
+            <span>{{ formatNumber(totalErrorCount) }} 次失败</span>
           </div>
-        </OrinFilterBar>
+
+          <OrinFilterBar class="error-filterbar">
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              size="small"
+              class="date-range"
+              @change="handleDateRangeChange"
+            />
+            <div class="auto-refresh">
+              <el-icon><Monitor /></el-icon>
+              <span>自动刷新</span>
+              <el-switch
+                v-model="autoRefresh"
+                active-text=""
+                inactive-text=""
+                size="small"
+                @change="handleAutoRefreshChange"
+              />
+            </div>
+          </OrinFilterBar>
+        </div>
       </template>
     </OrinPageShell>
 
-    <div class="stats-grid">
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon total-icon">
-          <el-icon><Warning /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            失败调用数
+    <section class="error-workspace">
+      <div class="metric-strip" aria-label="错误概览">
+        <article class="metric-item">
+          <div class="stat-icon total-icon">
+            <el-icon><Warning /></el-icon>
           </div>
-          <div class="stat-value">
-            {{ formatNumber(successRate.failedCalls) }}
+          <div class="stat-content">
+            <div class="stat-label">
+              失败调用数
+            </div>
+            <div class="stat-value">
+              {{ formatNumber(successRate.failedCalls) }}
+            </div>
           </div>
-        </div>
-      </el-card>
+        </article>
 
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon rate-icon">
-          <el-icon><CircleCloseFilled /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            错误率
+        <article class="metric-item">
+          <div class="stat-icon rate-icon">
+            <el-icon><CircleCloseFilled /></el-icon>
           </div>
-          <div class="stat-value">
-            {{ failureRateText }}
+          <div class="stat-content">
+            <div class="stat-label">
+              错误率
+            </div>
+            <div class="stat-value">
+              {{ failureRateText }}
+            </div>
           </div>
-        </div>
-      </el-card>
+        </article>
 
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon category-icon">
-          <el-icon><Tickets /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            错误类型数
+        <article class="metric-item">
+          <div class="stat-icon category-icon">
+            <el-icon><Tickets /></el-icon>
           </div>
-          <div class="stat-value">
-            {{ formatNumber(errorDistribution.length) }}
+          <div class="stat-content">
+            <div class="stat-label">
+              错误类型数
+            </div>
+            <div class="stat-value">
+              {{ formatNumber(errorDistribution.length) }}
+            </div>
           </div>
-        </div>
-      </el-card>
+        </article>
 
-      <el-card shadow="never" class="stat-card">
-        <div class="stat-icon provider-icon">
-          <el-icon><DataAnalysis /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">
-            受影响供应商
+        <article class="metric-item">
+          <div class="stat-icon provider-icon">
+            <el-icon><DataAnalysis /></el-icon>
           </div>
-          <div class="stat-value">
-            {{ formatNumber(providerDistribution.length) }}
+          <div class="stat-content">
+            <div class="stat-label">
+              受影响供应商
+            </div>
+            <div class="stat-value">
+              {{ formatNumber(providerDistribution.length) }}
+            </div>
           </div>
-        </div>
-      </el-card>
-    </div>
+        </article>
+      </div>
 
-    <div class="content-grid">
-      <el-card shadow="never" class="chart-card">
-        <template #header>
-          <div class="card-header">
+      <div class="analysis-grid">
+        <section class="analysis-panel">
+          <header class="section-header">
             <div>
               <h3 class="card-title">
                 高频错误 Top 8
@@ -114,17 +121,15 @@
             <div class="header-total">
               {{ formatNumber(totalErrorCount) }} 次失败
             </div>
+          </header>
+          <div v-loading="loading" class="chart-wrap">
+            <div v-if="topErrors.length > 0" ref="barChartRef" class="chart" />
+            <el-empty v-else description="当前时间范围内暂无错误数据" :image-size="72" />
           </div>
-        </template>
-        <div v-loading="loading" class="chart-wrap">
-          <div v-if="topErrors.length > 0" ref="barChartRef" class="chart" />
-          <el-empty v-else description="当前时间范围内暂无错误数据" :image-size="72" />
-        </div>
-      </el-card>
+        </section>
 
-      <el-card shadow="never" class="chart-card">
-        <template #header>
-          <div class="card-header">
+        <section class="analysis-panel">
+          <header class="section-header">
             <div>
               <h3 class="card-title">
                 供应商错误分布
@@ -133,174 +138,166 @@
                 帮助判断问题是否集中在某个模型供应商
               </p>
             </div>
+          </header>
+          <div v-loading="loading" class="chart-wrap">
+            <div v-if="providerDistribution.length > 0" ref="pieChartRef" class="chart" />
+            <el-empty v-else description="暂无供应商错误分布" :image-size="72" />
           </div>
-        </template>
-        <div v-loading="loading" class="chart-wrap">
-          <div v-if="providerDistribution.length > 0" ref="pieChartRef" class="chart" />
-          <el-empty v-else description="暂无供应商错误分布" :image-size="72" />
-        </div>
-      </el-card>
-    </div>
+        </section>
+      </div>
 
-    <div class="table-grid">
-      <el-card shadow="never" class="table-card">
-        <template #header>
-          <div class="card-header">
-            <div>
-              <h3 class="card-title">
-                错误明细排行
-              </h3>
-              <p class="card-subtitle">
-                当前按供应商 + 错误消息聚合展示
-              </p>
-            </div>
+      <section class="table-section">
+        <header class="section-header table-section-head">
+          <div>
+            <h3 class="card-title">
+              错误明细排行
+            </h3>
+            <p class="card-subtitle">
+              当前按供应商 + 错误消息聚合展示
+            </p>
           </div>
-        </template>
+        </header>
         <OrinAsyncState
           :status="loading ? 'loading' : (errorDistribution.length ? 'success' : 'empty')"
           empty-text="当前时间范围内暂无错误明细"
         >
-        <OrinDataTable compact>
-        <el-table
-          v-loading="loading"
-          :data="errorDistribution"
-          border
-          stripe
-          style="width: 100%"
-        >
-          <el-table-column
-            type="index"
-            label="#"
-            width="60"
-            align="center"
-          />
-          <el-table-column
-            prop="providerId"
-            label="供应商"
-            min-width="120"
-            show-overflow-tooltip
-          >
-            <template #default="{ row }">
-              {{ normalizeProvider(row.providerId) }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="errorMessage"
-            label="错误消息"
-            min-width="320"
-            show-overflow-tooltip
-          />
-          <el-table-column
-            prop="count"
-            label="次数"
-            min-width="100"
-            align="right"
-          >
-            <template #default="{ row }">
-              {{ formatNumber(row.count) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="占比" min-width="100" align="right">
-            <template #default="{ row }">
-              {{ formatPercent(totalErrorCount > 0 ? Number(row.count || 0) / totalErrorCount : 0) }}
-            </template>
-          </el-table-column>
-        </el-table>
-        </OrinDataTable>
+          <OrinDataTable compact surface="bare">
+            <el-table
+              v-loading="loading"
+              :data="errorDistribution"
+              stripe
+              style="width: 100%"
+            >
+              <el-table-column
+                type="index"
+                label="#"
+                width="60"
+                align="center"
+              />
+              <el-table-column
+                prop="providerId"
+                label="供应商"
+                min-width="120"
+                show-overflow-tooltip
+              >
+                <template #default="{ row }">
+                  {{ normalizeProvider(row.providerId) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="errorMessage"
+                label="错误消息"
+                min-width="320"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="count"
+                label="次数"
+                min-width="100"
+                align="right"
+              >
+                <template #default="{ row }">
+                  {{ formatNumber(row.count) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="占比" min-width="100" align="right">
+                <template #default="{ row }">
+                  {{ formatPercent(totalErrorCount > 0 ? Number(row.count || 0) / totalErrorCount : 0) }}
+                </template>
+              </el-table-column>
+            </el-table>
+          </OrinDataTable>
         </OrinAsyncState>
-      </el-card>
+      </section>
 
-      <el-card shadow="never" class="table-card">
-        <template #header>
-          <div class="card-header">
-            <div>
-              <h3 class="card-title">
-                最近异常会话
-              </h3>
-              <p class="card-subtitle">
-                基于最近会话列表筛出包含错误的会话
-              </p>
-            </div>
-            <el-tag type="danger" effect="light">
-              {{ errorSessions.length }} 个异常会话
-            </el-tag>
+      <section class="table-section">
+        <header class="section-header table-section-head">
+          <div>
+            <h3 class="card-title">
+              最近异常会话
+            </h3>
+            <p class="card-subtitle">
+              基于最近会话列表筛出包含错误的会话
+            </p>
           </div>
-        </template>
+          <el-tag type="danger" effect="light">
+            {{ errorSessions.length }} 个异常会话
+          </el-tag>
+        </header>
         <OrinAsyncState
           :status="loading ? 'loading' : (errorSessions.length ? 'success' : 'empty')"
           empty-text="当前时间范围内暂无异常会话"
         >
-        <OrinDataTable compact>
-        <el-table
-          v-loading="loading"
-          :data="errorSessions"
-          border
-          stripe
-          style="width: 100%"
-        >
-          <el-table-column
-            prop="name"
-            label="会话"
-            min-width="220"
-            show-overflow-tooltip
-          />
-          <el-table-column
-            prop="provider"
-            label="供应商"
-            min-width="120"
-            show-overflow-tooltip
-          >
-            <template #default="{ row }">
-              {{ normalizeProvider(row.provider) }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="model"
-            label="模型"
-            min-width="160"
-            show-overflow-tooltip
-          />
-          <el-table-column
-            prop="msgs"
-            label="消息数"
-            min-width="90"
-            align="right"
-          >
-            <template #default="{ row }">
-              {{ formatNumber(row.msgs) }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="errors"
-            label="错误数"
-            min-width="90"
-            align="right"
-          >
-            <template #default="{ row }">
-              <span class="error-count">{{ formatNumber(row.errors) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="tokens"
-            label="Token"
-            min-width="120"
-            align="right"
-          >
-            <template #default="{ row }">
-              {{ formatNumber(row.tokens) }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            prop="dur"
-            label="持续时间"
-            min-width="100"
-            align="center"
-          />
-        </el-table>
-        </OrinDataTable>
+          <OrinDataTable compact surface="bare">
+            <el-table
+              v-loading="loading"
+              :data="errorSessions"
+              stripe
+              style="width: 100%"
+            >
+              <el-table-column
+                prop="name"
+                label="会话"
+                min-width="220"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="provider"
+                label="供应商"
+                min-width="120"
+                show-overflow-tooltip
+              >
+                <template #default="{ row }">
+                  {{ normalizeProvider(row.provider) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="model"
+                label="模型"
+                min-width="160"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="msgs"
+                label="消息数"
+                min-width="90"
+                align="right"
+              >
+                <template #default="{ row }">
+                  {{ formatNumber(row.msgs) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="errors"
+                label="错误数"
+                min-width="90"
+                align="right"
+              >
+                <template #default="{ row }">
+                  <span class="error-count">{{ formatNumber(row.errors) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="tokens"
+                label="Token"
+                min-width="120"
+                align="right"
+              >
+                <template #default="{ row }">
+                  {{ formatNumber(row.tokens) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="dur"
+                label="持续时间"
+                min-width="100"
+                align="center"
+              />
+            </el-table>
+          </OrinDataTable>
         </OrinAsyncState>
-      </el-card>
-    </div>
+      </section>
+    </section>
   </div>
 </template>
 
@@ -513,7 +510,7 @@ const updatePieChart = () => {
         center: ['50%', '42%'],
         itemStyle: {
           borderRadius: 8,
-          borderColor: '#fff',
+          borderColor: 'transparent',
           borderWidth: 2
         },
         label: {
@@ -582,16 +579,43 @@ onUnmounted(() => {
 
 <style scoped>
 .error-dashboard {
-  padding: 24px;
-  background: var(--bg-color, #f8fafc);
-  min-height: 100vh;
+  min-width: 0;
 }
 
-.filters-row {
+.error-workbar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  justify-content: space-between;
+  width: 100%;
+  gap: 18px;
+}
+
+.workbar-heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.workbar-heading h2 {
+  margin: 0;
+  color: var(--neutral-gray-900);
+  font-size: 16px;
+  font-weight: var(--font-semibold);
+}
+
+.workbar-heading > span {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--neutral-gray-100);
+  color: var(--neutral-gray-500);
+  font-size: 12px;
+}
+
+.error-filterbar {
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .date-range {
@@ -603,32 +627,36 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 4px 10px;
-  border-radius: 16px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  color: var(--text-secondary, #64748b);
+  border: 1px solid var(--orin-border-strong);
+  border-radius: var(--radius-full);
+  color: var(--neutral-gray-500);
   font-size: 13px;
 }
 
-.stats-grid {
+.error-workspace {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--orin-border-strong);
+  border-radius: var(--radius-base);
+  background: var(--orin-surface);
+}
+
+.metric-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
 }
 
-.stat-card,
-.chart-card,
-.table-card {
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg);
-}
-
-.stat-card :deep(.el-card__body) {
+.metric-item {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 20px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-right: 1px solid var(--orin-border-strong);
+}
+
+.metric-item:last-child {
+  border-right: 0;
 }
 
 .stat-icon {
@@ -668,30 +696,32 @@ onUnmounted(() => {
 .stat-label,
 .card-subtitle {
   font-size: 13px;
-  color: var(--text-secondary, #64748b);
+  color: var(--neutral-gray-500);
 }
 
 .stat-value {
   margin-top: 4px;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary, #1e293b);
+  color: var(--neutral-gray-900);
 }
 
-.content-grid {
+.analysis-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-  gap: 24px;
-  margin-bottom: 24px;
+  border-top: 1px solid var(--orin-border-strong);
 }
 
-.table-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
+.analysis-panel {
+  min-width: 0;
+  padding: 18px;
 }
 
-.card-header {
+.analysis-panel + .analysis-panel {
+  border-left: 1px solid var(--orin-border-strong);
+}
+
+.section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -702,22 +732,32 @@ onUnmounted(() => {
   margin: 0 0 4px;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary, #1e293b);
+  color: var(--neutral-gray-900);
 }
 
 .header-total {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
-  color: var(--text-primary, #1e293b);
+  color: var(--neutral-gray-900);
+  white-space: nowrap;
 }
 
 .chart-wrap {
-  min-height: 360px;
+  min-height: 320px;
 }
 
 .chart {
   width: 100%;
-  height: 360px;
+  height: 320px;
+}
+
+.table-section {
+  min-width: 0;
+  border-top: 1px solid var(--orin-border-strong);
+}
+
+.table-section-head {
+  padding: 16px 18px;
 }
 
 .error-count {
@@ -726,26 +766,64 @@ onUnmounted(() => {
 }
 
 @media (max-width: 1200px) {
-  .stats-grid {
+  .error-workbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .error-filterbar {
+    justify-content: flex-start;
+  }
+
+  .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .content-grid {
+  .metric-item:nth-child(2) {
+    border-right: 0;
+  }
+
+  .metric-item:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--orin-border-strong);
+  }
+
+  .analysis-grid {
     grid-template-columns: 1fr;
+  }
+
+  .analysis-panel + .analysis-panel {
+    border-top: 1px solid var(--orin-border-strong);
+    border-left: 0;
   }
 }
 
 @media (max-width: 768px) {
-  .error-dashboard {
-    padding: 16px;
-  }
-
-  .stats-grid {
+  .metric-strip {
     grid-template-columns: 1fr;
   }
 
-  .date-range {
+  .metric-item,
+  .metric-item:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--orin-border-strong);
+  }
+
+  .metric-item:last-child {
+    border-bottom: 0;
+  }
+
+  .date-range,
+  .error-filterbar,
+  .auto-refresh {
     width: 100%;
+  }
+
+  .auto-refresh {
+    justify-content: space-between;
+  }
+
+  .section-header {
+    flex-direction: column;
   }
 }
 </style>

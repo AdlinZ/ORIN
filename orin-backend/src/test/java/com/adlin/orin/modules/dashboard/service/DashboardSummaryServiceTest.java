@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.dashboard.service;
 
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.alert.repository.AlertHistoryRepository;
 import com.adlin.orin.modules.apikey.repository.ApiKeyRepository;
@@ -94,6 +95,9 @@ class DashboardSummaryServiceTest {
         when(restTemplate.getForEntity(eq("http://ai-engine.local/health"), eq(Map.class)))
                 .thenReturn(ResponseEntity.ok(Map.of("status", "ok", "service", "orin-ai-engine")));
         when(auditLogRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(auditLog())));
+        when(auditLogRepository.findByCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of());
+        when(agentMetadataRepository.findAll()).thenReturn(List.of());
         when(sysUserRepository.count()).thenReturn(12L);
         when(apiKeyRepository.count()).thenReturn(5L);
         when(alertHistoryRepository.countByStatus("TRIGGERED")).thenReturn(2L);
@@ -122,6 +126,15 @@ class DashboardSummaryServiceTest {
         List<?> topAlerts = (List<?>) summary.get("topAlertEvents");
         assertThat(topAlerts).isNotNull();
 
+        Map<?, ?> trends = (Map<?, ?>) summary.get("trends");
+        assertThat(trends).isNotNull();
+        assertThat((List<?>) trends.get("requestCount")).hasSize(14);
+        assertThat((List<?>) trends.get("tokenUsage")).hasSize(14);
+        assertThat(trends.get("range")).isNotNull();
+
+        List<?> agentTypes = (List<?>) summary.get("agentTypes");
+        assertThat(agentTypes).isNotNull();
+
         Map<?, ?> systemHealth = (Map<?, ?>) summary.get("systemHealth");
         Map<?, ?> aiEngine = (Map<?, ?>) systemHealth.get("aiEngine");
         assertThat(aiEngine.get("status")).isEqualTo("UP");
@@ -131,6 +144,57 @@ class DashboardSummaryServiceTest {
         assertTrue(row.keySet().containsAll(List.of("id", "endpoint", "success", "traceId", "createdAt")));
         assertFalse(row.containsKey("requestParams"));
         assertFalse(row.containsKey("responseContent"));
+    }
+
+    @Test
+    void aggregatesTrendsAndAgentTypesAcrossModes() {
+        when(agentMetadataRepository.count()).thenReturn(2L);
+        when(knowledgeBaseRepository.count()).thenReturn(0L);
+        when(workflowDefinitionRepository.count()).thenReturn(0L);
+        when(collaborationPackageRepository.count()).thenReturn(0L);
+        when(workflowTraceRepository.count()).thenReturn(0L);
+        when(taskRepository.countByStatus()).thenReturn(List.of());
+        when(auditLogRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        LocalDateTime now = LocalDateTime.now();
+        AuditLog today = AuditLog.builder()
+                .id("audit-today")
+                .endpoint("/v1/chat")
+                .method("POST")
+                .success(true)
+                .statusCode(200)
+                .providerId("OPENAI")
+                .totalTokens(150)
+                .createdAt(now)
+                .build();
+        when(auditLogRepository.findByCreatedAtBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(today));
+        when(agentMetadataRepository.findAll()).thenReturn(List.of(
+                AgentMetadata.builder().agentId("a1").name("a1").mode("agent").syncTime(now).build(),
+                AgentMetadata.builder().agentId("a2").name("a2").mode("chat").syncTime(now).build(),
+                AgentMetadata.builder().agentId("a3").name("a3").mode("AGENT").syncTime(now).build(),
+                AgentMetadata.builder().agentId("a4").name("a4").mode(null).syncTime(now).build()
+        ));
+
+        Map<String, Object> summary = service.getSummary(null);
+
+        Map<?, ?> trends = (Map<?, ?>) summary.get("trends");
+        List<Map<String, Object>> requestCount = (List<Map<String, Object>>) trends.get("requestCount");
+        Map<String, Object> lastPoint = requestCount.get(requestCount.size() - 1);
+        assertThat(lastPoint.get("value")).isEqualTo(1L);
+
+        List<Map<String, Object>> tokenUsage = (List<Map<String, Object>>) trends.get("tokenUsage");
+        Map<String, Object> lastTokenPoint = tokenUsage.get(tokenUsage.size() - 1);
+        assertThat(lastTokenPoint.get("value")).isEqualTo(150L);
+
+        List<Map<String, Object>> agentTypes = (List<Map<String, Object>>) summary.get("agentTypes");
+        Map<String, Long> typeCounts = new java.util.HashMap<>();
+        for (Map<String, Object> entry : agentTypes) {
+            typeCounts.merge((String) entry.get("key"), ((Number) entry.get("count")).longValue(),
+                    (a, b) -> a + b);
+        }
+        assertThat(typeCounts).containsEntry("agent", 2L);
+        assertThat(typeCounts).containsEntry("chat", 1L);
+        assertThat(typeCounts).containsEntry("other", 1L);
     }
 
     @Test

@@ -18,6 +18,7 @@ import com.adlin.orin.modules.monitor.repository.ServerHardwareMetricRepository;
 import com.adlin.orin.modules.monitor.repository.ServerInfoRepository;
 import com.adlin.orin.modules.monitor.service.MonitorService;
 import com.adlin.orin.modules.monitor.service.PrometheusService;
+import com.adlin.orin.modules.monitor.service.SystemPropertySanitizer;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
@@ -1159,7 +1160,7 @@ public class MonitorServiceImpl implements MonitorService {
                 } catch (Exception e) {
                         log.error("Failed to read system properties", e);
                 }
-                return props;
+                return SystemPropertySanitizer.sanitizeForRead(props);
         }
 
         @Override
@@ -1186,9 +1187,15 @@ public class MonitorServiceImpl implements MonitorService {
                                                 continue;
                                         }
                                         String[] parts = line.split("=", 2);
-                                        if (parts.length == 2 && properties.containsKey(parts[0].trim())) {
-                                                newLines.add(parts[0].trim() + "=" + properties.get(parts[0].trim()));
-                                                updatedKeys.add(parts[0].trim());
+                                        String key = parts[0].trim();
+                                        if (parts.length == 2 && properties.containsKey(key)) {
+                                                String value = properties.get(key);
+                                                if (SystemPropertySanitizer.preservesExistingValue(key, value)) {
+                                                        newLines.add(line);
+                                                } else {
+                                                        newLines.add(key + "=" + value);
+                                                }
+                                                updatedKeys.add(key);
                                         } else {
                                                 newLines.add(line);
                                         }
@@ -1196,7 +1203,9 @@ public class MonitorServiceImpl implements MonitorService {
 
                                 // Add remaining keys to the end
                                 for (Map.Entry<String, String> entry : properties.entrySet()) {
-                                        if (!updatedKeys.contains(entry.getKey())) {
+                                        if (!updatedKeys.contains(entry.getKey())
+                                                        && !SystemPropertySanitizer.preservesExistingValue(
+                                                                        entry.getKey(), entry.getValue())) {
                                                 newLines.add(entry.getKey() + "=" + entry.getValue());
                                         }
                                 }

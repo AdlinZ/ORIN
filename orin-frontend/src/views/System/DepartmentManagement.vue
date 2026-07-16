@@ -1,233 +1,122 @@
 <template>
   <div class="department-management fade-in">
     <OrinPageShell
-      domain="系统控制"
       title="部门管理"
       description="维护组织架构、部门负责人和上下级关系。"
-      icon="OfficeBuilding"
+      :icon="OfficeBuilding"
     >
-        <template #actions>
-          <el-button :icon="Refresh" @click="loadDepartments">
-            刷新
-          </el-button>
-          <el-button type="primary" :icon="Plus" @click="handleCreateRoot">
-            创建顶级部门
-          </el-button>
-        </template>
-        <template #filters>
-          <div class="governance-filterbar">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索部门名称/编码"
-              clearable
-              @input="handleSearch"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-            <el-button-group>
-              <el-button title="展开全部" @click="expandAll">
-                <el-icon><ArrowDown /></el-icon>
-                展开
-              </el-button>
-              <el-button title="收起全部" @click="collapseAll">
-                <el-icon><ArrowUp /></el-icon>
-                收起
-              </el-button>
-            </el-button-group>
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="handleCreateRoot">
+          创建顶级部门
+        </el-button>
+      </template>
+      <template #filters>
+        <div class="gallery-toolbar">
+          <div class="gallery-heading">
+            <h2>全部部门</h2>
+            <span>{{ filteredDepartments.length }} 个结果</span>
           </div>
-        </template>
+
+          <div class="gallery-controls">
+            <OrinFilterBar class="department-search">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索部门名称/编码"
+                clearable
+                aria-label="搜索部门名称或编码"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+            </OrinFilterBar>
+
+            <div class="gallery-stats" aria-label="组织统计">
+              <span><strong>{{ stats.root }}</strong> 顶级</span>
+              <span :class="{ warning: stats.disabled > 0 }"><strong>{{ stats.disabled }}</strong> 已禁用</span>
+            </div>
+
+            <el-button
+              class="department-refresh"
+              :icon="Refresh"
+              @click="loadDepartments"
+            >
+              刷新
+            </el-button>
+          </div>
+        </div>
+      </template>
     </OrinPageShell>
 
     <section class="department-shell">
-      <OrinStatusSummary :items="departmentStatusItems" class="governance-summary" />
-
-      <section class="department-workspace">
-        <aside class="directory-panel">
-          <div class="directory-head">
-            <div>
-              <h2>组织目录</h2>
-              <p>{{ stats.total }} 个部门节点</p>
-            </div>
-            <el-button
-              circle
-              :icon="Plus"
-              type="primary"
-              @click="handleCreateRoot"
-            />
-          </div>
-
-          <OrinAsyncState
-            :status="loading ? 'loading' : filteredTreeData.length > 0 ? 'success' : 'empty'"
-            empty-text="暂无部门数据"
-            empty-action-label="创建第一个部门"
-            @retry="loadDepartments"
-            @empty-action="handleCreateRoot"
-          >
-            <div class="directory-tree">
-              <el-tree
-                ref="treeRef"
-                :data="filteredTreeData"
-                :props="treeProps"
-                node-key="departmentId"
-                :default-expanded-keys="expandedKeys"
-                :expand-on-click-node="false"
-                :filter-node-method="filterNode"
-                @node-click="handleNodeClick"
-              >
-                <template #default="{ node, data }">
-                  <div class="tree-node" :class="{ 'is-selected': selectedDepartment?.departmentId === data.departmentId }">
-                    <div class="node-main">
-                      <span class="status-dot" :class="data.status === 'ENABLED' ? 'enabled' : 'disabled'" />
-                      <span class="node-name">{{ data.departmentName }}</span>
-                      <span v-if="data.children && data.children.length > 0" class="node-count">
-                        {{ data.children.length }}
-                      </span>
-                    </div>
-                    <div class="node-actions">
-                      <el-tooltip content="新增子部门" placement="top">
-                        <el-button
-                          link
-                          type="primary"
-                          size="small"
-                          @click.stop="handleAddChild(data)"
-                        >
-                          <el-icon><Plus /></el-icon>
-                        </el-button>
-                      </el-tooltip>
-                      <el-tooltip content="编辑" placement="top">
-                        <el-button
-                          link
-                          type="primary"
-                          size="small"
-                          @click.stop="handleEdit(data)"
-                        >
-                          <el-icon><Edit /></el-icon>
-                        </el-button>
-                      </el-tooltip>
-                      <el-tooltip
-                        :content="data.children && data.children.length > 0 ? '存在子部门，无法删除' : '删除'"
-                        placement="top"
-                      >
-                        <el-button
-                          link
-                          type="danger"
-                          size="small"
-                          :disabled="data.children && data.children.length > 0"
-                          @click.stop="handleDelete(data)"
-                        >
-                          <el-icon><Delete /></el-icon>
-                        </el-button>
-                      </el-tooltip>
-                    </div>
+      <section class="department-gallery">
+        <OrinAsyncState
+          :status="loading ? 'loading' : filteredDepartments.length > 0 ? 'success' : 'empty'"
+          empty-text="暂无部门数据"
+          empty-action-label="创建第一个部门"
+          @retry="loadDepartments"
+          @empty-action="handleCreateRoot"
+        >
+          <div class="department-grid">
+            <article
+              v-for="department in filteredDepartments"
+              :key="department.departmentId"
+              class="department-card"
+            >
+              <header class="department-card-head">
+                <div class="department-card-title">
+                  <span class="department-icon"><el-icon><OfficeBuilding /></el-icon></span>
+                  <div>
+                    <h3>{{ department.departmentName }}</h3>
+                    <code>{{ department.departmentCode }}</code>
                   </div>
-                </template>
-              </el-tree>
-            </div>
-          </OrinAsyncState>
-        </aside>
-
-        <template v-if="selectedDepartment">
-          <main class="dossier-panel">
-            <section class="dossier-hero">
-              <div class="dossier-avatar">
-                <el-icon><OfficeBuilding /></el-icon>
-              </div>
-              <div class="dossier-title">
-                <el-tag
-                  size="small"
-                  :type="selectedDepartment.status === 'ENABLED' ? 'success' : 'danger'"
-                  effect="light"
-                >
-                  {{ selectedDepartment.status === 'ENABLED' ? '启用中' : '已禁用' }}
+                </div>
+                <el-tag size="small" :type="department.status === 'ENABLED' ? 'success' : 'danger'" effect="plain">
+                  {{ department.status === 'ENABLED' ? '启用' : '禁用' }}
                 </el-tag>
-                <h2>{{ selectedDepartment.departmentName }}</h2>
-                <p>{{ selectedDepartmentPath }}</p>
-              </div>
-              <div class="dossier-actions">
-                <el-button type="primary" :icon="Plus" @click="handleAddChild(selectedDepartment)">
-                  新增子部门
-                </el-button>
-                <el-button :icon="Edit" @click="handleEdit(selectedDepartment)">
-                  编辑
-                </el-button>
-                <el-button
-                  :icon="Delete"
-                  :disabled="selectedDepartment.children && selectedDepartment.children.length > 0"
-                  @click="handleDelete(selectedDepartment)"
-                >
-                  删除
-                </el-button>
-              </div>
-            </section>
+              </header>
 
-            <section class="field-grid">
-              <div class="field-cell">
-                <span>部门编码</span>
-                <strong>{{ selectedDepartment.departmentCode }}</strong>
-              </div>
-              <div class="field-cell">
-                <span>部门负责人</span>
-                <strong>{{ selectedDepartment.leader || '-' }}</strong>
-              </div>
-              <div class="field-cell">
-                <span>联系电话</span>
-                <strong>{{ selectedDepartment.phone || '-' }}</strong>
-              </div>
-              <div class="field-cell">
-                <span>创建时间</span>
-                <strong>{{ formatDate(selectedDepartment.createTime) }}</strong>
-              </div>
-            </section>
-
-            <section class="content-card">
-              <div class="section-heading">
-                <h3>部门描述</h3>
-                <span>Profile</span>
-              </div>
-              <p class="description-text" :class="{ muted: !selectedDepartment.description }">
-                {{ selectedDepartment.description || '暂无部门描述。' }}
+              <p class="department-description" :class="{ muted: !department.description }">
+                {{ department.description || '暂未填写部门描述' }}
               </p>
-            </section>
 
-            <section class="content-card">
-              <div class="section-heading">
-                <h3>下级部门</h3>
-                <span>{{ selectedDepartment.children?.length || 0 }} 个</span>
-              </div>
-              <div v-if="selectedDepartment.children && selectedDepartment.children.length > 0" class="children-list">
-                <button
-                  v-for="child in selectedDepartment.children"
-                  :key="child.departmentId"
-                  type="button"
-                  class="child-item"
-                  @click="handleNodeClick(child)"
+              <dl class="department-meta">
+                <div><dt>直属上级</dt><dd>{{ getParentName(department.parentId) }}</dd></div>
+                <div><dt>负责人</dt><dd>{{ department.leader || '暂未设置' }}</dd></div>
+                <div><dt>下级部门</dt><dd>{{ department.children?.length || 0 }} 个</dd></div>
+              </dl>
+
+              <footer class="department-card-actions">
+                <el-button
+                  text
+                  type="primary"
+                  :icon="Plus"
+                  @click="handleAddChild(department)"
                 >
-                  <span class="status-dot small" :class="child.status === 'ENABLED' ? 'enabled' : 'disabled'" />
-                  <span class="child-name">{{ child.departmentName }}</span>
-                  <el-tag size="small" :type="child.status === 'ENABLED' ? 'success' : 'danger'">
-                    {{ child.status === 'ENABLED' ? '启用' : '禁用' }}
-                  </el-tag>
-                </button>
-              </div>
-              <div v-else class="empty-children">
-                暂无下级部门
-              </div>
-            </section>
-          </main>
-        </template>
-
-        <main v-else class="no-selection-panel">
-          <div class="no-selection-copy">
-            <el-icon><OfficeBuilding /></el-icon>
-            <h2>选择一个部门查看详情</h2>
-            <p>从左侧组织目录选择部门，或创建顶级部门开始搭建组织结构。</p>
-            <el-button type="primary" :icon="Plus" @click="handleCreateRoot">
-              创建顶级部门
-            </el-button>
+                  新增下级
+                </el-button>
+                <div>
+                  <el-button
+                    circle
+                    text
+                    :icon="Edit"
+                    aria-label="编辑部门"
+                    @click="handleEdit(department)"
+                  />
+                  <el-button
+                    circle
+                    text
+                    class="delete-action"
+                    :icon="Delete"
+                    aria-label="删除部门"
+                    :disabled="department.children && department.children.length > 0"
+                    @click="handleDelete(department)"
+                  />
+                </div>
+              </footer>
+            </article>
           </div>
-        </main>
+        </OrinAsyncState>
       </section>
     </section>
 
@@ -235,7 +124,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑部门' : (isRoot ? '创建顶级部门' : '创建子部门')"
-      width="520px"
+      width="min(520px, calc(100vw - 32px))"
       class="custom-dialog"
       align-center
     >
@@ -331,75 +220,45 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Search, Refresh, ArrowDown, ArrowUp, OfficeBuilding } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh, OfficeBuilding } from '@element-plus/icons-vue'
 import { getDepartmentList, getAllDepartments, createDepartment, updateDepartment, deleteDepartment } from '@/api/department'
 import { getUserList } from '@/api/userManage'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
+import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
-import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 // 数据状态
 const loading = ref(false)
 const submitting = ref(false)
 const treeData = ref([])
 const flatData = ref([])
-const selectedDepartment = ref(null)
 const searchKeyword = ref('')
-const treeRef = ref(null)
-const expandedKeys = ref([])
 const userList = ref([])
 const userLoading = ref(false)
-
-// 树形配置
-const treeProps = {
-  children: 'children',
-  label: 'departmentName'
-}
 
 // 统计计算
 const stats = computed(() => {
   const all = flatData.value
   return {
     total: all.length,
-    enabled: all.filter(d => d.status === 'ENABLED').length,
     disabled: all.filter(d => d.status !== 'ENABLED').length,
     root: all.filter(d => !d.parentId || d.parentId === 0).length
   }
 })
 
-const departmentStatusItems = computed(() => [
-  { label: '部门总数', value: String(stats.value.total), meta: '组织架构中的全部节点' },
-  { label: '启用部门', value: String(stats.value.enabled), meta: '可参与权限和业务归属', intent: 'success' },
-  { label: '禁用部门', value: String(stats.value.disabled), meta: '暂不参与日常业务流转', intent: stats.value.disabled > 0 ? 'warning' : '' },
-  { label: '顶级部门', value: String(stats.value.root), meta: '组织架构第一层节点' }
+const flattenDepartmentTree = (nodes) => nodes.flatMap((node) => [
+  node,
+  ...(node.children?.length ? flattenDepartmentTree(node.children) : [])
 ])
 
-const selectedDepartmentPath = computed(() => {
-  if (!selectedDepartment.value) return ''
-
-  const path = []
-  const walk = (nodes, targetId, parents = []) => {
-    for (const node of nodes) {
-      const nextParents = [...parents, node.departmentName]
-      if (node.departmentId === targetId) {
-        path.push(...nextParents)
-        return true
-      }
-      if (node.children?.length && walk(node.children, targetId, nextParents)) {
-        return true
-      }
-    }
-    return false
-  }
-
-  walk(treeData.value, selectedDepartment.value.departmentId)
-  return path.length ? path.join(' / ') : getParentName(selectedDepartment.value.parentId)
-})
-
-// 过滤后的树数据
-const filteredTreeData = computed(() => {
-  if (!searchKeyword.value) return treeData.value
-  return treeData.value
+const filteredDepartments = computed(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  const departments = flattenDepartmentTree(treeData.value)
+  if (!keyword) return departments
+  return departments.filter((department) => (
+    department.departmentName?.toLowerCase().includes(keyword) ||
+    department.departmentCode?.toLowerCase().includes(keyword)
+  ))
 })
 
 // 对话框状态
@@ -448,31 +307,12 @@ const loadUsers = async () => {
   }
 }
 
-// 格式化日期
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// 获取初始展开的keys（只展开前两级）
-const getInitialExpandedKeys = (data) => {
-  const keys = []
-  data.forEach(item => {
-    keys.push(item.departmentId)
-    if (item.children && item.children.length > 0 && keys.length < 10) {
-      item.children.slice(0, 3).forEach(child => {
-        keys.push(child.departmentId)
-      })
-    }
-  })
-  return keys
+const unwrapDepartmentList = (response) => {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.data)) return response.data
+  if (Array.isArray(response?.content)) return response.content
+  if (Array.isArray(response?.records)) return response.records
+  return []
 }
 
 // 加载部门列表
@@ -484,9 +324,10 @@ const loadDepartments = async () => {
       getAllDepartments()
     ])
 
-    treeData.value = treeRes.data || []
-    flatData.value = flatRes.data || []
-    expandedKeys.value = getInitialExpandedKeys(treeData.value)
+    const nextTreeData = unwrapDepartmentList(treeRes)
+    const nextFlatData = unwrapDepartmentList(flatRes)
+    treeData.value = nextTreeData
+    flatData.value = nextFlatData
   } catch (error) {
     ElMessage.error('加载部门列表失败')
     console.error(error)
@@ -494,42 +335,6 @@ const loadDepartments = async () => {
     loading.value = false
     window.dispatchEvent(new Event('page-refresh-done'))
   }
-}
-
-// 搜索过滤
-const handleSearch = (value) => {
-  treeRef.value?.filter(value)
-}
-
-const filterNode = (value, data) => {
-  if (!value) return true
-  const keyword = value.toLowerCase()
-  return data.departmentName.toLowerCase().includes(keyword) ||
-    (data.departmentCode && data.departmentCode.toLowerCase().includes(keyword))
-}
-
-// 展开/收起全部
-const expandAll = () => {
-  const allKeys = []
-  const getAllKeys = (data) => {
-    data.forEach(item => {
-      allKeys.push(item.departmentId)
-      if (item.children) {
-        getAllKeys(item.children)
-      }
-    })
-  }
-  getAllKeys(treeData.value)
-  expandedKeys.value = allKeys
-}
-
-const collapseAll = () => {
-  expandedKeys.value = []
-}
-
-// 点击树节点
-const handleNodeClick = (data) => {
-  selectedDepartment.value = data
 }
 
 // 创建根部门
@@ -662,7 +467,6 @@ const handleDelete = async (data) => {
 
     await deleteDepartment(data.departmentId)
     ElMessage.success('删除成功')
-    selectedDepartment.value = null
     loadDepartments()
   } catch (error) {
     if (error !== 'cancel') {
@@ -683,9 +487,7 @@ onUnmounted(() => {
 
 <style scoped>
 .department-management {
-  min-height: 100vh;
-  padding: 22px 26px;
-  background: #f6f8fb;
+  min-width: 0;
 }
 
 .fade-in {
@@ -699,21 +501,241 @@ onUnmounted(() => {
 
 .department-shell {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   max-width: 1600px;
   margin: 0 auto;
 }
 
-.governance-filterbar {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
-  gap: 10px;
+.department-gallery {
+  min-width: 0;
+}
+
+.gallery-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+.gallery-heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.gallery-heading h2 {
+  margin: 0;
+  color: var(--neutral-gray-900);
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: var(--font-semibold);
+}
+
+.gallery-heading > span {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--neutral-gray-100);
+  color: var(--neutral-gray-500);
+  font-size: 12px;
+}
+
+.gallery-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 12px;
+}
+
+.department-search {
+  width: min(320px, 34vw);
+  flex: none;
+}
+
+.department-search :deep(.el-input) {
+  width: 100%;
+}
+
+.department-refresh {
+  color: var(--neutral-gray-600);
+  border-color: var(--orin-border-strong);
+  background: var(--orin-surface);
+}
+
+.department-refresh:hover,
+.department-refresh:focus-visible {
+  color: var(--orin-primary);
+  border-color: rgba(var(--orin-primary-rgb), 0.42);
+  background: var(--orin-primary-soft);
+}
+
+.gallery-stats {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 14px;
+  color: var(--neutral-gray-500);
+  font-size: 12px;
+}
+
+.gallery-stats span {
+  display: grid;
+  gap: 2px;
+}
+
+.gallery-stats strong {
+  color: var(--neutral-gray-900);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.gallery-stats .warning strong {
+  color: #b45309;
+}
+
+.department-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 0;
+}
+
+.department-card {
+  display: grid;
+  min-width: 0;
+  min-height: 255px;
+  grid-template-rows: auto minmax(52px, 1fr) auto auto;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--orin-border);
+  border-radius: var(--radius-xl, 12px);
+  background: var(--orin-surface);
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.department-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--orin-primary-rgb), 0.42);
+  box-shadow: 0 10px 22px rgba(var(--orin-primary-rgb), 0.08);
+}
+
+.department-card-head,
+.department-card-title,
+.department-card-actions,
+.department-card-actions > div {
+  display: flex;
   align-items: center;
 }
 
-.governance-summary {
-  margin-bottom: 2px;
+.department-card-head,
+.department-card-actions {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.department-card-title {
+  min-width: 0;
+  gap: 11px;
+}
+
+.department-card-title > div {
+  min-width: 0;
+}
+
+.department-card-head :deep(.el-tag) {
+  flex: none;
+}
+
+.department-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--orin-primary-soft);
+  color: var(--orin-primary);
+  font-size: 18px;
+}
+
+.department-card h3 {
+  margin: 0 0 4px;
+  overflow: hidden;
+  color: var(--neutral-gray-900);
+  font-size: 16px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.department-card code {
+  color: var(--neutral-gray-500);
+  font-size: 11px;
+}
+
+.department-description {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--neutral-gray-600);
+  font-size: 13px;
+  line-height: 1.65;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.department-description.muted {
+  color: var(--neutral-gray-400);
+}
+
+.department-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--orin-border);
+  border-bottom: 1px solid var(--orin-border);
+}
+
+.department-meta div {
+  min-width: 0;
+}
+
+.department-meta dt {
+  margin-bottom: 5px;
+  color: var(--neutral-gray-400);
+  font-size: 11px;
+}
+
+.department-meta dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--neutral-gray-700);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.department-card-actions > div {
+  gap: 2px;
+}
+
+.department-card-actions .delete-action {
+  color: var(--neutral-gray-400);
+}
+
+.department-card-actions .delete-action:hover,
+.department-card-actions .delete-action:focus-visible {
+  color: var(--error-color, #dc2626);
+  background: var(--error-dark-shallow, #fef2f2);
 }
 
 .department-topbar {
@@ -811,8 +833,8 @@ onUnmounted(() => {
 
 .department-workspace {
   display: grid;
-  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(300px, 350px) minmax(0, 1fr);
+  gap: 16px;
   align-items: stretch;
 }
 
@@ -834,7 +856,7 @@ onUnmounted(() => {
 .directory-panel {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  min-height: 610px;
+  min-height: 580px;
   overflow: hidden;
 }
 
@@ -860,6 +882,36 @@ onUnmounted(() => {
   margin: 4px 0 0;
   color: #64748b;
   font-size: 12px;
+}
+
+.directory-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 11px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.directory-stats span {
+  padding-right: 8px;
+  border-right: 1px solid #dbe4ee;
+}
+
+.directory-stats span:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.directory-stats strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.directory-stats .warning strong {
+  color: #b45309;
 }
 
 .directory-tools {
@@ -973,46 +1025,43 @@ onUnmounted(() => {
 
 .dossier-panel {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   align-content: start;
   padding: 16px;
 }
 
 .dossier-hero {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
-  min-height: 112px;
-  padding: 18px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.dossier-avatar {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #0f766e;
-  font-size: 28px;
-  box-shadow: none;
+  min-height: 118px;
+  padding: 22px;
+  border: 1px solid #b9e2dc;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f0fdfa 0%, #f8fafc 68%);
 }
 
 .dossier-title {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
+}
+
+.dossier-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .dossier-title h2 {
   margin: 0;
   color: #0f172a;
-  font-size: 26px;
+  font-size: 28px;
   line-height: 1.12;
   font-weight: 720;
   letter-spacing: 0;
@@ -1024,13 +1073,6 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.dossier-title p {
-  margin: 0;
-  color: #64748b;
-  font-size: 13px;
-  overflow-wrap: anywhere;
 }
 
 .field-grid {
@@ -1071,8 +1113,15 @@ onUnmounted(() => {
   gap: 14px;
   padding: 18px;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  min-height: 168px;
+  border-radius: 10px;
   background: #ffffff;
+}
+
+.dossier-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+  gap: 16px;
 }
 
 .section-heading {
@@ -1192,76 +1241,54 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-@media (max-width: 1320px) {
-  .department-workspace {
-    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
-  }
-}
-
 @media (max-width: 980px) {
-  .department-topbar {
+  .gallery-toolbar {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .summary-grid,
-  .department-workspace,
-  .field-grid,
-  .governance-filterbar {
-    grid-template-columns: 1fr;
+  .gallery-controls {
+    justify-content: flex-start;
+    width: 100%;
+    flex-wrap: wrap;
   }
 
-  .no-selection-panel {
-    grid-column: auto;
-  }
-
-  .directory-panel,
-  .no-selection-panel {
-    min-height: 420px;
-  }
-
-  .directory-tree {
-    max-height: 420px;
-  }
-
-  .field-cell {
-    border-right: 0;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .field-cell:last-child {
-    border-bottom: 0;
+  .department-search {
+    width: min(360px, 100%);
+    flex: 1 1 280px;
   }
 }
 
 @media (max-width: 640px) {
-  .department-management {
-    padding: 16px;
+  .gallery-controls {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .department-topbar,
-  .topbar-actions,
-  .directory-tools,
-  .dossier-hero {
-    grid-template-columns: 1fr;
+  .department-search {
+    width: 100%;
+    flex: none;
   }
 
-  .topbar-actions,
-  .topbar-actions :deep(.el-button) {
+  .gallery-controls > :deep(.el-button) {
     width: 100%;
   }
 
-  .directory-tools {
-    display: grid;
+  .gallery-stats {
+    justify-content: flex-start;
   }
 
-  .dossier-title h2 {
-    font-size: 24px;
+  .department-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .dossier-actions,
-  .dossier-actions :deep(.el-button) {
-    width: 100%;
+  .department-card {
+    min-height: 0;
+  }
+
+  .department-card-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .form-row {
@@ -1270,53 +1297,11 @@ onUnmounted(() => {
   }
 }
 
-html.dark .department-management {
-  background: var(--bg-color);
-}
-
-html.dark .directory-panel,
-html.dark .dossier-panel,
-html.dark .no-selection-panel,
-html.dark .summary-card,
-html.dark .content-card,
-html.dark .field-cell {
-  background: var(--card-bg);
-  border-color: var(--border-color);
+html.dark .department-card {
   box-shadow: none;
 }
 
-html.dark .directory-tools,
-html.dark .dossier-hero,
-html.dark .child-item {
-  background: var(--el-fill-color-dark);
-}
-
-html.dark .topbar-copy h1,
-html.dark .summary-card strong,
-html.dark .directory-head h2,
-html.dark .section-heading h3,
-html.dark .dossier-title h2,
-html.dark .field-cell strong,
-html.dark .no-selection-copy h2 {
-  color: var(--text-primary);
-}
-
-html.dark .description-text,
-html.dark .node-name,
-html.dark .child-item {
-  color: var(--text-secondary);
-}
-
-html.dark .custom-dialog :deep(.el-dialog) {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-}
-
-html.dark .custom-dialog :deep(.el-dialog__title) {
-  color: var(--text-primary);
-}
-
-html.dark .custom-form :deep(.el-form-item__label) {
-  color: var(--text-secondary);
+html.dark .department-card:hover {
+  box-shadow: 0 10px 22px rgba(45, 212, 191, 0.08);
 }
 </style>

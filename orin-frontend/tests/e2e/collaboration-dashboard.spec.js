@@ -406,7 +406,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await expect(adminNav.getByText('平台总览', { exact: true })).toBeVisible()
     await expect(adminNav.getByText('组织权限', { exact: true })).toBeVisible()
     await expect(adminNav.getByText('AI 基础设施', { exact: true })).toBeVisible()
-    await expect(adminNav.getByText('开放平台', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('统一网关', { exact: true })).toBeVisible()
     await expect(adminNav.getByText('运行运维', { exact: true })).toBeVisible()
     await expect(adminNav.getByText('系统治理', { exact: true })).toBeVisible()
     await expect(page.locator('.product-switcher')).toHaveCount(0)

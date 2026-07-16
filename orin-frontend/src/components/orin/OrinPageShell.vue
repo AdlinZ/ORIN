@@ -1,7 +1,14 @@
 <template>
   <div class="orin-page-shell">
-    <PageHeader :title="title" :description="description" :icon="icon">
-      <template #tag-content>
+    <PageHeader
+      v-if="variant !== 'none'"
+      :title="title"
+      :description="description"
+      :icon="icon"
+      :variant="variant"
+      :flat="flat"
+    >
+      <template v-if="showMeta && (maturity || domain)" #tag-content>
         <div class="tag-row">
           <OrinMaturityBadge v-if="maturity" :level="maturity" />
           <el-tag
@@ -14,10 +21,10 @@
           </el-tag>
         </div>
       </template>
-      <template #actions>
+      <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
-      <template #filters>
+      <template v-if="$slots.filters" #filters>
         <slot name="filters" />
       </template>
     </PageHeader>
@@ -35,7 +42,14 @@ defineProps({
   description: { type: String, default: '' },
   icon: { type: [String, Object], default: null },
   domain: { type: String, default: '' },
-  maturity: { type: String, default: '' }
+  maturity: { type: String, default: '' },
+  variant: {
+    type: String,
+    default: 'legacy',
+    validator: (value) => ['legacy', 'plain', 'none'].includes(value)
+  },
+  flat: { type: Boolean, default: false },
+  showMeta: { type: Boolean, default: false }
 })
 </script>
 

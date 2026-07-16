@@ -14,8 +14,7 @@
       </template>
     </OrinPageShell>
 
-    <!-- 时间范围选择 -->
-    <el-card class="filter-card">
+    <section class="statistics-workbar">
       <el-form :inline="true">
         <el-form-item label="时间范围">
           <el-date-picker
@@ -29,12 +28,12 @@
           />
         </el-form-item>
       </el-form>
-    </el-card>
+    </section>
 
     <!-- 概览卡片 -->
     <el-row :gutter="20" class="overview-cards">
-      <el-col :span="6">
-        <el-card class="stat-card">
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" style="background: var(--orin-primary)">
               <el-icon><User /></el-icon>
@@ -48,10 +47,10 @@
               </div>
             </div>
           </div>
-        </el-card>
+        </div>
       </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card">
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" style="background: var(--success-500)">
               <el-icon><ChatLineRound /></el-icon>
@@ -65,10 +64,10 @@
               </div>
             </div>
           </div>
-        </el-card>
+        </div>
       </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card">
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" style="background: var(--warning-500)">
               <el-icon><Coin /></el-icon>
@@ -82,10 +81,10 @@
               </div>
             </div>
           </div>
-        </el-card>
+        </div>
       </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card">
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" style="background: var(--error-500)">
               <el-icon><Grid /></el-icon>
@@ -99,84 +98,96 @@
               </div>
             </div>
           </div>
-        </el-card>
+        </div>
       </el-col>
     </el-row>
 
     <!-- 趋势图表 -->
     <el-row :gutter="20">
-      <el-col :span="12">
-        <el-card>
-          <template #header>
-            <span>每日 API 调用趋势</span>
-          </template>
+      <el-col :xs="24" :lg="12">
+        <section class="analysis-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>每日 API 调用趋势</h2>
+              <p>按所选日期范围观察调用规模变化。</p>
+            </div>
+          </div>
           <div v-loading="loading">
             <div ref="apiChartRef" style="height: 300px" />
           </div>
-        </el-card>
+        </section>
       </el-col>
-      <el-col :span="12">
-        <el-card>
-          <template #header>
-            <span>Token 消耗趋势</span>
-          </template>
+      <el-col :xs="24" :lg="12">
+        <section class="analysis-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Token 消耗趋势</h2>
+              <p>查看工作负载和模型调用带来的消耗变化。</p>
+            </div>
+          </div>
           <div v-loading="loading">
             <div ref="tokenChartRef" style="height: 300px" />
           </div>
-        </el-card>
+        </section>
       </el-col>
     </el-row>
 
     <!-- 详细统计表格 -->
     <el-row :gutter="20" style="margin-top: 20px">
-      <el-col :span="12">
-        <el-card>
+      <el-col :xs="24" :lg="12">
+        <OrinDataTable compact class="statistics-table">
           <template #header>
-            <span>任务状态分布</span>
+            <div class="table-heading">
+              <div>
+                <strong>任务状态分布</strong>
+                <span>按状态汇总所选时间范围内的任务执行。</span>
+              </div>
+            </div>
           </template>
           <OrinAsyncState
             :status="loading ? 'loading' : taskStats.length > 0 ? 'success' : 'empty'"
             empty-text="暂无任务状态统计"
             @retry="loadData"
           >
-            <OrinDataTable compact>
-              <el-table :data="taskStats">
-                <el-table-column prop="status" label="状态">
-                  <template #default="{ row }">
-                    <el-tag :type="getStatusType(row.status)">
-                      {{ row.status }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="count" label="数量" />
-                <el-table-column label="占比">
-                  <template #default="{ row }">
-                    {{ calculatePercentage(row.count, totalTaskCount) }}%
-                  </template>
-                </el-table-column>
-              </el-table>
-            </OrinDataTable>
+            <el-table :data="taskStats">
+              <el-table-column prop="status" label="状态">
+                <template #default="{ row }">
+                  <el-tag :type="getStatusType(row.status)">
+                    {{ row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="count" label="数量" />
+              <el-table-column label="占比">
+                <template #default="{ row }">
+                  {{ calculatePercentage(row.count, totalTaskCount) }}%
+                </template>
+              </el-table-column>
+            </el-table>
           </OrinAsyncState>
-        </el-card>
+        </OrinDataTable>
       </el-col>
-      <el-col :span="12">
-        <el-card>
+      <el-col :xs="24" :lg="12">
+        <OrinDataTable compact class="statistics-table">
           <template #header>
-            <span>Top 10 智能体调用</span>
+            <div class="table-heading">
+              <div>
+                <strong>Top 10 智能体调用</strong>
+                <span>识别所选时间范围内使用频率最高的智能体。</span>
+              </div>
+            </div>
           </template>
           <OrinAsyncState
             :status="loading ? 'loading' : agentStats.length > 0 ? 'success' : 'empty'"
             empty-text="暂无智能体调用统计"
             @retry="loadData"
           >
-            <OrinDataTable compact>
-              <el-table :data="agentStats">
-                <el-table-column prop="agent" label="智能体" />
-                <el-table-column prop="count" label="调用次数" />
-              </el-table>
-            </OrinDataTable>
+            <el-table :data="agentStats">
+              <el-table-column prop="agent" label="智能体" />
+              <el-table-column prop="count" label="调用次数" />
+            </el-table>
           </OrinAsyncState>
-        </el-card>
+        </OrinDataTable>
       </el-col>
     </el-row>
   </div>
@@ -366,11 +377,22 @@ const calculatePercentage = (count, total) => {
 
 <style scoped>
 .statistics-container {
-  padding: 20px;
+  padding: 0;
 }
 
-.filter-card {
+.statistics-workbar {
+  display: flex;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 16px;
   margin-bottom: 20px;
+  border: 1px solid var(--orin-border, var(--el-border-color-lighter));
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, var(--el-bg-color));
+}
+
+.statistics-workbar :deep(.el-form-item) {
+  margin-bottom: 0;
 }
 
 .overview-cards {
@@ -378,12 +400,48 @@ const calculatePercentage = (count, total) => {
 }
 
 .stat-card {
+  padding: 18px;
+  border: 1px solid var(--orin-border, var(--el-border-color-lighter));
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, var(--el-bg-color));
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: border-color 0.2s, transform 0.2s;
 }
 
 .stat-card:hover {
+  border-color: var(--orin-primary, var(--el-color-primary));
   transform: translateY(-4px);
+}
+
+.analysis-panel {
+  min-height: 100%;
+  padding: 20px;
+  border: 1px solid var(--orin-border, var(--el-border-color-lighter));
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, var(--el-bg-color));
+}
+
+.panel-heading {
+  margin-bottom: 16px;
+}
+
+.panel-heading h2 {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 15px;
+}
+
+.panel-heading p,
+.table-heading span {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.table-heading strong {
+  color: var(--el-text-color-primary);
+  font-size: 14px;
 }
 
 .stat-content {

@@ -316,4 +316,15 @@ test.describe('Wave 6 system control browser smoke', () => {
     await page.goto('/dashboard/control/api-keys', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL((url) => url.pathname === '/admin/gateway')
   })
+
+  test('department management renders departments as actionable cards', async ({ page }) => {
+    await authenticate(page)
+    await mockBackends(page)
+
+    await page.goto('/admin/departments')
+
+    await expect(page.locator('.department-card')).toHaveCount(1)
+    await expect(page.getByRole('heading', { name: '平台部', exact: true })).toBeVisible()
+    await expect(page.getByText('新增下级', { exact: true })).toBeVisible()
+  })
 })

@@ -7,104 +7,138 @@
       domain="运行监控"
     >
       <template #actions>
-        <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
-        <el-button :icon="Download" :disabled="logs.length === 0" @click="handleExport">导出日志</el-button>
+        <el-button :icon="Refresh" @click="handleRefresh">
+          刷新
+        </el-button>
+        <el-button :icon="Download" :disabled="logs.length === 0" @click="handleExport">
+          导出日志
+        </el-button>
+      </template>
+      <template #filters>
+        <div class="log-workbar">
+          <div class="workbar-heading">
+            <h2>运行日志</h2>
+            <span>{{ pagination.total }} 条记录</span>
+          </div>
+
+          <el-form :inline="true" :model="filterForm" class="log-filter-form">
+            <el-form-item label="日志级别">
+              <el-select
+                v-model="filterForm.level"
+                placeholder="全部"
+                clearable
+                class="level-filter"
+              >
+                <el-option label="INFO" value="INFO" />
+                <el-option label="WARN" value="WARN" />
+                <el-option label="ERROR" value="ERROR" />
+                <el-option label="DEBUG" value="DEBUG" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="时间范围">
+              <el-date-picker
+                v-model="filterForm.dateRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                class="date-filter"
+              />
+            </el-form-item>
+            <el-form-item label="关键词">
+              <el-input
+                v-model="filterForm.keyword"
+                placeholder="搜索关键词"
+                clearable
+                class="keyword-filter"
+              />
+            </el-form-item>
+            <el-form-item class="filter-actions">
+              <el-button type="primary" :icon="Search" @click="handleSearch">
+                查询
+              </el-button>
+              <el-button :icon="Refresh" @click="handleReset">
+                重置
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
       </template>
     </OrinPageShell>
 
-    <!-- 筛选条件 -->
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filterForm">
-        <el-form-item label="日志级别">
-          <el-select v-model="filterForm.level" placeholder="全部" clearable style="width: 120px">
-            <el-option label="INFO" value="INFO" />
-            <el-option label="WARN" value="WARN" />
-            <el-option label="ERROR" value="ERROR" />
-            <el-option label="DEBUG" value="DEBUG" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="时间范围">
-          <el-date-picker
-            v-model="filterForm.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            style="width: 240px"
-          />
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-model="filterForm.keyword" placeholder="搜索关键词" clearable style="width: 180px" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
-          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
     <!-- 日志列表 -->
-    <el-card shadow="never" class="table-card">
+    <OrinDataTable compact class="log-collection">
       <OrinAsyncState
         :status="loading ? 'loading' : (logs.length ? 'success' : 'empty')"
         empty-text="当前筛选条件下暂无日志"
       >
-      <OrinDataTable compact>
-      <el-table
-        v-loading="loading"
-        :data="logs"
-        stripe
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="timestamp" label="时间" width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.timestamp) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="level" label="级别" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getLevelType(row.level)" size="small">
-              {{ row.level }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="source" label="来源" width="150" />
-        <el-table-column prop="message" label="日志内容" min-width="300" show-overflow-tooltip />
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleViewDetail(row)">详情</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      </OrinDataTable>
+        <el-table
+          v-loading="loading"
+          :data="logs"
+          stripe
+          style="width: 100%"
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="55" />
+          <el-table-column prop="timestamp" label="时间" width="180">
+            <template #default="{ row }">
+              {{ formatDateTime(row.timestamp) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="level" label="级别" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getLevelType(row.level)" size="small">
+                {{ row.level }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="source" label="来源" width="150" />
+          <el-table-column
+            prop="message"
+            label="日志内容"
+            min-width="300"
+            show-overflow-tooltip
+          />
+          <el-table-column label="操作" width="100" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="handleViewDetail(row)">
+                详情
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </OrinAsyncState>
 
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handlePageSizeChange"
-          @current-change="handlePageChange"
-        />
-      </div>
-    </el-card>
+      <template #footer>
+        <div class="pagination-container">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :total="pagination.total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            size="small"
+            @size-change="handlePageSizeChange"
+            @current-change="handlePageChange"
+          />
+        </div>
+      </template>
+    </OrinDataTable>
 
     <!-- 日志详情弹窗 -->
-    <el-dialog v-model="detailDialogVisible" title="日志详情" width="800px">
+    <el-dialog v-model="detailDialogVisible" title="日志详情" width="min(800px, calc(100vw - 32px))">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="时间">{{ currentLog?.timestamp }}</el-descriptions-item>
+        <el-descriptions-item label="时间">
+          {{ currentLog?.timestamp }}
+        </el-descriptions-item>
         <el-descriptions-item label="级别">
           <el-tag :type="getLevelType(currentLog?.level)" size="small">
             {{ currentLog?.level }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="来源">{{ currentLog?.source }}</el-descriptions-item>
+        <el-descriptions-item label="来源">
+          {{ currentLog?.source }}
+        </el-descriptions-item>
         <el-descriptions-item label="日志内容" :span="2">
           {{ currentLog?.message }}
         </el-descriptions-item>
@@ -299,27 +333,108 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.filter-card {
-  margin-bottom: 16px;
+.log-workbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 18px;
 }
 
-.table-card {
-  margin-bottom: 16px;
+.workbar-heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.workbar-heading h2 {
+  margin: 0;
+  color: var(--neutral-gray-900);
+  font-size: 16px;
+  font-weight: var(--font-semibold);
+}
+
+.workbar-heading > span {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--neutral-gray-100);
+  color: var(--neutral-gray-500);
+  font-size: 12px;
+}
+
+.log-filter-form {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.log-filter-form :deep(.el-form-item) {
+  margin-right: 0;
+  margin-bottom: 0;
+}
+
+.level-filter {
+  width: 120px;
+}
+
+.date-filter {
+  width: 240px;
+}
+
+.keyword-filter {
+  width: 180px;
 }
 
 .pagination-container {
-  margin-top: 16px;
   display: flex;
+  width: 100%;
   justify-content: flex-end;
 }
 
 .stack-trace {
-  background: #f5f5f5;
+  background: var(--orin-surface-muted);
+  color: var(--neutral-gray-700);
   padding: 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-base);
   overflow-x: auto;
   font-size: 12px;
   max-height: 200px;
   overflow-y: auto;
+}
+
+@media (max-width: 1180px) {
+  .log-workbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .log-filter-form {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .log-filter-form,
+  .log-filter-form :deep(.el-form-item),
+  .level-filter,
+  .date-filter,
+  .keyword-filter,
+  .filter-actions {
+    width: 100%;
+  }
+
+  .filter-actions :deep(.el-form-item__content) {
+    flex-wrap: wrap;
+  }
+
+  .pagination-container {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
 }
 </style>

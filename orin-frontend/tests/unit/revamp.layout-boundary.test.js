@@ -20,6 +20,7 @@ describe('layout mount boundaries', () => {
         const mountRecord = resolved.matched.find((r) => r.path === ROUTES.WORKSPACE_ROOT)
         // component 名通常被编译，这里只断言 mountRecord 存在
         expect(mountRecord).toBeTruthy()
+        expect(mountRecord.children.find((child) => child.path === '')?.redirect).toBe(ROUTES.WORKSPACE)
     })
 
     it('/workspace/agents mount is WorkspaceLayout', () => {
@@ -35,9 +36,11 @@ describe('layout mount boundaries', () => {
     })
 
     it('/admin mount is AdminLayout', () => {
-        const resolved = router.resolve(ROUTES.ADMIN)
+        const resolved = router.resolve(ROUTES.ADMIN_ROOT)
         const matchedPaths = resolved.matched.map((record) => record.path)
         expect(matchedPaths).toContain(ROUTES.ADMIN_ROOT)
+        const mountRecord = resolved.matched.find((r) => r.path === ROUTES.ADMIN_ROOT)
+        expect(mountRecord.children.find((child) => child.path === '')?.redirect).toBe(ROUTES.ADMIN)
     })
 
     it('/admin/runtime mount is AdminLayout', () => {

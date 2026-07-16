@@ -13,84 +13,38 @@
           添加服务
         </el-button>
       </template>
-    </OrinPageShell>
-
-    <el-card shadow="never" class="tab-wrapper-card">
-      <div v-if="embedded" class="embedded-toolbar">
-        <div class="embedded-toolbar-main">
-          <div>
-            <h2 class="embedded-title">MCP服务</h2>
-            <p class="embedded-description">管理 MCP（Model Context Protocol）服务配置、连接健康与工具安装</p>
+      <template #filters>
+        <div class="mcp-collection-workbar">
+          <div class="workbar-heading">
+            <h2>{{ collectionTitle }}</h2>
+            <span>{{ activeResultCount }} 个结果</span>
           </div>
-          <el-button type="primary" @click="openAddDialog">
-            <el-icon><Plus /></el-icon>
-            添加服务
-          </el-button>
-        </div>
-        <div class="embedded-toolbar-bottom">
-          <div class="embedded-stats">
-            <div class="mcp-stat">
-              <span>服务</span>
-              <strong>{{ mcpStats.total }}</strong>
+          <div class="workbar-controls">
+            <div class="collection-mode-switch" role="tablist" aria-label="MCP 内容模式">
+              <button
+                type="button"
+                :class="{ active: activeTab === 'list' }"
+                role="tab"
+                :aria-selected="activeTab === 'list'"
+                @click="activeTab = 'list'"
+              >
+                服务列表
+              </button>
+              <button
+                type="button"
+                :class="{ active: activeTab === 'market' }"
+                role="tab"
+                :aria-selected="activeTab === 'market'"
+                @click="activeTab = 'market'"
+              >
+                工具市场
+              </button>
             </div>
-            <div class="mcp-stat">
-              <span>已启用</span>
-              <strong>{{ mcpStats.enabled }}</strong>
-            </div>
-            <div class="mcp-stat">
-              <span>已连接</span>
-              <strong>{{ mcpStats.connected }}</strong>
-            </div>
-            <div class="mcp-stat">
-              <span>工具</span>
-              <strong>{{ availableTools.length }}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <el-tabs v-model="activeTab" class="mcp-tabs">
-      <!-- MCP 服务列表 -->
-      <el-tab-pane label="服务列表" name="list">
-        <el-card>
-          <template #header>
-            <div class="card-header">
-              <span>MCP 服务</span>
-              <div class="card-header-actions">
-                <div v-if="embedded" class="embedded-mode-switch" role="tablist" aria-label="MCP 视图">
-                  <button
-                    type="button"
-                    :class="{ active: activeTab === 'list' }"
-                    role="tab"
-                    :aria-selected="activeTab === 'list'"
-                    @click="activeTab = 'list'"
-                  >
-                    服务列表
-                  </button>
-                  <button
-                    type="button"
-                    :class="{ active: activeTab === 'market' }"
-                    role="tab"
-                    :aria-selected="activeTab === 'market'"
-                    @click="activeTab = 'market'"
-                  >
-                    工具市场
-                  </button>
-                </div>
-                <el-button v-if="!embedded" type="primary" @click="openAddDialog">
-                  <el-icon><Plus /></el-icon>
-                  添加服务
-                </el-button>
-              </div>
-            </div>
-          </template>
-
-          <!-- 搜索栏 -->
-          <div class="toolbar">
             <el-input
+              v-if="activeTab === 'list'"
               v-model="searchQuery"
-              placeholder="搜索服务名称..."
-              class="search-input"
+              placeholder="搜索服务名称"
+              class="workbar-search"
               clearable
               @input="handleSearch"
             >
@@ -98,76 +52,120 @@
                 <el-icon><Search /></el-icon>
               </template>
             </el-input>
-            <el-button circle class="icon-btn" @click="loadMcpServices">
+            <el-button
+              :loading="activeTab === 'list' ? loading : toolsLoading"
+              @click="refreshActiveCollection"
+            >
               <el-icon><Refresh /></el-icon>
+              刷新
             </el-button>
           </div>
-          <el-alert
-            v-if="loadError"
-            class="load-error"
-            type="error"
-            show-icon
-            :closable="false"
-            :title="loadError"
+        </div>
+      </template>
+    </OrinPageShell>
+
+    <div v-if="embedded" class="mcp-collection-workbar embedded-toolbar">
+      <div class="workbar-heading">
+        <h2>{{ collectionTitle }}</h2>
+        <span>{{ activeResultCount }} 个结果</span>
+      </div>
+      <div class="workbar-controls">
+        <div class="collection-mode-switch" role="tablist" aria-label="MCP 内容模式">
+          <button
+            type="button"
+            :class="{ active: activeTab === 'list' }"
+            role="tab"
+            :aria-selected="activeTab === 'list'"
+            @click="activeTab = 'list'"
           >
-            <template #default>
-              <el-button type="primary" text @click="loadMcpServices">重试</el-button>
-            </template>
-          </el-alert>
+            服务列表
+          </button>
+          <button
+            type="button"
+            :class="{ active: activeTab === 'market' }"
+            role="tab"
+            :aria-selected="activeTab === 'market'"
+            @click="activeTab = 'market'"
+          >
+            工具市场
+          </button>
+        </div>
+        <el-input
+          v-if="activeTab === 'list'"
+          v-model="searchQuery"
+          placeholder="搜索服务名称"
+          class="workbar-search"
+          clearable
+          @input="handleSearch"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-button
+          :loading="activeTab === 'list' ? loading : toolsLoading"
+          @click="refreshActiveCollection"
+        >
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
+        <el-button type="primary" @click="openAddDialog">
+          <el-icon><Plus /></el-icon>
+          添加服务
+        </el-button>
+      </div>
+    </div>
 
-          <div v-if="embedded && mcpServices.length" class="service-card-grid">
-            <article v-for="service in mcpServices" :key="service.id" class="service-card-item">
-              <div class="service-card-head">
-                <div class="service-title-wrap">
-                  <h3>{{ service.name }}</h3>
-                  <span>{{ service.type === 'STDIO' ? service.command : service.url }}</span>
-                </div>
-                <div class="service-tags">
-                  <el-tag>{{ getTypeText(service.type) }}</el-tag>
-                  <el-tag :type="getStatusType(service.status)">
-                    {{ getStatusText(service.status) }}
-                  </el-tag>
-                </div>
-              </div>
-              <div class="service-meta">
-                <span>启用：{{ service.enabled ? '是' : '否' }}</span>
-                <span>健康分：{{ service.healthScore ?? '-' }}</span>
-                <span>最后连接：{{ service.lastConnected ? formatDate(service.lastConnected) : '-' }}</span>
-              </div>
-              <div class="service-actions">
-                <el-button
-                  size="small"
-                  :loading="testingId === service.id"
-                  @click="testConnection(service)"
-                >
-                  测试
-                </el-button>
-                <el-button size="small" type="primary" @click="editService(service)">
-                  编辑
-                </el-button>
-                <el-button size="small" type="danger" @click="deleteService(service)">
-                  删除
-                </el-button>
-              </div>
-            </article>
-          </div>
-
-          <el-empty
-            v-else-if="embedded && !loading && !loadError"
-            :image-size="72"
-            description="暂无 MCP 服务，点击“添加服务”创建"
-          />
-
+    <OrinDataTable compact class="mcp-collection-surface">
+      <el-tabs v-model="activeTab" class="mcp-tabs">
+        <!-- MCP 服务列表 -->
+        <el-tab-pane label="服务列表" name="list">
           <OrinAsyncState
-            v-else-if="!embedded"
-            :status="loading ? 'loading' : mcpServices.length > 0 ? 'success' : loadError ? 'error' : 'empty'"
+            :status="loadError ? 'error' : loading ? 'loading' : mcpServices.length > 0 ? 'success' : 'empty'"
             empty-text="暂无 MCP 服务，点击“添加服务”创建"
             empty-action-label="添加服务"
             :error-text="loadError || '请稍后重试'"
             @retry="loadMcpServices"
             @empty-action="openAddDialog"
           >
-            <OrinDataTable compact>
+            <div v-if="embedded" class="service-card-grid">
+              <article v-for="service in mcpServices" :key="service.id" class="service-card-item">
+                <div class="service-card-head">
+                  <div class="service-title-wrap">
+                    <h3>{{ service.name }}</h3>
+                    <span>{{ service.type === 'STDIO' ? service.command : service.url }}</span>
+                  </div>
+                  <div class="service-tags">
+                    <el-tag>{{ getTypeText(service.type) }}</el-tag>
+                    <el-tag :type="getStatusType(service.status)">
+                      {{ getStatusText(service.status) }}
+                    </el-tag>
+                  </div>
+                </div>
+                <div class="service-meta">
+                  <span>启用：{{ service.enabled ? '是' : '否' }}</span>
+                  <span>健康分：{{ service.healthScore ?? '-' }}</span>
+                  <span>最后连接：{{ service.lastConnected ? formatDate(service.lastConnected) : '-' }}</span>
+                </div>
+                <div class="service-actions">
+                  <el-button
+                    size="small"
+                    :loading="testingId === service.id"
+                    @click="testConnection(service)"
+                  >
+                    测试
+                  </el-button>
+                  <el-button size="small" type="primary" @click="editService(service)">
+                    编辑
+                  </el-button>
+                  <el-button size="small" type="danger" @click="deleteService(service)">
+                    删除
+                  </el-button>
+                </div>
+              </article>
+            </div>
+
+            <template v-else>
               <el-table
                 :data="mcpServices"
                 empty-text="暂无 MCP 服务，点击“添加服务”创建"
@@ -245,78 +243,29 @@
                   </template>
                 </el-table-column>
               </el-table>
-            </OrinDataTable>
+            </template>
           </OrinAsyncState>
+        </el-tab-pane>
 
-          <!-- 分页 -->
-          <div v-if="totalServices > 0" class="pagination-wrapper">
-            <el-pagination
-              v-model:current-page="currentPage"
-              v-model:page-size="pageSize"
-              :page-sizes="[10, 20, 50]"
-              :total="totalServices"
-              layout="total, ->, sizes, prev, pager, next"
-              size="small"
-              @size-change="handleSizeChange"
-              @current-change="handlePageChange"
-            />
-          </div>
-        </el-card>
-      </el-tab-pane>
-
-      <!-- MCP 工具市场 -->
-      <el-tab-pane label="工具市场" name="market" :lazy="true">
-        <el-card>
-          <template #header>
-            <div class="card-header">
-              <span>MCP 工具市场</span>
-              <div class="card-header-actions">
-                <div v-if="embedded" class="embedded-mode-switch" role="tablist" aria-label="MCP 视图">
-                  <button
-                    type="button"
-                    :class="{ active: activeTab === 'list' }"
-                    role="tab"
-                    :aria-selected="activeTab === 'list'"
-                    @click="activeTab = 'list'"
-                  >
-                    服务列表
-                  </button>
-                  <button
-                    type="button"
-                    :class="{ active: activeTab === 'market' }"
-                    role="tab"
-                    :aria-selected="activeTab === 'market'"
-                    @click="activeTab = 'market'"
-                  >
-                    工具市场
-                  </button>
-                </div>
-                <el-button :loading="toolsLoading" @click="refreshTools">
-                  <el-icon><Refresh /></el-icon>
-                  刷新
-                </el-button>
-              </div>
-            </div>
-          </template>
-
-          <div v-loading="toolsLoading">
-            <el-empty v-if="availableTools.length === 0" description="暂无可用工具" />
-
-            <div v-else class="tools-grid">
-              <el-card
+        <!-- MCP 工具市场 -->
+        <el-tab-pane label="工具市场" name="market" :lazy="true">
+          <OrinAsyncState
+            :status="toolsLoading ? 'loading' : availableTools.length > 0 ? 'success' : 'empty'"
+            empty-text="暂无可用工具"
+            @retry="loadAvailableTools"
+          >
+            <div class="tools-grid">
+              <article
                 v-for="tool in availableTools"
                 :key="tool.id"
                 class="tool-card"
-                shadow="hover"
               >
-                <template #header>
-                  <div class="tool-header">
-                    <span class="tool-name">{{ tool.name }}</span>
-                    <el-tag size="small" :type="tool.installed ? 'success' : 'info'">
-                      {{ tool.installed ? '已安装' : '未安装' }}
-                    </el-tag>
-                  </div>
-                </template>
+                <div class="tool-header">
+                  <span class="tool-name">{{ tool.name }}</span>
+                  <el-tag size="small" :type="tool.installed ? 'success' : 'info'">
+                    {{ tool.installed ? '已安装' : '未安装' }}
+                  </el-tag>
+                </div>
                 <p class="tool-desc">
                   {{ tool.description || '暂无描述' }}
                 </p>
@@ -353,13 +302,16 @@
                     详情
                   </el-button>
                 </div>
-              </el-card>
+              </article>
             </div>
-          </div>
-        </el-card>
-      </el-tab-pane>
-    </el-tabs>
-    </el-card>
+          </OrinAsyncState>
+        </el-tab-pane>
+      </el-tabs>
+      <template #footer>
+        <span v-if="activeTab === 'list'">共 {{ totalServices }} 个服务</span>
+        <span v-else>共 {{ availableTools.length }} 个工具</span>
+      </template>
+    </OrinDataTable>
 
     <!-- 添加/编辑服务对话框 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑 MCP 服务' : '添加 MCP 服务'" width="600px">
@@ -464,8 +416,12 @@
         </el-form-item>
         <el-form-item label="安装模式" prop="mode">
           <el-radio-group v-model="installForm.mode">
-            <el-radio-button value="docker">Docker</el-radio-button>
-            <el-radio-button value="local">本机</el-radio-button>
+            <el-radio-button value="docker">
+              Docker
+            </el-radio-button>
+            <el-radio-button value="local">
+              本机
+            </el-radio-button>
           </el-radio-group>
           <div class="form-tip">
             Docker 使用容器内默认路径；本机模式使用本地命令模板。
@@ -544,7 +500,7 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
@@ -600,20 +556,15 @@ const secretFormRules = {
   secret: [{ required: true, message: '请填写密钥值', trigger: 'blur' }]
 }
 
-// 分页和搜索
+// 服务搜索与结果口径
 const searchQuery = ref('')
-const currentPage = ref(1)
-const pageSize = ref(10)
 const totalServices = ref(0)
+let searchTimer = null
 
-const mcpStats = computed(() => {
-  const rows = Array.isArray(mcpServices.value) ? mcpServices.value : []
-  return {
-    total: rows.length,
-    enabled: rows.filter((item) => item.enabled).length,
-    connected: rows.filter((item) => item.status === 'CONNECTED').length
-  }
-})
+const collectionTitle = computed(() => activeTab.value === 'list' ? '全部服务' : '工具市场')
+const activeResultCount = computed(() => (
+  activeTab.value === 'list' ? totalServices.value : availableTools.value.length
+))
 
 const serviceForm = reactive({
   id: null,
@@ -704,13 +655,16 @@ const loadMcpServices = async () => {
   loadError.value = ''
   try {
     const params = {
-      keyword: searchQuery.value || undefined,
-      page: currentPage.value - 1,
-      size: pageSize.value
+      keyword: searchQuery.value.trim() || undefined
     }
     const res = await getMcpServices(params)
-    mcpServices.value = res || []
-    totalServices.value = res?.length || 0
+    const rows = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.data) ? res.data : []
+    mcpServices.value = rows
+    totalServices.value = Number.isFinite(Number(res?.total))
+      ? Number(res.total)
+      : rows.length
   } catch (e) {
     console.error('加载 MCP 服务失败:', e)
     loadError.value = `MCP 服务加载失败：${e?.message || '未知错误'}`
@@ -722,20 +676,8 @@ const loadMcpServices = async () => {
 
 // 搜索
 const handleSearch = () => {
-  currentPage.value = 1
-  loadMcpServices()
-}
-
-// 分页
-const handlePageChange = (page) => {
-  currentPage.value = page
-  loadMcpServices()
-}
-
-const handleSizeChange = (size) => {
-  pageSize.value = size
-  currentPage.value = 1
-  loadMcpServices()
+  window.clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(loadMcpServices, 250)
 }
 
 // 加载可用工具
@@ -755,6 +697,14 @@ const loadAvailableTools = async () => {
 const refreshTools = () => {
   loadAvailableTools()
   ElMessage.success('已刷新')
+}
+
+const refreshActiveCollection = () => {
+  if (activeTab.value === 'market') {
+    refreshTools()
+    return
+  }
+  loadMcpServices()
 }
 
 const installTool = (tool) => {
@@ -1073,6 +1023,10 @@ onMounted(() => {
   loadAvailableTools()
   loadMcpSecrets()
 })
+
+onUnmounted(() => {
+  window.clearTimeout(searchTimer)
+})
 </script>
 
 <style scoped>
@@ -1080,147 +1034,102 @@ onMounted(() => {
   padding: 0;
 }
 
-.mcp-service-container.is-embedded :deep(.tab-wrapper-card) {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
-
-.mcp-service-container.is-embedded :deep(.tab-wrapper-card .el-card__body) {
-  padding: 0;
+.mcp-collection-workbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  gap: 18px;
 }
 
 .embedded-toolbar {
   margin-bottom: 12px;
-  padding: 18px;
+  padding: 14px;
   border: 1px solid var(--orin-border);
   border-radius: var(--orin-card-radius, 8px);
-  background: var(--neutral-white);
-  box-shadow: 0 10px 26px -24px rgba(15, 23, 42, 0.42);
+  background: var(--neutral-white, #ffffff);
 }
 
-.embedded-toolbar-main {
+.workbar-heading {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 14px;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
 }
 
-.embedded-toolbar-bottom {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: stretch;
-}
-
-.embedded-title {
+.workbar-heading h2 {
   margin: 0;
-  font-size: 22px;
-  line-height: 1.2;
-  color: #0f172a;
-  letter-spacing: 0;
+  color: var(--neutral-gray-900, var(--el-text-color-primary));
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: var(--font-semibold, 600);
 }
 
-.embedded-description {
-  margin: 7px 0 0;
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.6;
+.workbar-heading span {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--neutral-gray-100, var(--el-fill-color-light));
+  color: var(--neutral-gray-500, var(--el-text-color-secondary));
+  font-size: 12px;
 }
 
-.embedded-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  flex: 1;
+.workbar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   min-width: 0;
 }
 
-.mcp-stat {
-  padding: 10px 12px;
-  border: 1px solid rgba(37, 99, 235, 0.14);
-  border-radius: var(--orin-card-radius, 8px);
-  background: rgba(255, 255, 255, 0.72);
+.workbar-search {
+  width: min(320px, 28vw);
 }
 
-.mcp-stat span {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.mcp-stat strong {
-  display: block;
-  margin-top: 4px;
-  color: #2563eb;
-  font-size: 19px;
-  line-height: 1.1;
-}
-
-.embedded-mode-switch {
+.collection-mode-switch {
   display: inline-flex;
   flex: 0 0 auto;
   gap: 4px;
   padding: 3px;
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  border: 1px solid var(--orin-border-strong, var(--el-border-color));
   border-radius: 8px;
-  background: rgba(248, 250, 252, 0.8);
+  background: var(--neutral-gray-100, var(--el-fill-color-light));
 }
 
-.embedded-mode-switch button {
+.collection-mode-switch button {
   height: 30px;
   padding: 0 11px;
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #64748b;
+  color: var(--neutral-gray-500, var(--el-text-color-secondary));
   cursor: pointer;
   font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 30px;
   transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.embedded-mode-switch button:hover,
-.embedded-mode-switch button.active {
-  background: #ffffff;
-  color: var(--orin-primary);
+.collection-mode-switch button:hover,
+.collection-mode-switch button.active {
+  background: var(--neutral-white, #ffffff);
+  color: var(--orin-primary, var(--el-color-primary));
   box-shadow: 0 5px 14px -12px rgba(15, 23, 42, 0.55);
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+.mcp-service-container :deep(.mcp-tabs > .el-tabs__header) {
+  display: none;
 }
 
-.card-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
+.mcp-service-container :deep(.mcp-tabs > .el-tabs__content) {
+  overflow: visible;
 }
 
-.toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.load-error {
-  margin-bottom: 12px;
-}
-
-.search-input {
-  width: 300px;
-}
-
-.icon-btn {
-  flex-shrink: 0;
+.mcp-collection-surface :deep(.orin-async-state > .el-skeleton) {
+  padding: 18px;
 }
 
 .form-tip {
@@ -1245,43 +1154,29 @@ onMounted(() => {
   width: 220px;
 }
 
-.pagination-wrapper {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.tool-card {
-  margin-bottom: 0;
-}
-
-.mcp-service-container :deep(.el-card) {
-  border: 1px solid var(--orin-border);
-  border-radius: var(--orin-card-radius, 8px);
-}
-
-.mcp-service-container.is-embedded :deep(.el-tabs__content .el-card__body) {
+  gap: 12px;
   padding: 14px;
 }
 
-.mcp-service-container.is-embedded :deep(.el-tabs__content .el-card) {
-  box-shadow: none;
-}
-
-.mcp-service-container.is-embedded :deep(.mcp-tabs > .el-tabs__header) {
-  display: none !important;
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 176px;
+  padding: 14px;
+  border: 1px solid var(--orin-border);
+  border-radius: var(--orin-card-radius, 8px);
+  background: color-mix(in srgb, var(--neutral-white, #ffffff) 94%, var(--orin-primary, #0d9488) 6%);
 }
 
 .service-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 10px;
+  padding: 14px;
 }
 
 .service-card-item {
@@ -1356,7 +1251,8 @@ onMounted(() => {
 }
 
 .tool-name {
-  font-weight: 500;
+  color: var(--neutral-gray-900, var(--el-text-color-primary));
+  font-weight: 600;
 }
 
 .tool-desc {
@@ -1398,7 +1294,15 @@ onMounted(() => {
 }
 
 .tool-actions {
-  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.tool-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .install-tool-summary {
@@ -1437,16 +1341,14 @@ onMounted(() => {
 
 html.dark .embedded-toolbar {
   background: var(--neutral-gray-900, #0f172a);
-  box-shadow: none;
 }
 
-html.dark .embedded-title,
-html.dark .service-title-wrap h3 {
+html.dark .workbar-heading h2,
+html.dark .service-title-wrap h3,
+html.dark .tool-name {
   color: #f8fafc;
 }
 
-html.dark .embedded-description,
-html.dark .mcp-stat span,
 html.dark .service-title-wrap span,
 html.dark .service-meta,
 html.dark .tool-command-list dt,
@@ -1462,57 +1364,76 @@ html.dark .install-tool-summary strong {
   color: #f8fafc;
 }
 
-html.dark .mcp-stat,
-html.dark .service-card-item {
+html.dark .service-card-item,
+html.dark .tool-card {
   border-color: rgba(148, 163, 184, 0.16);
   background: rgba(15, 23, 42, 0.72);
 }
 
-html.dark .mcp-stat strong {
-  color: #93c5fd;
-}
-
-html.dark .embedded-mode-switch {
+html.dark .collection-mode-switch {
   border-color: rgba(148, 163, 184, 0.16);
   background: rgba(15, 23, 42, 0.7);
 }
 
-html.dark .embedded-mode-switch button {
+html.dark .collection-mode-switch button {
   color: #94a3b8;
 }
 
-html.dark .embedded-mode-switch button:hover,
-html.dark .embedded-mode-switch button.active {
+html.dark .collection-mode-switch button:hover,
+html.dark .collection-mode-switch button.active {
   background: rgba(255, 255, 255, 0.08);
   color: #93c5fd;
   box-shadow: none;
 }
 
-@media (max-width: 720px) {
-  .embedded-toolbar-main,
-  .embedded-toolbar-bottom,
-  .card-header,
-  .card-header-actions,
-  .toolbar,
+@media (max-width: 980px) {
+  .mcp-collection-workbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workbar-controls {
+    justify-content: flex-start;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .workbar-search {
+    width: min(420px, 100%);
+    flex: 1 1 260px;
+  }
+}
+
+@media (max-width: 640px) {
+  .workbar-controls,
   .service-card-head {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .search-input {
+  .workbar-search,
+  .collection-mode-switch,
+  .workbar-controls > :deep(.el-button) {
     width: 100%;
+    flex: none;
   }
 
-  .embedded-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .embedded-mode-switch {
-    width: 100%;
-  }
-
-  .embedded-mode-switch button {
+  .collection-mode-switch button {
     flex: 1;
+  }
+
+  .service-card-grid,
+  .tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .env-secret-insert {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .env-secret-insert .el-select {
+    width: 100%;
   }
 }
 </style>

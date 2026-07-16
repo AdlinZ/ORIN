@@ -16,6 +16,22 @@ const DEFAULT_ADMIN_STATS = {
   resolvedAlerts: 0
 }
 
+const DEFAULT_TRENDS = {
+  range: { start: '', end: '' },
+  requestCount: [],
+  tokenUsage: []
+}
+
+const TASK_STATUS_ORDER = [
+  'QUEUED',
+  'RUNNING',
+  'RETRYING',
+  'COMPLETED',
+  'FAILED',
+  'DEAD',
+  'CANCELLED'
+]
+
 const normalizeNumber = (value) => {
   const num = Number(value)
   return Number.isFinite(num) ? num : 0
@@ -36,6 +52,27 @@ const normalizeHealth = (health = {}) => {
   }
 }
 
+const normalizeTrendSeries = (series) => {
+  if (!Array.isArray(series)) return []
+  return series
+    .map((point) => ({
+      date: String(point?.date || ''),
+      value: normalizeNumber(point?.value)
+    }))
+    .filter((point) => /^\d{4}-\d{2}-\d{2}$/.test(point.date))
+}
+
+const normalizeAgentTypes = (types) => {
+  if (!Array.isArray(types)) return []
+  return types
+    .map((entry) => ({
+      key: String(entry?.key || 'other').toLowerCase(),
+      label: String(entry?.label || entry?.key || '其他'),
+      count: normalizeNumber(entry?.count)
+    }))
+    .filter((entry) => entry.count > 0)
+}
+
 export function toDashboardSummaryViewModel(payload = {}) {
   const metrics = {
     ...DEFAULT_METRICS,
@@ -47,6 +84,18 @@ export function toDashboardSummaryViewModel(payload = {}) {
     ...(payload.adminStats || {})
   }
 
+  const trendsRaw = payload.trends || {}
+  const trends = {
+    range: {
+      start: trendsRaw.range?.start || DEFAULT_TRENDS.range.start,
+      end: trendsRaw.range?.end || DEFAULT_TRENDS.range.end
+    },
+    requestCount: normalizeTrendSeries(trendsRaw.requestCount),
+    tokenUsage: normalizeTrendSeries(trendsRaw.tokenUsage)
+  }
+
+  const agentTypes = normalizeAgentTypes(payload.agentTypes)
+
   const topAlertEvents = Array.isArray(payload.topAlertEvents)
     ? payload.topAlertEvents.map((item) => ({
       endpoint: item.endpoint || '',
@@ -56,17 +105,33 @@ export function toDashboardSummaryViewModel(payload = {}) {
     }))
     : []
 
+  const systemHealth = normalizeHealth(payload.systemHealth)
+  const isOnline = systemHealth.backend.status === 'UP'
+    && systemHealth.aiEngine.reachable === true
+
+  const taskStatusMap = metrics.tasks && typeof metrics.tasks === 'object'
+    ? metrics.tasks
+    : {}
+  const taskStatuses = TASK_STATUS_ORDER.map((status) => ({
+    status,
+    label: status,
+    count: normalizeNumber(taskStatusMap[status])
+  }))
+
   return {
     roles: Array.isArray(payload.roles) ? payload.roles : ['ROLE_USER'],
     defaultHome: payload.defaultHome || '/chat',
-    systemHealth: normalizeHealth(payload.systemHealth),
+    isOnline,
+    systemHealth,
     metrics: {
       agents: normalizeNumber(metrics.agents),
       knowledgeBases: normalizeNumber(metrics.knowledgeBases),
       workflows: normalizeNumber(metrics.workflows),
       collaborationPackages: normalizeNumber(metrics.collaborationPackages),
       traces: normalizeNumber(metrics.traces),
-      tasks: metrics.tasks || {},
+      tasks: taskStatusMap,
+      taskStatuses,
+      totalTasks: taskStatuses.reduce((sum, item) => sum + item.count, 0),
       openTasks: normalizeNumber(metrics.openTasks),
       failedTasks: normalizeNumber(metrics.failedTasks)
     },
@@ -76,6 +141,9 @@ export function toDashboardSummaryViewModel(payload = {}) {
       activeAlerts: normalizeNumber(adminStats.activeAlerts),
       resolvedAlerts: normalizeNumber(adminStats.resolvedAlerts)
     },
+    trends,
+    agentTypes,
+    agentTypeTotal: agentTypes.reduce((sum, item) => sum + item.count, 0),
     topAlertEvents,
     recentActivity: Array.isArray(payload.recentActivity)
       ? payload.recentActivity.map((item) => ({

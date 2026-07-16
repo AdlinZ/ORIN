@@ -95,7 +95,7 @@
       </section>
 
       <div class="sidebar-bottom">
-        <el-dropdown trigger="click" placement="top-start" @command="handleUserCommand">
+        <el-dropdown v-if="isLoggedIn" trigger="click" placement="top-start" @command="handleUserCommand">
           <div class="portal-user-wrapper">
             <el-avatar :size="36" :src="userAvatar" class="portal-user-avatar">
               {{ avatarText }}
@@ -114,11 +114,29 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+        <button v-else class="portal-user-wrapper guest-login" type="button" @click="router.push('/login')">
+          <el-avatar :size="36" class="portal-user-avatar">游</el-avatar>
+          <div class="portal-user-info">
+            <span class="portal-user-name">游客</span>
+            <span class="portal-user-role">登录后开始对话</span>
+          </div>
+        </button>
       </div>
     </aside>
 
     <main class="portal-main">
-      <section v-if="activeWorkspace === 'creation'" class="creation-stage">
+      <section v-if="!isLoggedIn" class="guest-stage">
+        <div class="guest-card">
+          <span class="guest-kicker">ORIN Chat</span>
+          <h1>欢迎来到 ORIN Chat</h1>
+          <p>浏览和访问入口无需登录。登录后即可使用你有权限的智能体、个人会话与附件功能。</p>
+          <div class="guest-actions">
+            <el-button type="primary" @click="router.push('/login')">登录后开始对话</el-button>
+            <el-button @click="router.push('/register')">注册账号</el-button>
+          </div>
+        </div>
+      </section>
+      <section v-else-if="activeWorkspace === 'creation'" class="creation-stage">
         <div class="creation-workspace">
           <header class="creation-workspace-head">
             <div class="creation-mode-tabs">
@@ -689,6 +707,7 @@ const displayName = computed(() => userStore.userInfo?.name || userStore.userInf
 const avatarText = computed(() => String(displayName.value || 'U').slice(0, 1).toUpperCase());
 const userAvatar = computed(() => userStore.userInfo?.avatar || '');
 const userRoleLabel = computed(() => (userStore.isAdmin ? '管理员' : '普通用户'));
+const isLoggedIn = computed(() => userStore.isLoggedIn);
 const isHome = computed(() => messages.value.length === 0);
 
 const currentAgent = computed(() => agents.value.find((agent) => agent.id === currentAgentId.value));
@@ -1529,6 +1548,12 @@ const sendMessage = async () => {
 };
 
 const refreshPortal = async () => {
+  if (!isLoggedIn.value) {
+    agents.value = [];
+    knowledgeBases.value = [];
+    sessions.value = [];
+    return;
+  }
   await Promise.all([loadAgents(), loadKnowledgeBases()]);
   if (currentAgentId.value) {
     await loadSessions();
@@ -1602,6 +1627,7 @@ const formatDate = (value) => {
 };
 
 onMounted(async () => {
+  if (!isLoggedIn.value) return;
   const persisted = persistence.restore();
   await refreshPortal();
 

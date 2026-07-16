@@ -89,7 +89,7 @@ function buildLegacyTopMenuConfig() {
         path: ROUTES.ADMIN_PATHS.ROOT,
         surface: PRODUCT_SURFACES.ADMIN,
         roles: [...ADMIN_MENU_ROLES],
-        children: flattenAdminSections(['admin-organization', 'admin-ai-infra', 'admin-open-platform', 'admin-governance']),
+        children: flattenAdminSections(['admin-organization', 'admin-ai-infra', 'admin-unified-gateway', 'admin-governance']),
     }
 
     const adminRuntime = {

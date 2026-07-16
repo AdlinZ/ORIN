@@ -335,6 +335,7 @@ test.describe('ROLE_USER /chat browser acceptance', () => {
         throw new Error('neither stream nor fallback assistant message rendered')
       }
     }).toPass({ timeout: 10000 })
+    await expect(page.getByText('正在处理...')).toHaveCount(0)
 
     // 验证流式 / 阻断端点至少被调用过一次
     const streamHit = backend.requests.some((r) => r.path.endsWith('/messages/stream'))

@@ -4,11 +4,13 @@ import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.monitor.entity.AgentHealthStatus;
 import com.adlin.orin.modules.monitor.entity.AgentMetric;
 import com.adlin.orin.modules.monitor.service.MonitorService;
+import com.adlin.orin.modules.audit.service.AuditHelper;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.data.domain.Page;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class MonitorController {
 
     private final MonitorService monitorService;
+    private final AuditHelper auditHelper;
 
     @Operation(summary = "获取全局监控看板数据")
     @GetMapping("/dashboard/summary")
@@ -187,12 +190,17 @@ public class MonitorController {
 
     @Operation(summary = "获取系统环境变量配置")
     @GetMapping("/system/properties")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Map<String, String> getSystemProperties() {
-        return monitorService.getSystemProperties();
+        Map<String, String> properties = monitorService.getSystemProperties();
+        auditHelper.log("SYSTEM", "SYSTEM_PROPERTIES_READ", "/api/v1/monitor/system/properties",
+                "读取已脱敏系统环境配置", true, null);
+        return properties;
     }
 
     @Operation(summary = "更新系统环境变量配置")
     @PostMapping("/system/properties")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public void updateSystemProperties(@RequestBody(required = false) Map<String, Object> properties) {
         Map<String, String> normalized = new java.util.HashMap<>();
         if (properties != null) {
@@ -202,6 +210,8 @@ public class MonitorController {
             });
         }
         monitorService.updateSystemProperties(normalized);
+        auditHelper.log("SYSTEM", "SYSTEM_PROPERTIES_UPDATE", "/api/v1/monitor/system/properties",
+                "更新系统环境配置项: " + normalized.size() + " 项", true, null);
     }
 
     @Operation(summary = "手动触发硬件监控数据采集")

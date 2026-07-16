@@ -15,149 +15,155 @@
         </el-button>
       </template>
       <template #filters>
-        <div class="right-tools">
-          <el-input
-            v-model="searchQuery"
-            placeholder="搜索角色名称 / 代码..."
-            class="search-input"
-            clearable
-            @input="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-          <el-button circle class="icon-btn" @click="loadRoles">
-            <el-icon><Refresh /></el-icon>
-          </el-button>
+        <div class="role-toolbar">
+          <div class="role-toolbar-heading">
+            <h2>全部角色</h2>
+            <span>{{ filteredRoles.length }} 个结果</span>
+          </div>
+          <div class="role-toolbar-controls">
+            <el-input
+              v-model="searchQuery"
+              placeholder="搜索角色名称 / 代码"
+              aria-label="搜索角色名称或代码"
+              class="search-input"
+              clearable
+              @input="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-button :icon="Refresh" class="refresh-button" @click="loadRoles">
+              刷新
+            </el-button>
+          </div>
         </div>
       </template>
     </OrinPageShell>
 
-    <OrinStatusSummary :items="roleStatusItems" class="governance-summary" />
-
-    <div class="premium-card governance-card">
-      <div class="card-heading">
-        <div>
-          <span class="card-eyebrow">Role Matrix</span>
-          <h2>角色治理矩阵</h2>
-          <p>系统角色用于平台基础权限，自定义角色用于组织内的细分授权。</p>
-        </div>
-        <el-tag effect="plain" type="info">
-          {{ filteredRoles.length }} 个角色
-        </el-tag>
-      </div>
-
-      <OrinAsyncState
-        :status="loading ? 'loading' : filteredRoles.length > 0 ? 'success' : 'empty'"
-        empty-text="暂无角色数据"
-        empty-action-label="创建角色"
-        @retry="loadRoles"
-        @empty-action="handleCreate"
-      >
-        <OrinDataTable compact>
-          <el-table
-            border
-            :data="filteredRoles"
-            style="width: 100%"
-            class="premium-table"
-            :header-cell-style="{ background: 'transparent', color: 'var(--el-text-color-secondary)' }"
+    <OrinAsyncState
+      :status="loading ? 'loading' : filteredRoles.length > 0 ? 'success' : 'empty'"
+      empty-text="暂无角色数据"
+      empty-action-label="创建角色"
+      @retry="loadRoles"
+      @empty-action="handleCreate"
+    >
+      <OrinDataTable compact>
+        <el-table
+          :data="filteredRoles"
+          style="width: 100%"
+          class="role-table"
+        >
+          <el-table-column
+            prop="roleCode"
+            label="角色代码"
+            width="150"
+            show-overflow-tooltip
           >
-            <el-table-column prop="roleCode" label="角色代码" width="150" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span :class="['role-code', row.roleCode === 'ROLE_ADMIN' ? 'admin' : '']">
-                  {{ row.roleCode }}
-                </span>
-              </template>
-            </el-table-column>
+            <template #default="{ row }">
+              <span :class="['role-code', row.roleCode === 'ROLE_ADMIN' ? 'admin' : '']">
+                {{ row.roleCode }}
+              </span>
+            </template>
+          </el-table-column>
 
-            <el-table-column prop="roleName" label="角色名称" min-width="130" show-overflow-tooltip />
+          <el-table-column
+            prop="roleName"
+            label="角色名称"
+            min-width="130"
+            show-overflow-tooltip
+          />
 
-            <el-table-column label="角色类型" width="112">
-              <template #default="{ row }">
-                <el-tag :type="isSystemRole(row.roleCode) ? 'success' : 'info'" effect="plain" size="small">
-                  {{ isSystemRole(row.roleCode) ? '系统角色' : '自定义角色' }}
-                </el-tag>
-              </template>
-            </el-table-column>
+          <el-table-column label="角色类型" width="112">
+            <template #default="{ row }">
+              <el-tag :type="isSystemRole(row.roleCode) ? 'success' : 'info'" effect="plain" size="small">
+                {{ isSystemRole(row.roleCode) ? '系统角色' : '自定义角色' }}
+              </el-tag>
+            </template>
+          </el-table-column>
 
-            <el-table-column label="权限范围" min-width="160" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="scope-text">{{ getRoleScope(row.roleCode) }}</span>
-              </template>
-            </el-table-column>
+          <el-table-column label="权限范围" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="scope-text">{{ getRoleScope(row.roleCode) }}</span>
+            </template>
+          </el-table-column>
 
-            <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="description-text">{{ row.description || '-' }}</span>
-              </template>
-            </el-table-column>
+          <el-table-column
+            prop="description"
+            label="描述"
+            min-width="220"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span class="description-text">{{ row.description || '-' }}</span>
+            </template>
+          </el-table-column>
 
-            <el-table-column prop="createTime" label="创建时间" width="110" align="center">
-              <template #default="{ row }">
-                <span class="time-text">{{ formatDate(row.createTime) }}</span>
-              </template>
-            </el-table-column>
+          <el-table-column prop="createTime" label="创建时间" width="150">
+            <template #default="{ row }">
+              <span class="time-text">{{ formatDate(row.createTime) }}</span>
+            </template>
+          </el-table-column>
 
-            <el-table-column label="保护状态" width="96" align="center">
-              <template #default="{ row }">
-                <span class="protection-pill" :class="{ locked: isSystemRole(row.roleCode) }">
-                  {{ isSystemRole(row.roleCode) ? '受保护' : '可维护' }}
-                </span>
-              </template>
-            </el-table-column>
+          <el-table-column label="保护状态" width="96" align="center">
+            <template #default="{ row }">
+              <span class="protection-pill" :class="{ locked: isSystemRole(row.roleCode) }">
+                {{ isSystemRole(row.roleCode) ? '受保护' : '可维护' }}
+              </span>
+            </template>
+          </el-table-column>
 
-            <el-table-column
-              label="操作"
-              width="88"
-              align="center"
-            >
-              <template #default="{ row }">
-                <div class="action-buttons">
-                  <el-tooltip content="编辑" placement="top" :show-after="500">
-                    <el-button link class="action-btn edit" @click="handleEdit(row)">
-                      <el-icon><Edit /></el-icon>
-                    </el-button>
-                  </el-tooltip>
+          <el-table-column
+            label="操作"
+            width="88"
+            align="center"
+          >
+            <template #default="{ row }">
+              <div class="action-buttons">
+                <el-tooltip content="编辑" placement="top" :show-after="500">
+                  <el-button link class="action-btn edit" @click="handleEdit(row)">
+                    <el-icon><Edit /></el-icon>
+                  </el-button>
+                </el-tooltip>
 
-                  <el-tooltip :content="isSystemRole(row.roleCode) ? '系统角色不可删除' : '删除'" placement="top" :show-after="500">
-                    <el-button
-                      link
-                      class="action-btn delete"
-                      :disabled="isSystemRole(row.roleCode)"
-                      @click="handleDelete(row)"
-                    >
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
-                  </el-tooltip>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-        </OrinDataTable>
-      </OrinAsyncState>
-
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50]"
-          :total="totalRoles"
-          :layout="paginationLayout"
-          background
-          small
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
-        />
-      </div>
-    </div>
+                <el-tooltip :content="isSystemRole(row.roleCode) ? '系统角色不可删除' : '删除'" placement="top" :show-after="500">
+                  <el-button
+                    link
+                    class="action-btn delete"
+                    :disabled="isSystemRole(row.roleCode)"
+                    @click="handleDelete(row)"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </el-tooltip>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+        <template #footer>
+          <div class="table-footer">
+            <span>共 {{ totalRoles || filteredRoles.length }} 个角色</span>
+            <el-pagination
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[10, 20, 50]"
+              :total="totalRoles"
+              :layout="paginationLayout"
+              background
+              size="small"
+              @size-change="handleSizeChange"
+              @current-change="handlePageChange"
+            />
+          </div>
+        </template>
+      </OrinDataTable>
+    </OrinAsyncState>
 
     <!-- 创建/编辑角色对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑角色' : '创建角色'"
-      width="480px"
+      width="min(480px, calc(100vw - 32px))"
       class="custom-dialog"
       align-center
     >
@@ -216,7 +222,6 @@ import { getRoleList, createRole, updateRole, deleteRole } from '@/api/role'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
-import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 
 // 数据状态
 const loading = ref(false)
@@ -226,6 +231,7 @@ const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalRoles = ref(0)
+let searchTimer = null
 
 // 对话框状态
 const dialogVisible = ref(false)
@@ -264,23 +270,14 @@ const filteredRoles = computed(() => {
 
 // 判断是否为系统预定义角色
 const isSystemRole = (roleCode) => {
-  return ['ROLE_ADMIN', 'ROLE_USER'].includes(roleCode)
+  return [
+    'ROLE_ADMIN',
+    'ROLE_USER',
+    'ROLE_OPERATOR',
+    'ROLE_PLATFORM_ADMIN',
+    'ROLE_SUPER_ADMIN'
+  ].includes(roleCode)
 }
-
-const roleStats = computed(() => {
-  const allRoles = roles.value || []
-  const total = totalRoles.value || allRoles.length
-  const system = allRoles.filter(role => isSystemRole(role.roleCode)).length
-  const custom = Math.max(total - system, 0)
-  return { total, system, custom }
-})
-
-const roleStatusItems = computed(() => [
-  { label: '角色总数', value: String(roleStats.value.total), meta: '当前权限体系中的全部角色' },
-  { label: '系统角色', value: String(roleStats.value.system), meta: '平台预置，删除操作受保护', intent: 'success' },
-  { label: '自定义角色', value: String(roleStats.value.custom), meta: '可按组织治理需求维护' },
-  { label: '筛选结果', value: String(filteredRoles.value.length), meta: '当前搜索命中的角色数量' }
-])
 
 const paginationLayout = computed(() => (
   totalRoles.value > pageSize.value
@@ -333,6 +330,8 @@ const loadRoles = async () => {
 // 搜索处理
 const handleSearch = () => {
   currentPage.value = 1
+  window.clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(loadRoles, 250)
 }
 
 // 分页处理
@@ -432,84 +431,64 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.clearTimeout(searchTimer)
   window.removeEventListener('page-refresh', loadRoles)
 })
 </script>
 
 <style scoped>
 .role-management {
-  padding: 32px;
-  max-width: none;
-  width: 100%;
   min-width: 0;
-  box-sizing: border-box;
-  margin: 0 auto;
-  background: var(--bg-color, #f8fafc);
-  min-height: 100vh;
-}
-
-.governance-summary {
-  margin-bottom: 14px;
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeIn 0.35s ease-out;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.premium-card {
-  min-width: 0;
-  box-sizing: border-box;
-  background: var(--card-bg, var(--el-bg-color));
-  border-radius: 12px;
-  border: 1px solid var(--border-color, var(--el-border-color-light));
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  padding: 24px;
-  transition: all 0.3s ease;
-}
-
-.governance-card {
-  display: grid;
-  gap: 18px;
-  overflow: hidden;
-}
-
-.card-heading {
+.role-toolbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  gap: 18px;
 }
 
-.card-eyebrow {
-  display: inline-block;
-  margin-bottom: 4px;
-  color: var(--orin-primary, #0f766e);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.role-toolbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.card-heading h2 {
+.role-toolbar-heading h2 {
   margin: 0;
-  color: var(--el-text-color-primary);
-  font-size: 18px;
-  line-height: 1.2;
+  color: var(--neutral-gray-900);
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: var(--font-semibold);
 }
 
-.card-heading p {
-  margin: 6px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
+.role-toolbar-heading span {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--neutral-gray-100);
+  color: var(--neutral-gray-500);
+  font-size: 12px;
 }
 
-.premium-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+.role-toolbar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 12px;
 }
 
 .create-btn {
@@ -524,14 +503,8 @@ onUnmounted(() => {
   transform: scale(0.98);
 }
 
-.right-tools {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
 .search-input {
-  width: 260px;
+  width: min(360px, 36vw);
 }
 
 :deep(.search-input .el-input__wrapper) {
@@ -543,19 +516,21 @@ onUnmounted(() => {
   box-shadow: 0 0 0 1px var(--el-color-primary) inset;
 }
 
-.icon-btn {
-  border: 1px solid var(--border-color, var(--el-border-color-lighter));
-  background: var(--card-bg, transparent);
+.refresh-button {
+  color: var(--neutral-gray-600);
+  border-color: var(--orin-border-strong);
+  background: var(--orin-surface);
 }
 
-.icon-btn:hover {
-  background: var(--el-fill-color-light);
-  color: var(--el-color-primary);
-  border-color: var(--el-color-primary-light-5);
+.refresh-button:hover,
+.refresh-button:focus-visible {
+  color: var(--orin-primary);
+  border-color: rgba(var(--orin-primary-rgb), 0.42);
+  background: var(--orin-primary-soft);
 }
 
 /* Table Styles */
-.premium-table {
+.role-table {
   border-radius: 8px;
   overflow: hidden;
 }
@@ -572,7 +547,7 @@ onUnmounted(() => {
   transition: background-color 0.2s;
 }
 
-.premium-table :deep(.el-table__cell .cell) {
+.role-table :deep(.el-table__cell .cell) {
   min-width: 0;
 }
 
@@ -669,14 +644,15 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.pagination-wrapper {
-  margin-top: 18px;
+.table-footer {
   display: flex;
-  justify-content: flex-end;
-}
-
-.pagination-wrapper :deep(.el-pagination) {
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  gap: 16px;
+  color: var(--neutral-gray-500);
+  font-size: 13px;
 }
 
 /* Dialog Styles */
@@ -690,26 +666,6 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-}
-
-/* Dark Mode Overrides */
-html.dark .role-management {
-  background: var(--bg-color);
-}
-
-html.dark .premium-card {
-  background: var(--card-bg);
-  border-color: var(--border-color);
-}
-
-html.dark .search-input :deep(.el-input__wrapper) {
-  background: var(--neutral-gray-100);
-  box-shadow: 0 0 0 1px var(--border-color) inset;
-}
-
-html.dark .icon-btn {
-  background: var(--card-bg);
-  border-color: var(--border-color);
 }
 
 html.dark .role-code {
@@ -727,26 +683,42 @@ html.dark .time-text {
   color: var(--text-secondary);
 }
 
-html.dark .custom-dialog :deep(.el-dialog) {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+@media (max-width: 900px) {
+  .role-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .role-toolbar-controls {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .search-input {
+    width: min(420px, 100%);
+    flex: 1 1 280px;
+  }
 }
 
-html.dark .custom-dialog :deep(.el-dialog__header) {
-  border-bottom: 1px solid var(--border-color);
-}
+@media (max-width: 640px) {
+  .role-toolbar-controls,
+  .table-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
 
-html.dark .custom-dialog :deep(.el-dialog__title) {
-  color: var(--text-primary);
-}
+  .search-input {
+    width: 100%;
+    flex: none;
+  }
 
-html.dark .custom-form :deep(.el-form-item__label) {
-  color: var(--text-secondary);
-}
+  .refresh-button {
+    width: 100%;
+  }
 
-html.dark .el-pagination {
-  --el-pagination-bg-color: var(--card-bg);
-  --el-pagination-text-color: var(--text-secondary);
-  --el-pagination-hover-color: var(--orin-primary);
+  .table-footer :deep(.el-pagination) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
 }
 </style>

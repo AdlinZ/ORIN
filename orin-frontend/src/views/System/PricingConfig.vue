@@ -9,8 +9,12 @@
       <template #actions>
         <div class="header-actions">
           <el-radio-group v-model="activeTab" class="view-switch">
-            <el-radio-button label="cost-detail">成本明细</el-radio-button>
-            <el-radio-button label="pricing-config">定价策略配置</el-radio-button>
+            <el-radio-button label="cost-detail">
+              成本明细
+            </el-radio-button>
+            <el-radio-button label="pricing-config">
+              定价策略配置
+            </el-radio-button>
           </el-radio-group>
           <el-button :icon="RefreshRight" @click="handleRefreshData">
             刷新数据
@@ -111,155 +115,169 @@
         </el-card>
       </div>
 
-      <el-card shadow="never" class="tab-wrapper-card">
-        <div class="pane-subtitle">当前仅按供应商聚合</div>
+      <OrinDataTable compact class="tab-wrapper-card">
+        <template #header>
+          <div class="pane-subtitle">
+            当前仅按供应商聚合
+          </div>
+        </template>
         <OrinAsyncState
           :status="loading ? 'loading' : distributionData.length > 0 ? 'success' : 'empty'"
           empty-text="暂无成本分布数据"
           @retry="fetchCostData"
         >
-          <OrinDataTable compact>
-            <el-table
-              :data="distributionData"
-              border
-              stripe
-              style="width: 100%"
-            >
-              <el-table-column
-                type="index"
-                label="#"
-                width="60"
-                align="center"
-              />
-              <el-table-column
-                prop="name"
-                label="供应商"
-                min-width="220"
-                show-overflow-tooltip
-              />
-              <el-table-column label="成本" min-width="160" align="right">
-                <template #default="{ row }">
-                  {{ formatCurrency(row.value) }}
-                </template>
-              </el-table-column>
-              <el-table-column label="占比" min-width="120" align="right">
-                <template #default="{ row }">
-                  {{ formatPercent(row.share) }}
-                </template>
-              </el-table-column>
-            </el-table>
-          </OrinDataTable>
+          <el-table
+            :data="distributionData"
+            style="width: 100%"
+          >
+            <el-table-column
+              type="index"
+              label="#"
+              width="60"
+              align="center"
+            />
+            <el-table-column
+              prop="name"
+              label="供应商"
+              min-width="220"
+              show-overflow-tooltip
+            />
+            <el-table-column label="成本" min-width="160" align="right">
+              <template #default="{ row }">
+                {{ formatCurrency(row.value) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="占比" min-width="120" align="right">
+              <template #default="{ row }">
+                {{ formatPercent(row.share) }}
+              </template>
+            </el-table-column>
+          </el-table>
         </OrinAsyncState>
-      </el-card>
+      </OrinDataTable>
     </template>
 
-    <el-card v-else shadow="never" class="tab-wrapper-card">
-          <div class="filter-bar">
-            <el-input
-              v-model="filterKeyword"
-              placeholder="搜索模型 ID..."
-              clearable
-              style="width: 220px"
-              :prefix-icon="Search"
-            />
-            <el-select
-              v-model="filterGroup"
-              placeholder="租户分组"
-              clearable
-              style="width: 150px"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="Default" value="default" />
-              <el-option label="VIP" value="VIP" />
-              <el-option label="Internal" value="internal" />
-            </el-select>
-            <el-radio-group v-model="tokenUnit" size="small" class="token-unit-switch">
-              <el-radio-button label="1k">Token / 1k</el-radio-button>
-              <el-radio-button label="1m">Token / 1m</el-radio-button>
-            </el-radio-group>
-            <el-button :loading="importingPricing" :icon="Download" @click="handleQuickImportPricing">
-              一键导入模型
-            </el-button>
-            <el-button type="primary" :icon="Plus" @click="handleAdd">
-              新增规则
-            </el-button>
-          </div>
-
-          <OrinAsyncState
-            :status="pricingLoading ? 'loading' : filteredData.length > 0 ? 'success' : 'empty'"
-            empty-text="暂无定价规则"
-            empty-action-label="新增规则"
-            @retry="fetchPricingData"
-            @empty-action="handleAdd"
+    <OrinDataTable v-else compact class="tab-wrapper-card">
+      <template #header>
+        <div class="filter-bar">
+          <el-input
+            v-model="filterKeyword"
+            placeholder="搜索模型 ID..."
+            clearable
+            style="width: 220px"
+            :prefix-icon="Search"
+          />
+          <el-select
+            v-model="filterGroup"
+            placeholder="租户分组"
+            clearable
+            style="width: 150px"
           >
-            <OrinDataTable compact>
-              <el-table
-                border
-                :data="filteredData"
-                style="width: 100%"
-              >
-                <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
+            <el-option label="全部" value="" />
+            <el-option label="Default" value="default" />
+            <el-option label="VIP" value="VIP" />
+            <el-option label="Internal" value="internal" />
+          </el-select>
+          <el-radio-group v-model="tokenUnit" size="small" class="token-unit-switch">
+            <el-radio-button label="1k">
+              Token / 1k
+            </el-radio-button>
+            <el-radio-button label="1m">
+              Token / 1m
+            </el-radio-button>
+          </el-radio-group>
+          <el-button :loading="importingPricing" :icon="Download" @click="handleQuickImportPricing">
+            一键导入模型
+          </el-button>
+          <el-button type="primary" :icon="Plus" @click="handleAdd">
+            新增规则
+          </el-button>
+        </div>
+      </template>
 
-            <el-table-column prop="tenantGroup" label="租户分组" width="120">
+      <OrinAsyncState
+        :status="pricingLoading ? 'loading' : filteredData.length > 0 ? 'success' : 'empty'"
+        empty-text="暂无定价规则"
+        empty-action-label="新增规则"
+        @retry="fetchPricingData"
+        @empty-action="handleAdd"
+      >
+        <el-table
+          :data="filteredData"
+          style="width: 100%"
+        >
+          <el-table-column prop="providerId" label="模型/供应商ID" min-width="150" />
+
+          <el-table-column prop="tenantGroup" label="租户分组" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.tenantGroup === 'default' ? 'info' : 'success'">
+                {{ row.tenantGroup }}
+              </el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="billingMode" label="计费模式" width="120">
+            <template #default="{ row }">
+              <el-tag effect="plain">
+                {{ billingModeLabel(row.billingMode) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="内部成本 (Cost)" align="center">
+            <el-table-column prop="inputCostUnit" :label="`Input / ${tokenUnit}`" width="130">
               <template #default="{ row }">
-                <el-tag :type="row.tenantGroup === 'default' ? 'info' : 'success'">
-                  {{ row.tenantGroup }}
-                </el-tag>
+                {{ formatPriceForUnit(row.inputCostUnit, row.currency, row.billingMode) }}
               </template>
             </el-table-column>
-
-            <el-table-column prop="billingMode" label="计费模式" width="120">
+            <el-table-column prop="outputCostUnit" :label="`Output / ${tokenUnit}`" width="130">
               <template #default="{ row }">
-                <el-tag effect="plain">{{ billingModeLabel(row.billingMode) }}</el-tag>
+                {{ formatPriceForUnit(row.outputCostUnit, row.currency, row.billingMode) }}
               </template>
             </el-table-column>
+          </el-table-column>
 
-            <el-table-column label="内部成本 (Cost)" align="center">
-              <el-table-column prop="inputCostUnit" :label="`Input / ${tokenUnit}`" width="130">
-                <template #default="{ row }">
-                  {{ formatPriceForUnit(row.inputCostUnit, row.currency, row.billingMode) }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="outputCostUnit" :label="`Output / ${tokenUnit}`" width="130">
-                <template #default="{ row }">
-                  {{ formatPriceForUnit(row.outputCostUnit, row.currency, row.billingMode) }}
-                </template>
-              </el-table-column>
-            </el-table-column>
-
-            <el-table-column label="外部报价 (Price)" align="center">
-              <el-table-column prop="inputPriceUnit" :label="`Input / ${tokenUnit}`" width="130">
-                <template #default="{ row }">
-                  <span class="price-highlight">{{ formatPriceForUnit(row.inputPriceUnit, row.currency, row.billingMode) }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="outputPriceUnit" :label="`Output / ${tokenUnit}`" width="130">
-                <template #default="{ row }">
-                  <span class="price-highlight">{{ formatPriceForUnit(row.outputPriceUnit, row.currency, row.billingMode) }}</span>
-                </template>
-              </el-table-column>
-            </el-table-column>
-
-            <el-table-column prop="currency" label="货币" width="80" align="center" />
-
-            <el-table-column label="利润率 (Est)" width="110" align="center">
+          <el-table-column label="外部报价 (Price)" align="center">
+            <el-table-column prop="inputPriceUnit" :label="`Input / ${tokenUnit}`" width="130">
               <template #default="{ row }">
-                <span :class="calculateMargin(row) > 0 ? 'text-success' : 'text-danger'">
-                  {{ calculateMargin(row) }}%
-                </span>
+                <span class="price-highlight">{{ formatPriceForUnit(row.inputPriceUnit, row.currency, row.billingMode) }}</span>
               </template>
             </el-table-column>
+            <el-table-column prop="outputPriceUnit" :label="`Output / ${tokenUnit}`" width="130">
+              <template #default="{ row }">
+                <span class="price-highlight">{{ formatPriceForUnit(row.outputPriceUnit, row.currency, row.billingMode) }}</span>
+              </template>
+            </el-table-column>
+          </el-table-column>
 
-                <el-table-column label="操作" width="130" fixed="right">
-                  <template #default="{ row }">
-                    <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-                    <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </OrinDataTable>
-          </OrinAsyncState>
-    </el-card>
+          <el-table-column
+            prop="currency"
+            label="货币"
+            width="80"
+            align="center"
+          />
+
+          <el-table-column label="利润率 (Est)" width="110" align="center">
+            <template #default="{ row }">
+              <span :class="calculateMargin(row) > 0 ? 'text-success' : 'text-danger'">
+                {{ calculateMargin(row) }}%
+              </span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="130" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="handleEdit(row)">
+                编辑
+              </el-button>
+              <el-button link type="danger" @click="handleDelete(row)">
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </OrinAsyncState>
+    </OrinDataTable>
 
     <!-- 编辑/新增 Dialog -->
     <PricingEditDialog
@@ -272,7 +290,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { Money, Monitor, RefreshRight, Plus, Search, Download } from '@element-plus/icons-vue';
+import { Monitor, RefreshRight, Plus, Search, Download } from '@element-plus/icons-vue';
 import echarts from '@/utils/echarts';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';

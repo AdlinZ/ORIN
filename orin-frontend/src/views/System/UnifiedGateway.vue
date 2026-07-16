@@ -130,7 +130,12 @@
                 <div class="model-list-section">
                   <div class="section-subhead">
                     <span>可用模型</span>
-                    <span v-if="modelsState.status === 'success'" class="model-count">{{ models.length }} 个</span>
+                    <div v-if="modelsState.status === 'success'" class="model-list-actions">
+                      <span class="model-count">{{ models.length }} 个</span>
+                      <el-button text size="small" @click="router.push(ROUTES.ADMIN_PATHS.MODELS)">
+                        查看全部
+                      </el-button>
+                    </div>
                   </div>
                   <OrinAsyncState
                     :status="modelsState.status"
@@ -139,7 +144,7 @@
                   >
                     <div class="model-tags">
                       <el-tag
-                        v-for="m in models"
+                        v-for="m in previewModels"
                         :key="m.id || m.name"
                         size="small"
                         effect="plain"
@@ -148,6 +153,9 @@
                         {{ m.name || m.model || m.id }}
                       </el-tag>
                     </div>
+                    <p v-if="hiddenModelCount > 0" class="model-preview-note">
+                      仅展示前 {{ MODEL_PREVIEW_LIMIT }} 个模型，另有 {{ hiddenModelCount }} 个模型请在模型管理中查看。
+                    </p>
                   </OrinAsyncState>
                 </div>
               </el-card>
@@ -516,6 +524,7 @@ import { getAllApiKeys } from '@/api/apiKey'
 import { getGatewayAuditLogs } from '@/api/audit'
 import { getModelList } from '@/api/model'
 import { getAllProviders } from '@/api/system'
+import { ROUTES } from '@/router/routes'
 import { createAsyncState, markLoading, markSuccess, markEmpty, markError } from '@/viewmodels'
 import dayjs from 'dayjs'
 
@@ -590,6 +599,9 @@ const overviewStats = ref({ totalCalls: 0, failedCalls: 0, avgLatency: null })
 
 const modelsState = reactive(createAsyncState())
 const models = ref([])
+const MODEL_PREVIEW_LIMIT = 8
+const previewModels = computed(() => models.value.slice(0, MODEL_PREVIEW_LIMIT))
+const hiddenModelCount = computed(() => Math.max(models.value.length - MODEL_PREVIEW_LIMIT, 0))
 
 const recentCallsState = reactive(createAsyncState())
 const recentCalls = ref([])
@@ -2225,6 +2237,12 @@ html.dark .section-subhead {
   font-weight: 500;
 }
 
+.model-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 html.dark .model-count {
   color: #94a3b8;
 }
@@ -2238,6 +2256,13 @@ html.dark .model-count {
 .model-tag {
   font-family: 'Fira Code', Monaco, Consolas, monospace;
   font-size: 11px;
+}
+
+.model-preview-note {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* ---- Trace ID cell ---- */

@@ -681,6 +681,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { ROUTES } from '@/router/routes';
 import {
   Link, Key, Cpu, Platform, Opportunity, Star, Sunrise, Connection, Monitor, Moon, Edit, Refresh, Plus, Check
 } from '@element-plus/icons-vue';
@@ -842,7 +843,7 @@ onMounted(async () => {
 });
 
 const goBack = () => {
-  router.push('/dashboard/applications/models');
+  router.push(ROUTES.ADMIN_PATHS.MODELS);
 };
 
 // Provider类型改变

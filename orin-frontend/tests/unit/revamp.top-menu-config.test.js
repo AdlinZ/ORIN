@@ -28,7 +28,7 @@ describe('top menu IA behavior', () => {
     expect(ROUTES.PORTAL_API_KEYS).toBe('/platform/api-keys')
     expect(userMenus.map((menu) => menu.id)).toEqual(['chat'])
     expect(adminMenus.find((menu) => menu.id === 'control').children).toContainEqual(expect.objectContaining({
-      title: '统一网关',
+      title: '总览',
       path: ROUTES.ADMIN_PATHS.GATEWAY,
     }))
   })
@@ -62,7 +62,7 @@ describe('top menu IA behavior', () => {
     ])
 
     const controlMenu = adminMenus.find((menu) => menu.id === 'control')
-    expect(controlMenu.children.map((child) => child.title)).toContain('统一网关')
+    expect(controlMenu.children.map((child) => child.title)).toContain('总览')
     expect(controlMenu.children.map((child) => child.title)).toContain('环境配置')
   })
 
@@ -112,7 +112,7 @@ describe('top menu IA behavior', () => {
     }))
   })
 
-  it('exposes extension tabs as navigation entries while keeping platform MCP configuration', () => {
+  it('exposes extension tabs as navigation entries without duplicating MCP configuration in admin navigation', () => {
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.ADMIN)
     const workspaceMenus = getVisibleMenus(['ROLE_ADMIN'], PRODUCT_SURFACES.WORKSPACE)
     const applicationMenu = workspaceMenus.find((menu) => menu.id === 'applications')
@@ -136,11 +136,7 @@ describe('top menu IA behavior', () => {
       path: `${ROUTES.WORKSPACE_PATHS.EXTENSIONS}?tab=bindings`,
       icon: 'Setting',
     }))
-    expect(controlMenu.children).toContainEqual(expect.objectContaining({
-      title: 'MCP 服务',
-      path: ROUTES.ADMIN_PATHS.MCP,
-      icon: 'Connection',
-    }))
+    expect(controlMenu.children.map((child) => child.title)).not.toContain('MCP 服务')
   })
 
   it('exposes a dedicated chat entry for ROLE_USER with /chat as the only child', () => {

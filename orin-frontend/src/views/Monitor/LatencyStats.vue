@@ -134,102 +134,103 @@
       </el-card>
     </section>
 
-    <el-card shadow="never" class="latency-panel history-card">
-      <div class="panel-heading history-heading">
-        <div>
-          <span class="section-kicker">Trace Samples</span>
-          <h3>慢请求追踪</h3>
+    <OrinDataTable compact class="latency-panel history-table">
+      <template #header>
+        <div class="panel-heading history-heading">
+          <div>
+            <span class="section-kicker">Trace Samples</span>
+            <h3>慢请求追踪</h3>
+          </div>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            size="small"
+            @change="handleDateRangeChange"
+          />
         </div>
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          size="small"
-          @change="handleDateRangeChange"
-        />
-      </div>
-
+      </template>
       <OrinAsyncState
         :status="historyLoading ? 'loading' : (historyData.length ? 'success' : 'empty')"
         empty-text="暂无慢请求样本"
       >
-      <OrinDataTable compact>
-      <el-table
-        v-loading="historyLoading"
-        border
-        :data="historyData"
-        stripe
-        style="width: 100%"
-        empty-text="暂无慢请求样本"
-      >
-        <el-table-column prop="createdAt" label="时间" min-width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="providerId"
-          label="Agent ID/Name"
-          min-width="220"
-          show-overflow-tooltip
+        <el-table
+          v-loading="historyLoading"
+          :data="historyData"
+          style="width: 100%"
+          empty-text="暂无慢请求样本"
         >
-          <template #default="{ row }">
-            {{ row.providerId || row.agentName || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="responseTime"
-          label="响应耗时"
-          min-width="150"
-          align="right"
-        >
-          <template #default="{ row }">
-            <span :class="getLatencyClass(row.responseTime)">{{ formatNumber(row.responseTime) }} ms</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="totalTokens"
-          label="Total Tokens"
-          min-width="150"
-          align="right"
-        >
-          <template #default="{ row }">
-            {{ formatNumber(row.totalTokens) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="success"
-          label="状态"
-          width="120"
-          align="center"
-        >
-          <template #default="{ row }">
-            <el-tag v-if="row.success" type="success" size="small">
-              成功
-            </el-tag>
-            <el-tag v-else type="danger" size="small">
-              失败
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-      </OrinDataTable>
+          <el-table-column prop="createdAt" label="时间" min-width="180">
+            <template #default="{ row }">
+              {{ formatDateTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="providerId"
+            label="Agent ID/Name"
+            min-width="220"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.providerId || row.agentName || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="responseTime"
+            label="响应耗时"
+            min-width="150"
+            align="right"
+          >
+            <template #default="{ row }">
+              <span :class="getLatencyClass(row.responseTime)">{{ formatNumber(row.responseTime) }} ms</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="totalTokens"
+            label="Total Tokens"
+            min-width="150"
+            align="right"
+          >
+            <template #default="{ row }">
+              {{ formatNumber(row.totalTokens) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="success"
+            label="状态"
+            width="120"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-tag v-if="row.success" type="success" size="small">
+                成功
+              </el-tag>
+              <el-tag v-else type="danger" size="small">
+                失败
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
       </OrinAsyncState>
-
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next"
-          :total="total"
-          @size-change="fetchHistoryData"
-          @current-change="fetchHistoryData"
-        />
-      </div>
-    </el-card>
+      <template #footer>
+        <div class="pagination-container">
+          <span>共 {{ total }} 条样本</span>
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :layout="total > pageSize ? 'total, ->, sizes, prev, pager, next' : 'total, ->, sizes'"
+            :total="total"
+            background
+            size="small"
+            @size-change="fetchHistoryData"
+            @current-change="fetchHistoryData"
+          />
+        </div>
+      </template>
+    </OrinDataTable>
   </div>
 </template>
 
@@ -837,7 +838,8 @@ onUnmounted(() => {
   box-shadow: var(--monitor-shadow) !important;
 }
 
-.latency-panel :deep(.el-card__body) {
+.trend-panel :deep(.el-card__body),
+.diagnosis-panel :deep(.el-card__body) {
   padding: 16px;
 }
 
@@ -961,22 +963,28 @@ onUnmounted(() => {
   color: var(--monitor-text-main);
 }
 
-.history-card :deep(.el-table) {
+.history-table :deep(.el-table) {
   --el-table-header-bg-color: #f8fafc;
   --el-table-border-color: #e2e8f0;
   --el-table-row-hover-bg-color: rgba(15, 118, 110, 0.05);
   --el-table-text-color: var(--monitor-text-main);
 }
 
-.history-card :deep(.el-table__header th) {
+.history-table :deep(.el-table__header th) {
   color: var(--monitor-text-sub);
   font-weight: 700;
 }
 
 .pagination-container {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 16px;
+}
+
+.history-heading {
+  margin-bottom: 0;
 }
 
 .text-danger {

@@ -13,104 +13,103 @@
       </template>
     </OrinPageShell>
 
-    <el-row :gutter="20">
-      <!-- 左侧操作面板 -->
-      <el-col :span="8">
-        <el-card class="operations-card">
-          <template #header>
-            <span>运维操作</span>
-          </template>
-
-          <div class="operation-list">
-            <!-- 备份与恢复 -->
-            <div class="operation-item" @click="openBackupDialog">
-              <div class="operation-icon backup">
-                <el-icon size="24">
-                  <Folder />
-                </el-icon>
-              </div>
-              <div class="operation-info">
-                <h4>数据备份</h4>
-                <p>备份数据库和配置文件</p>
-              </div>
+    <div class="maintenance-grid">
+      <section class="maintenance-panel operations-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="panel-kicker">Operations</span>
+            <h2>运维操作</h2>
+          </div>
+          <span>高风险动作均需二次确认</span>
+        </div>
+        <div class="operation-list">
+          <!-- 备份与恢复 -->
+          <div class="operation-item" @click="openBackupDialog">
+            <div class="operation-icon backup">
+              <el-icon size="24">
+                <Folder />
+              </el-icon>
             </div>
-
-            <div class="operation-item" @click="openRestoreDialog">
-              <div class="operation-icon restore">
-                <el-icon size="24">
-                  <Upload />
-                </el-icon>
-              </div>
-              <div class="operation-info">
-                <h4>数据恢复</h4>
-                <p>从备份文件恢复数据</p>
-              </div>
-            </div>
-
-            <div class="operation-item" @click="openUpgradeDialog">
-              <div class="operation-icon upgrade">
-                <el-icon size="24">
-                  <UploadFilled />
-                </el-icon>
-              </div>
-              <div class="operation-info">
-                <h4>系统升级</h4>
-                <p>检查并安装系统更新</p>
-              </div>
-            </div>
-
-            <div class="operation-item" @click="openLogArchiveDialog">
-              <div class="operation-icon log">
-                <el-icon size="24">
-                  <Document />
-                </el-icon>
-              </div>
-              <div class="operation-info">
-                <h4>日志归档</h4>
-                <p>归档或清理历史日志</p>
-              </div>
-            </div>
-
-            <div class="operation-item" @click="openCacheDialog">
-              <div class="operation-icon cache">
-                <el-icon size="24">
-                  <Delete />
-                </el-icon>
-              </div>
-              <div class="operation-info">
-                <h4>缓存清理</h4>
-                <p>清理系统缓存和临时文件</p>
-              </div>
-            </div>
-
-            <div class="operation-item" @click="openHealthCheck">
-              <div class="operation-icon health">
-                <el-icon size="24">
-                  <CircleCheck />
-                </el-icon>
-              </div>
-              <div class="operation-info">
-                <h4>健康检查</h4>
-                <p>检查系统服务状态</p>
-              </div>
+            <div class="operation-info">
+              <h4>数据备份</h4>
+              <p>备份数据库和配置文件</p>
             </div>
           </div>
-        </el-card>
-      </el-col>
 
-      <!-- 右侧状态面板 -->
-      <el-col :span="16">
-        <!-- 系统信息 -->
-        <el-card class="info-card">
-          <template #header>
-            <div class="card-header">
-              <span>系统信息</span>
-              <el-button size="small" @click="refreshSystemInfo">
-                <el-icon><Refresh /></el-icon>
-                刷新
-              </el-button>
+          <div class="operation-item" @click="openRestoreDialog">
+            <div class="operation-icon restore">
+              <el-icon size="24">
+                <Upload />
+              </el-icon>
             </div>
-          </template>
+            <div class="operation-info">
+              <h4>数据恢复</h4>
+              <p>从备份文件恢复数据</p>
+            </div>
+          </div>
+
+          <div class="operation-item" @click="openUpgradeDialog">
+            <div class="operation-icon upgrade">
+              <el-icon size="24">
+                <UploadFilled />
+              </el-icon>
+            </div>
+            <div class="operation-info">
+              <h4>系统升级</h4>
+              <p>检查并安装系统更新</p>
+            </div>
+          </div>
+
+          <div class="operation-item" @click="openLogArchiveDialog">
+            <div class="operation-icon log">
+              <el-icon size="24">
+                <Document />
+              </el-icon>
+            </div>
+            <div class="operation-info">
+              <h4>日志归档</h4>
+              <p>归档或清理历史日志</p>
+            </div>
+          </div>
+
+          <div class="operation-item" @click="openCacheDialog">
+            <div class="operation-icon cache">
+              <el-icon size="24">
+                <Delete />
+              </el-icon>
+            </div>
+            <div class="operation-info">
+              <h4>缓存清理</h4>
+              <p>清理系统缓存和临时文件</p>
+            </div>
+          </div>
+
+          <div class="operation-item" @click="openHealthCheck">
+            <div class="operation-icon health">
+              <el-icon size="24">
+                <CircleCheck />
+              </el-icon>
+            </div>
+            <div class="operation-info">
+              <h4>健康检查</h4>
+              <p>检查系统服务状态</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="maintenance-status-stack">
+        <section class="maintenance-panel info-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="panel-kicker">System status</span>
+              <h2>系统信息</h2>
+            </div>
+            <el-button size="small" @click="refreshSystemInfo">
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+          </div>
 
           <el-descriptions :column="2" border>
             <el-descriptions-item label="系统版本">
@@ -132,44 +131,43 @@
               <el-progress :percentage="systemInfo.memoryUsage" :color="getProgressColor(systemInfo.memoryUsage)" />
             </el-descriptions-item>
           </el-descriptions>
-        </el-card>
+        </section>
 
-        <!-- 运维日志 -->
-        <el-card class="log-card" style="margin-top: 20px;">
+        <OrinDataTable compact class="maintenance-log-table">
           <template #header>
-            <div class="card-header">
-              <span>最近运维操作</span>
+            <div class="panel-heading table-heading">
+              <div>
+                <span class="panel-kicker">Activity</span>
+                <h2>最近运维操作</h2>
+              </div>
             </div>
           </template>
-
           <OrinAsyncState
             :status="logsLoading ? 'loading' : maintenanceLogs.length > 0 ? 'success' : 'empty'"
             empty-text="暂无运维操作记录"
             @retry="loadMaintenanceLogs"
           >
-            <OrinDataTable compact>
-              <el-table :data="maintenanceLogs" max-height="300">
-                <el-table-column prop="operation" label="操作" width="120" />
-                <el-table-column prop="status" label="状态" width="80">
-                  <template #default="{ row }">
-                    <el-tag :type="row.status === 'success' ? 'success' : row.status === 'failed' ? 'danger' : 'warning'" size="small">
-                      {{ row.status === 'success' ? '成功' : row.status === 'failed' ? '失败' : '进行中' }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="operator" label="操作人" width="100" />
-                <el-table-column prop="timestamp" label="时间" width="180">
-                  <template #default="{ row }">
-                    {{ formatDate(row.timestamp) }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="message" label="详情" show-overflow-tooltip />
-              </el-table>
-            </OrinDataTable>
+            <el-table :data="maintenanceLogs" max-height="300">
+              <el-table-column prop="operation" label="操作" width="120" />
+              <el-table-column prop="status" label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === 'success' ? 'success' : row.status === 'failed' ? 'danger' : 'warning'" size="small">
+                    {{ row.status === 'success' ? '成功' : row.status === 'failed' ? '失败' : '进行中' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="operator" label="操作人" width="100" />
+              <el-table-column prop="timestamp" label="时间" width="180">
+                <template #default="{ row }">
+                  {{ formatDate(row.timestamp) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="message" label="详情" show-overflow-tooltip />
+            </el-table>
           </OrinAsyncState>
-        </el-card>
-      </el-col>
-    </el-row>
+        </OrinDataTable>
+      </div>
+    </div>
 
     <!-- 备份对话框 -->
     <el-dialog v-model="backupDialogVisible" title="数据备份" width="500px">
@@ -603,12 +601,65 @@ onMounted(() => {
 
 <style scoped>
 .system-maintenance-container {
-  padding: 20px;
+  min-width: 0;
 }
 
-.operations-card {
+.maintenance-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.maintenance-panel {
+  border: 1px solid var(--orin-border-strong, var(--el-border-color));
+  border-radius: var(--radius-base, 8px);
+  background: var(--orin-surface, var(--el-bg-color));
+}
+
+.operations-panel {
   position: sticky;
-  top: 20px;
+  top: 18px;
+  padding: 16px;
+}
+
+.maintenance-status-stack {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
+.info-panel {
+  padding: 16px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.panel-heading h2 {
+  margin: 2px 0 0;
+  color: var(--neutral-gray-900, var(--el-text-color-primary));
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.panel-heading > span {
+  color: var(--neutral-gray-500, var(--el-text-color-secondary));
+  font-size: 12px;
+  text-align: right;
+}
+
+.panel-kicker {
+  color: var(--orin-primary, var(--el-color-primary));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .operation-list {
@@ -622,15 +673,16 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--orin-border, var(--el-border-color-light));
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
-.operation-item:hover {
-  background-color: var(--neutral-gray-100);
-  border-color: var(--orin-primary);
+.operation-item:hover,
+.operation-item:focus-visible {
+  background-color: var(--orin-primary-soft, var(--el-color-primary-light-9));
+  border-color: var(--orin-primary, var(--el-color-primary));
 }
 
 .operation-icon {
@@ -661,9 +713,27 @@ onMounted(() => {
   color: var(--neutral-gray-400);
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.table-heading {
+  margin-bottom: 0;
+}
+
+@media (max-width: 960px) {
+  .maintenance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .info-panel :deep(.el-descriptions__body) {
+    overflow-x: auto;
+  }
+
+  .panel-heading > span {
+    display: none;
+  }
 }
 </style>

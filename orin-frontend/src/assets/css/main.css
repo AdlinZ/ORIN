@@ -634,13 +634,13 @@ code {
   color: var(--error-color) !important;
 }
 
-.el-button--primary {
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain) {
   background: var(--primary-600) !important;
   border: 1px solid var(--primary-600) !important;
   box-shadow: none;
 }
 
-.el-button--primary:hover {
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):hover {
   transform: none;
   background: var(--primary-700) !important;
   border-color: var(--primary-700) !important;

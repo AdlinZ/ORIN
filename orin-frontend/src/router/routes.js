@@ -13,7 +13,7 @@
  *    - 平台总览：运行摘要、资源统计、异常概览
  *    - 组织权限：用户管理、部门管理、角色管理
  *    - AI 基础设施：模型管理、Provider 配置、定价配置、环境配置
- *    - 开放平台：API Key、统一网关、MCP 服务
+ *    - 统一网关：总览、统一入口、API Keys、流量策略
  *    - 运行运维：服务器监控、任务队列、调用链路、用量统计、性能分析、告警与日志
  *    - 系统治理：通知设置、数据资产、审计日志、系统维护
  * 3. ORIN Chat（/chat）
@@ -41,9 +41,11 @@ const agentRoutes = {
     WORKFLOW_EDIT: '/workspace/workflows/edit/:id',
     WORKFLOW_VISUAL: '/workspace/workflows/visual',
     WORKFLOW_VISUAL_EDIT: '/workspace/workflows/visual/:id',
-    MODELS: '/workspace/models',
-    MODEL_ADD: '/workspace/models/add',
-    MODEL_EDIT: '/workspace/models/edit/:id',
+    // 模型与供应商凭据是平台级基础设施，不属于创作者工作台。
+    // 保留该兼容常量只供历史链接收敛，canonical 路径在 ADMIN_PATHS 下。
+    MODELS: '/admin/models',
+    MODEL_ADD: '/admin/models/add',
+    MODEL_EDIT: '/admin/models/edit/:id',
     COLLABORATION_DASHBOARD: '/workspace/collaboration/dashboard',
     COLLABORATION: '/workspace/collaboration',
     PLAYGROUND: '/workspace/playground',
@@ -119,7 +121,7 @@ const systemRoutes = {
     SYNC: '/admin/data-assets?assetTab=sync&tab=changes',
     SETTINGS_MCP_SERVICE: '/admin/mcp-service',
     AUDIT_LOGS: '/admin/audit-logs',
-    MODELS: '/workspace/models',
+    MODELS: '/admin/models',
     PRICING: '/admin/pricing',
     MONITOR_SETTINGS: '/admin/system-env',
     GATEWAY: '/admin/gateway',
@@ -255,10 +257,10 @@ const LEGACY_ROUTE_REDIRECTS_RAW = {
     '/dashboard/mcp': ROUTES.MCP.SERVERS,
     '/dashboard/mcp/servers': ROUTES.MCP.SERVERS,
     '/dashboard/control/revamp-rollout': ROUTES.SYSTEM.ROOT,
-    '/dashboard/applications/models': ROUTES.AGENTS.MODELS,
+    '/dashboard/applications/models': ROUTES.ADMIN_PATHS.MODELS,
     '/dashboard/applications/models/config': ROUTES.SYSTEM.SETTINGS_MONITOR,
-    '/dashboard/applications/models/add': ROUTES.AGENTS.MODEL_ADD,
-    '/dashboard/applications/models/edit/:id': ROUTES.AGENTS.MODEL_EDIT,
+    '/dashboard/applications/models/add': `${ROUTES.ADMIN_PATHS.MODELS}/add`,
+    '/dashboard/applications/models/edit/:id': `${ROUTES.ADMIN_PATHS.MODELS}/edit/:id`,
 
     // 技能模块（旧路径）
     '/dashboard/skill/management': ROUTES.AGENTS.SKILLS,
