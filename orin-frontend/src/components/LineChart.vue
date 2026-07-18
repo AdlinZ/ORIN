@@ -7,6 +7,7 @@
 <script setup>
 import { ref, onMounted, watch, onBeforeUnmount, nextTick, computed } from 'vue';
 import echarts from '@/utils/echarts';
+import { resolveChartColor } from '@/utils/chartColor';
 import { useDark } from '@vueuse/core';
 
 const isDark = useDark();
@@ -35,18 +36,7 @@ const isMultiSeries = computed(() => {
 
 // 解析实际颜色 (处理 CSS 变量)
 const actualColor = computed(() => {
-  if (props.color && props.color.startsWith('var(') && props.resolveColor) {
-    try {
-      const varName = props.color.match(/var\((--[^)]+)\)/)?.[1];
-      if (varName) {
-        const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-        if (val) return val;
-      }
-    } catch (e) {
-      console.warn('Failed to resolve color variable:', props.color);
-    }
-  }
-  return props.color || '#0d9488';
+  return resolveChartColor(props.color, props.resolveColor);
 });
 
 const chartRef = ref(null);
