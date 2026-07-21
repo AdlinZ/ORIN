@@ -34,7 +34,9 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                 org.springframework.beans.factory.ObjectProvider<EnrollmentTokenAuthFilter> enrollmentTokenAuthFilterProvider,
+                                                 org.springframework.beans.factory.ObjectProvider<RunnerCredentialAuthFilter> runnerCredentialAuthFilterProvider) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -56,6 +58,10 @@ public class SecurityConfig {
                                 // 服务间内部路径：仅供 AI Engine 读取启用 MCP 配置（含明文 env）。
                                 // 不是面向用户的接口，前端一律走 /api/system/mcp 的 masked 视图。
                                 "/api/system/mcp/internal/**",
+                                // Runner 机器通道：F01 PR3 由 RunnerCredentialAuthFilter / EnrollmentTokenAuthFilter
+                                // 单独鉴权（与 JWT 业务通道严格分离）。Spring Security 此处先 permitAll，
+                                // 再由 filter 在 SecurityContext 写入 Runner/EnrollmentToken principal。
+                                "/api/system/runners/**",
                                 "/api/playground/**")
                         .permitAll()
                         // 统一网关端点 (/v1/**) - 需要API密钥认证
@@ -72,6 +78,19 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        // 机器通道鉴权 filter：使用 ObjectProvider 注入以便测试环境（无 RunnerFilterConfig）下不抛错。
+        // 真实生产环境 RunnerFilterConfig 必定提供这两个 filter bean。
+        EnrollmentTokenAuthFilter enrollmentTokenAuthFilter =
+                enrollmentTokenAuthFilterProvider.getIfAvailable();
+        RunnerCredentialAuthFilter runnerCredentialAuthFilter =
+                runnerCredentialAuthFilterProvider.getIfAvailable();
+        if (enrollmentTokenAuthFilter != null) {
+            http.addFilterBefore(enrollmentTokenAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+        if (runnerCredentialAuthFilter != null) {
+            http.addFilterBefore(runnerCredentialAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        }
 
         return http.build();
     }
