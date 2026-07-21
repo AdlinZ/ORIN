@@ -39,6 +39,12 @@ const agentRoutes = {
     PLAYGROUND_RUN: '/dashboard/applications/playground/run',
     VERSION_MANAGE: '/dashboard/applications/workflows/execution',
     TEST_DEBUG: '/dashboard/applications/workflows/execution',
+    // F02 创建并冻结 Agent (Workspace vNext 入口 — 默认入口)
+    WORKSPACE_LIST: '/workspace/agents',
+    WORKSPACE_DRAFT: '/workspace/agents/:agentId',
+    WORKSPACE_VERSIONS: '/workspace/agents/:agentId/versions',
+    WORKSPACE_VERSION_DETAIL: '/workspace/agents/:agentId/versions/:versionId',
+    WORKSPACE_VERSION_DEPRECATE: '/workspace/agents/:agentId/versions/:versionId/deprecate',
 }
 
 const knowledgeRoutes = {

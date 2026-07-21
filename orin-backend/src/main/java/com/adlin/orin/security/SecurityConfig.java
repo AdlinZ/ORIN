@@ -67,12 +67,14 @@ public class SecurityConfig {
                         // 统一网关端点 (/v1/**) - 需要API密钥认证
                         // 由 WebConfig 中的 ApiKeyAuthInterceptor 进行 API 密钥校验
                         .requestMatchers("/v1/**").permitAll()
-                        // Agent 管理端点
-                        .requestMatchers("/api/v1/agents/**").permitAll()
-                        .requestMatchers("/api/v1/model-config/**").permitAll()
-                        .requestMatchers("/api/v1/conversation-logs/**").permitAll()
-                        .requestMatchers("/api/v1/knowledge/diagnose/**").permitAll()
-                        // 管理端点（需要JWT认证）
+                        // Agent / Model / Conversation / Knowledge 业务管理端点（F02 R3：全部走 JWT，
+                        // 当前 actor 必须登录；AgentFreezeController.currentActor() 进一步在无 JWT
+                        // 时抛 401，避免 F01-era permitAll 留下的 anonymous 上下文）。
+                        .requestMatchers("/api/v1/agents/**").authenticated()
+                        .requestMatchers("/api/v1/model-config/**").authenticated()
+                        .requestMatchers("/api/v1/conversation-logs/**").authenticated()
+                        .requestMatchers("/api/v1/knowledge/diagnose/**").authenticated()
+                        // 其余 /api/v1/** 同样走 JWT
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e

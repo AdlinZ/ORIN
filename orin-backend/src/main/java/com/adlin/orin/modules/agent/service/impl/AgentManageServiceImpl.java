@@ -454,6 +454,12 @@ public class AgentManageServiceImpl implements AgentManageService {
 
         // 1. Update Metadata
         metadataRepository.findById(agentId).ifPresent(metadata -> {
+            // F02 R3: 若已有 FROZEN 版本，禁止原地修改草稿——必须 freeze 新版本再编辑
+            if (metadata.getActiveVersionId() != null) {
+                throw new com.adlin.orin.common.exception.BusinessException(
+                        com.adlin.orin.common.exception.ErrorCode.AGENT_VERSION_FROZEN,
+                        "Agent " + agentId + " 已冻结到 FROZEN 版本，必须走 /versions (freeze) 创建新版本后再编辑草稿");
+            }
             // 资源级 ACL 第 2 刀: 非 owner / 非 admin/operator 拒绝更新
             ownershipResolver.assertCanManage(metadata);
             if (request.getName() != null)

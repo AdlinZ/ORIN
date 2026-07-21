@@ -9,13 +9,20 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 智能体版本实体
- * 用于存储智能体配置的历史版本，支持版本回滚和对比
+ * 智能体版本实体（F02 R3）。
+ *
+ * <p>创建即 {@link Status#FROZEN}，不可变；唯一受控可变字段为 status（FROZEN→DEPRECATED）
+ * 与 deprecated_* 元数据。backed by ADR-002 v4.1 §D-2.1 / §D-2.2 / §D-2.3。
+ *
+ * <p>{@code is_active} 列保留向后兼容（被 {@code AgentMetadata.active_version_id} 替代），
+ * 新写入一律 {@code false}；前端不再依赖该列读取 active 状态。
  */
 @Entity
 @Table(name = "agent_versions", indexes = {
         @Index(name = "idx_agent_id", columnList = "agent_id"),
-        @Index(name = "idx_created_at", columnList = "created_at")
+        @Index(name = "idx_created_at", columnList = "created_at"),
+        @Index(name = "idx_agent_version_status", columnList = "status"),
+        @Index(name = "idx_agent_version_content_digest", columnList = "content_digest")
 }, uniqueConstraints = {
         @UniqueConstraint(name = "uk_agent_version", columnNames = { "agent_id", "version_number" })
 })
@@ -25,64 +32,84 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class AgentVersion {
 
+    /** AgentVersion lifecycle（ADR-002 §D-2.1：仅 FROZEN / DEPRECATED 两态）。 */
+    public enum Status {
+        FROZEN, DEPRECATED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    /**
-     * 关联的智能体 ID
-     */
     @Column(name = "agent_id", nullable = false, length = 50)
     private String agentId;
 
-    /**
-     * 版本号 (自动递增)
-     */
     @Column(name = "version_number", nullable = false)
     private Integer versionNumber;
 
-    /**
-     * 版本标签 (可选，如 "v1.0-stable")
-     */
     @Column(name = "version_tag", length = 50)
     private String versionTag;
 
-    /**
-     * 配置快照 (JSON 格式)
-     * 存储当前版本的完整配置
-     */
     @Column(name = "config_snapshot", columnDefinition = "JSON", nullable = false)
     private String configSnapshot;
 
-    /**
-     * 变更说明
-     */
     @Column(name = "change_description", columnDefinition = "TEXT")
     private String changeDescription;
 
-    /**
-     * 创建者
-     */
     @Column(name = "created_by", length = 100)
     private String createdBy;
 
-    /**
-     * 创建时间
-     */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     /**
-     * 是否为当前激活版本
+     * Deprecated since F02 R3. Use {@code AgentMetadata.active_version_id} instead.
+     * Kept for backward column compatibility only.
      */
+    @Deprecated
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = false;
+
+    // ===== F02 R3 ADR-002 字段 =====
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    @Builder.Default
+    private Status status = Status.FROZEN;
+
+    @Column(name = "content_digest", nullable = false, length = 64)
+    private String contentDigest;
+
+    @Column(name = "snapshot_schema_version", nullable = false)
+    @Builder.Default
+    private Short snapshotSchemaVersion = 1;
+
+    @Column(name = "frozen_at")
+    private LocalDateTime frozenAt;
+
+    @Column(name = "frozen_by", length = 120)
+    private String frozenBy;
+
+    @Column(name = "deprecation_reason", length = 255)
+    private String deprecationReason;
+
+    @Column(name = "deprecated_at")
+    private LocalDateTime deprecatedAt;
+
+    @Column(name = "deprecated_by", length = 120)
+    private String deprecatedBy;
 
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (frozenAt == null && status == Status.FROZEN) {
+            frozenAt = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = Status.FROZEN;
         }
     }
 }

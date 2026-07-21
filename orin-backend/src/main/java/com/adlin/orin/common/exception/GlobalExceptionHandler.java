@@ -271,9 +271,15 @@ public class GlobalExceptionHandler {
 
     /**
      * 根据 ErrorCode 确定 HTTP 状态码
+     * （包内可见以便 unit test 直接验证；不暴露为 public API。）
      */
-    private HttpStatus determineHttpStatus(ErrorCode errorCode) {
+    HttpStatus determineHttpStatus(ErrorCode errorCode) {
         String code = errorCode.getCode();
+        // 显式优先：F02 AgentVersion / SecretReference / Idempotency 错误码（30006..30016）
+        HttpStatus explicit = EXPLICIT_AGENT_VERSION_STATUS.get(code);
+        if (explicit != null) {
+            return explicit;
+        }
         if (code.startsWith("2")) {
             // 20002 RESOURCE_ALREADY_EXISTS → 409 Conflict
             // 20003 RESOURCE_CONFLICT       → 409 Conflict
@@ -296,6 +302,24 @@ public class GlobalExceptionHandler {
             return HttpStatus.BAD_REQUEST;
         return HttpStatus.INTERNAL_SERVER_ERROR;
     }
+
+    /**
+     * F02 AgentVersion / SecretReference / Idempotency 错误码 → HTTP 显式映射表。
+     * 保持 explicit 表 + 前缀兜底两层，避免被现有 3xxxx → 500 的回退路径吞掉。
+     */
+    private static final Map<String, HttpStatus> EXPLICIT_AGENT_VERSION_STATUS = Map.ofEntries(
+            Map.entry("30006", HttpStatus.CONFLICT),               // AGENT_VERSION_FROZEN
+            Map.entry("30007", HttpStatus.METHOD_NOT_ALLOWED),      // AGENT_VERSION_DELETE_FORBIDDEN
+            Map.entry("30008", HttpStatus.NOT_FOUND),               // AGENT_VERSION_NOT_FOUND
+            Map.entry("30009", HttpStatus.CONFLICT),               // RUN_VERSION_RETIRED
+            Map.entry("30010", HttpStatus.CONFLICT),               // IDEMPOTENCY_KEY_CONFLICT
+            Map.entry("30011", HttpStatus.UNPROCESSABLE_ENTITY),   // SNAPSHOT_SCHEMA_INCOMPATIBLE
+            Map.entry("30012", HttpStatus.INTERNAL_SERVER_ERROR),  // SNAPSHOT_CANONICALIZE_FAILED
+            Map.entry("30013", HttpStatus.NOT_FOUND),              // SECRET_REFERENCE_NOT_FOUND
+            Map.entry("30014", HttpStatus.UNPROCESSABLE_ENTITY),   // RUNNER_LOCAL_SECRET_MISSING
+            Map.entry("30015", HttpStatus.BAD_REQUEST),            // MISSING_IDEMPOTENCY_KEY
+            Map.entry("30016", HttpStatus.BAD_REQUEST)             // AGENT_DRAFT_INVALID
+    );
 
     /**
      * 判断是否为开发模式
