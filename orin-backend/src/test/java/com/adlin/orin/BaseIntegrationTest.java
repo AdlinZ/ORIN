@@ -56,7 +56,14 @@ public abstract class BaseIntegrationTest {
             // Pre-load V1..V87 baseline schema so Flyway only applies V88..V95
             // (combined with spring.flyway.baseline-on-migrate=true and
             // baseline-version=87 in application-integration-test.yml).
-            .withInitScript("db/orin-schema-V1-V87-baseline.sql");
+            .withInitScript("db/orin-schema-V1-V87-baseline.sql")
+            // The mysqldump snapshot has CREATE TABLE ordering that references
+            // tables not yet defined (e.g. gateway_routes → gateway_services).
+            // Testcontainers' ScriptUtils strips the /*!40014 ... */ version
+            // comments that originally disabled FOREIGN_KEY_CHECKS, so we set
+            // the session variable on the JDBC connection URL instead. This
+            // survives every Statement.execute() inside the init script.
+            .withUrlParam("sessionVariables", "FOREIGN_KEY_CHECKS=0,UNIQUE_CHECKS=0");
 
     @DynamicPropertySource
     static void configureDatasource(DynamicPropertyRegistry registry) {
