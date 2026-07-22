@@ -35,13 +35,12 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class RunnerServiceTest {
 
-    // Fixture identifiers intentionally low-entropy / non-secret-looking so the
-    // generic gitleaks rule does not flag them as API keys. The '+' chars in
-    // the value break gitleaks' `[a-z0-9\-_.=]{8,120}` capture group, so the
-    // "secret" substring never reaches 8+ continuous in-class chars. The
-    // values are not used as real credentials anywhere.
-    private static final String TOKEN_ID = "enroll+fixture+001";
-    private static final String PLAINTEXT_TOKEN = "enroll+fixture+payload+" + TOKEN_ID;
+    // Fixture identifiers — original etk_<32hex> format is required by
+    // RunnerService.parseTokenId which validates TOKEN_PREFIX/etk_/length.
+    // The format triggers Gitleaks' generic-api-key rule; the matching
+    // (commit:file:rule:line) fingerprint is whitelisted in .gitleaksignore.
+    private static final String TOKEN_ID = "etk_1234567890abcdef1234567890abcdef";
+    private static final String PLAINTEXT_TOKEN = "sk-enroll-" + TOKEN_ID + ".secret";
 
     @Mock
     private RunnerRepository runnerRepository;
