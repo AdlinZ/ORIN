@@ -892,27 +892,14 @@ CREATE TABLE `external_provider_keys` (
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `flyway_schema_history`
---
-
-DROP TABLE IF EXISTS `flyway_schema_history`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `flyway_schema_history` (
-  `installed_rank` int NOT NULL,
-  `version` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `description` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `script` varchar(1000) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `checksum` int DEFAULT NULL,
-  `installed_by` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `installed_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `execution_time` int NOT NULL,
-  `success` tinyint(1) NOT NULL,
-  PRIMARY KEY (`installed_rank`),
-  KEY `flyway_schema_history_s_idx` (`success`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Note: The original mysqldump also contains a `flyway_schema_history` table
+-- structure and a corresponding INSERT block of V1..V87 history rows.
+-- We intentionally do NOT replay those here — Flyway will create and manage
+-- `flyway_schema_history` itself, and we let it baseline at version 87
+-- (configured via spring.flyway.baseline-version=87 + baseline-on-migrate=true
+-- in application-integration-test.yml). Replaying the dump's history rows
+-- would also break Flyway checksum validation against the on-disk migration
+-- files.
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3045,43 +3032,12 @@ CREATE TABLE `zeroclaw_self_healing_logs` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-11 15:07:28
-
--- flyway_schema_history data only; no application table data is included.
--- MySQL dump 10.13  Distrib 8.4.6, for macos15 (arm64)
---
--- Host: localhost    Database: orindb
--- ------------------------------------------------------
--- Server version	8.4.6
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Dumping data for table `flyway_schema_history`
---
-
-LOCK TABLES `flyway_schema_history` WRITE;
-/*!40000 ALTER TABLE `flyway_schema_history` DISABLE KEYS */;
-INSERT INTO `flyway_schema_history` VALUES (1,'1','Initial schema','SQL','V1__Initial_schema.sql',NULL,'root','2026-01-23 01:47:37',76,1),(2,'2','Add system roles','SQL','V2__Add_system_roles.sql',NULL,'root','2026-01-23 02:20:00',17,1),(3,'3','Add default users','SQL','V3__Add_default_users.sql',NULL,'root','2026-01-23 02:20:10',5,1),(4,'4','Fix passwords','SQL','V4__Fix_passwords.sql',NULL,'root','2026-01-25 06:23:56',5,1),(5,'5','Semantic Asset Center','SQL','V5__Semantic_Asset_Center.sql',NULL,'root','2026-02-01 12:14:24',32,1),(6,'6','Resize TargetUrl LongText','SQL','V6__Resize_TargetUrl_LongText.sql',NULL,'root','2026-02-02 04:06:22',24,1),(7,'7','Fix Invalid Execution Times','SQL','V7__Fix_Invalid_Execution_Times.sql',NULL,'root','2026-02-02 05:15:50',10,1),(8,'8','Migrate Audit To Conversation','SQL','V8__Migrate_Audit_To_Conversation.sql',NULL,'root','2026-02-03 08:51:04',20,1),(9,'9','Add ZeroClaw Integration','SQL','V9__Add_ZeroClaw_Integration.sql',NULL,'root','2026-02-27 17:06:00',65,1),(10,'10','Add ZeroClaw AI Config','SQL','V10__Add_ZeroClaw_AI_Config.sql',NULL,'root','2026-03-10 18:13:17',11,1),(11,'11','Add Parent Child Chunking','SQL','V11__Add_Parent_Child_Chunking.sql',NULL,'root','2026-03-10 18:16:00',9,1),(12,'12','Add Description Model','SQL','V12__Add_Description_Model.sql',NULL,'root','2026-03-10 18:20:28',0,1),(13,'13','Add Desc Generation Model','SQL','V13__Add_Desc_Generation_Model.sql',NULL,'root','2026-03-10 18:20:28',0,1),(14,'14','Add Chunk Method And Size','SQL','V14__Add_Chunk_Method_And_Size.sql',NULL,'root','2026-03-10 18:20:28',0,1),(15,'15','Add User Bio Address','SQL','V15__Add_User_Bio_Address.sql',NULL,'root','2026-03-10 18:20:28',0,1),(16,'16','Add Embedding Provider And ApiKey','SQL','V16__Add_Embedding_Provider_And_ApiKey.sql',NULL,'root','2026-03-10 18:20:28',0,1),(17,'17','Multimodal Knowledge Base','SQL','V17__Multimodal_Knowledge_Base.sql',NULL,'root','2026-03-10 18:20:28',0,1),(18,'18','Add Knowledge Parsing Config','SQL','V18__Add_Knowledge_Parsing_Config.sql',NULL,'root','2026-03-10 18:20:28',0,1),(19,'19','Add Provider Config','SQL','V19__Add_Provider_Config.sql',NULL,'root','2026-03-10 18:22:42',18,1),(20,'20','Add Agent Metrics','SQL','V20__Add_Agent_Metrics.sql',NULL,'root','2026-03-11 06:43:04',11,1),(21,'21','Add Multimodal Fields','SQL','V21__Add_Multimodal_Fields.sql',NULL,'root','2026-03-11 06:50:33',51,1),(22,'22','Knowledge Sync Record','SQL','V22__Knowledge_Sync_Record.sql',NULL,'root','2026-03-11 06:50:33',4,1),(23,'23','Add RichText Enabled','SQL','V23__Add_RichText_Enabled.sql',NULL,'root','2026-03-11 13:16:16',36,1),(24,'24','Add KnowledgeBase Retrieval Config','SQL','V24__Add_KnowledgeBase_Retrieval_Config.sql',NULL,'root','2026-03-13 11:33:04',86,1),(25,'25','Add User Last Login Time','SQL','V25__Add_User_Last_Login_Time.sql',NULL,'root','2026-03-13 11:59:33',38,1),(26,'26','Fix User Role Field','SQL','V26__Fix_User_Role_Field.sql',NULL,'root','2026-03-13 12:06:51',6,1),(27,'27','Add Default User','SQL','V27__Add_Default_User.sql',NULL,'root','2026-03-13 12:18:49',8,1),(28,'28','Add User Last Login Time','SQL','V28__Add_User_Last_Login_Time.sql',NULL,'root','2026-03-13 14:43:04',0,1),(29,'29','Add Mail Config','SQL','V29__Add_Mail_Config.sql',NULL,'root','2026-03-13 17:02:13',20,1),(30,'30','Add MailerSend Config','SQL','V30__Add_MailerSend_Config.sql',NULL,'root','2026-03-13 18:14:38',30,1),(31,'31','Add Notification Config','SQL','V31__Add_Notification_Config.sql',NULL,'root','2026-03-13 18:14:38',16,1),(32,'32','Add Mail Send Log','SQL','V32__Add_Mail_Send_Log.sql',NULL,'root','2026-03-13 18:14:38',22,1),(33,'33','Add Mail Template','SQL','V33__Add_Mail_Template.sql',NULL,'root','2026-03-13 19:09:54',24,1),(34,'34','Add Task Queue Support','SQL','V34__Add_Task_Queue_Support.sql',NULL,'root','2026-03-18 09:05:41',46,1),(35,'35','Knowledge Sync Enhancement','SQL','V35__Knowledge_Sync_Enhancement.sql',NULL,'root','2026-03-18 19:28:30',240,1),(36,'40','Collaboration Task','SQL','V40__Collaboration_Task.sql',NULL,'root','2026-03-19 06:23:32',31,1),(37,'41','Task Queue','SQL','V41__Task_Queue.sql',NULL,'root','2026-03-19 16:18:09',50,1),(38,'42','System Message','SQL','V42__System_Message.sql',NULL,'root','2026-03-19 16:18:09',12,1),(39,'43','User Settings','SQL','V43__User_Settings.sql',NULL,'root','2026-03-19 16:18:09',8,1),(40,'44','Help Article','SQL','V44__Help_Article.sql',NULL,'root','2026-03-19 16:59:04',11,1),(41,'45','Add User Department','SQL','V45__Add_User_Department.sql',NULL,'root','2026-03-25 10:46:03',9,1),(42,'46','Create Department Table','SQL','V46__Create_Department_Table.sql',NULL,'root','2026-03-25 13:01:47',10,1),(43,'47','Add Role Department','SQL','V47__Add_Role_Department.sql',NULL,'root','2026-03-25 13:01:47',11,1),(44,'48','Update User Departments','SQL','V48__Update_User_Departments.sql',NULL,'root','2026-03-25 13:34:43',6,1),(45,'49','Create MCP Services Table','SQL','V49__Create_MCP_Services_Table.sql',NULL,'root','2026-03-25 17:53:43',21,1),(46,'50','Collab Package Schema','SQL','V50__Collab_Package_Schema.sql',NULL,'root','2026-03-25 17:53:43',24,1),(47,'51','Normalize Knowledge Type','SQL','V51__Normalize_Knowledge_Type.sql',NULL,'root','2026-03-27 08:54:07',63,1),(48,'52','Agent Chat Session','SQL','V52__Agent_Chat_Session.sql',NULL,'root','2026-03-28 14:54:37',9,1),(49,'53','agent chat session kb fields','SQL','V53__agent_chat_session_kb_fields.sql',NULL,'root','2026-03-28 19:08:33',29,1),(50,'54','Gateway Schema','SQL','V54__Gateway_Schema.sql',NULL,'root','2026-03-31 07:32:12',81,1),(51,'55','Add ApiKey Encrypted Secret','SQL','V55__Add_ApiKey_Encrypted_Secret.sql',NULL,'root','2026-04-06 07:01:31',84,1),(53,'57','Add integration audit log','SQL','V57__Add_integration_audit_log.sql',NULL,'root','2026-04-09 06:43:19',11,1),(54,'58','Add dify document mapping','SQL','V58__Add_dify_document_mapping.sql',NULL,'root','2026-04-09 06:43:19',14,1),(55,'59','Add idempotency key to sync change log','SQL','V59__Add_idempotency_key_to_sync_change_log.sql',NULL,'root','2026-04-09 06:43:19',14,1),(56,'60','Add task category to task info','SQL','V60__Add_task_category_to_task_info.sql',NULL,'root','2026-04-09 06:43:19',30,1),(57,'61','Fix server hardware metrics server columns','SQL','V61__Fix_server_hardware_metrics_server_columns.sql',NULL,'root','2026-04-09 07:45:55',168,1),(58,'62','Create Collab Session Tables','SQL','V62__Create_Collab_Session_Tables.sql',NULL,'root','2026-04-09 14:43:46',69,1),(59,'63','Add tool key and enabled to mcp services','SQL','V63__Add_tool_key_and_enabled_to_mcp_services.sql',NULL,'root','2026-04-13 10:55:43',29,1),(60,'64','Add Tool Calling Override To Agent Metadata','SQL','V64__Add_Tool_Calling_Override_To_Agent_Metadata.sql',NULL,'root','2026-04-18 13:49:32',37,1),(61,'65','Make sync change log agent id nullable','SQL','V65__Make_sync_change_log_agent_id_nullable.sql',NULL,'root','2026-04-19 17:39:17',44,1),(62,'66','Create Knowledge Graph Tables','SQL','V66__Create_Knowledge_Graph_Tables.sql',NULL,'root','2026-04-20 09:18:09',33,1),(63,'67','Backfill Knowledge Graphs','SQL','V67__Backfill_Knowledge_Graphs.sql',NULL,'root','2026-04-20 09:18:09',4,1),(64,'68','Add Error Message To Knowledge Graph','SQL','V68__Add_Error_Message_To_Knowledge_Graph.sql',NULL,'root','2026-04-20 14:11:38',35,1),(65,'69','Add Advanced System Roles','SQL','V69__Add_Advanced_System_Roles.sql',NULL,'root','2026-04-21 08:13:01',9,1),(66,'70','Grant Super Admin To Default Admin','SQL','V70__Grant_Super_Admin_To_Default_Admin.sql',NULL,'root','2026-04-21 10:04:13',7,1),(67,'71','Agent Tooling Refactor','SQL','V71__Agent_Tooling_Refactor.sql',NULL,'root','2026-04-21 11:45:38',56,1),(68,'72','Gateway Secret Center','SQL','V72__Gateway_Secret_Center.sql',NULL,'root','2026-04-22 11:07:02',45,1),(69,'73','Add Default Modern Mail Template','SQL','V73__Add_Default_Modern_Mail_Template.sql',NULL,'root','2026-04-22 11:21:35',6,1),(70,'74','Dual Object Storage','SQL','V74__Dual_Object_Storage.sql',NULL,'root','2026-04-22 17:22:54',114,1),(71,'75','Create Playground Workflows Table','SQL','V75__Create_Playground_Workflows_Table.sql',NULL,'root','2026-04-24 11:03:10',52,1),(72,'76','Create Playground Runtime Tables','SQL','V76__Create_Playground_Runtime_Tables.sql',NULL,'root','2026-04-24 11:38:00',52,1),(73,'77','Playground Workflow Execution Mode And Dag','SQL','V77__Playground_Workflow_Execution_Mode_And_Dag.sql',NULL,'root','2026-04-25 02:15:01',38,1),(74,'78','Add Playground Agent Max Tokens','SQL','V78__Add_Playground_Agent_Max_Tokens.sql',NULL,'root','2026-04-25 02:15:01',6,1),(75,'79','Integration Sync Core','SQL','V79__Integration_Sync_Core.sql',NULL,'root','2026-05-01 11:17:53',396,1),(76,'80','Notification Alert Mail Reliability','SQL','V80__Notification_Alert_Mail_Reliability.sql',NULL,'root','2026-05-04 07:49:22',101,1),(77,'81','Unified Gateway Default Local Routes','SQL','V81__Unified_Gateway_Default_Local_Routes.sql',NULL,'root','2026-05-05 14:18:47',15,1),(78,'82','Alert Notification Aggregation','SQL','V82__Alert_Notification_Aggregation.sql',NULL,'root','2026-05-06 18:50:15',626,1),(79,'83','Alert Rule Target And Window','SQL','V83__Alert_Rule_Target_And_Window.sql',NULL,'root','2026-05-06 20:00:25',125,1),(80,'84','Agent Owner And Mcp Exposure','SQL','V84__Agent_Owner_And_Mcp_Exposure.sql',NULL,'root','2026-05-18 15:10:00',0,1),(81,'85','Mcp Streamable Http Route','SQL','V85__Mcp_Streamable_Http_Route.sql',NULL,'root','2026-05-18 15:10:00',0,1),(82,'86','Workflow Owner And Mcp Exposure','SQL','V86__Workflow_Owner_And_Mcp_Exposure.sql',NULL,'root','2026-05-18 15:10:00',0,1),(83,'87','Gateway Secret Type Varchar','SQL','V87__Gateway_Secret_Type_Varchar.sql',NULL,'root','2026-05-18 15:10:00',0,1);
-/*!40000 ALTER TABLE `flyway_schema_history` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2026-05-11 15:07:28
+-- Note: the original mysqldump's flyway_schema_history data block
+-- (V1..V87 INSERT rows + LOCK/UNLOCK/DISABLE/ENABLE KEYS) is intentionally
+-- removed. Flyway manages flyway_schema_history itself and baselines at
+-- version 87 (configured via spring.flyway.baseline-version=87 +
+-- baseline-on-migrate=true in application-integration-test.yml). Replaying
+-- the dump's history rows would break Flyway checksum validation against
+-- the on-disk migration files. The trailing "restore session variables"
+-- block is also removed because its statements are wrapped in /*!40101 */
+-- conditional comments that Testcontainers' ScriptUtils strips.
