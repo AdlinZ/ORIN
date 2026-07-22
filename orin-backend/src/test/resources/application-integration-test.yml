@@ -1,0 +1,64 @@
+# Integration Test Profile — Testcontainers MySQL + Flyway enabled
+# Used by BaseIntegrationTest (@ActiveProfiles("integration-test"))
+#
+# Key differences from default test profile:
+# - Real MySQL via Testcontainers (not H2)
+# - Flyway enabled (runs all migrations)
+# - Hibernate validates against migrations (ddl-auto=validate)
+# - Redis / RabbitMQ / Milvus disabled
+
+spring:
+  # Datasource provided by Testcontainers @DynamicPropertySource
+  # These defaults are fallbacks only
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+  flyway:
+    enabled: true
+
+  # Use Caffeine instead of Redis for caching
+  cache:
+    type: caffeine
+
+  # Disable RabbitMQ
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
+# JWT — use the same test secret as application-test.properties
+jwt:
+  secret: test-secret-key-for-testing-only-must-be-at-least-256-bits-long
+  expiration: 3600000
+
+# Disable RabbitMQ listener auto-startup
+orin:
+  rabbitmq:
+    listeners:
+      auto-startup: false
+  collaboration:
+    listeners:
+      auto-startup: false
+  # Disable auto-bootstrap of default admin (use seed SQL instead)
+  default-admin:
+    password: ""
+
+# Milvus — provide dummy values to satisfy @ConfigurationProperties
+milvus:
+  host: localhost
+  port: 19530
+
+# Logging
+logging:
+  level:
+    com.adlin.orin: INFO
+    org.springframework.security: DEBUG
+    org.flywaydb: INFO
+    org.testcontainers: INFO

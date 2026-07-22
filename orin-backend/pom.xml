@@ -21,6 +21,7 @@
         <!-- Flyway 9.x supports MySQL 8.0.11+ (includes 8.4.x) -->
         <flyway.version>9.22.3</flyway.version>
         <mysql.version>8.0.33</mysql.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
         <surefire.excludedGroups>integration</surefire.excludedGroups>
     </properties>
 
@@ -154,6 +155,26 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers for integration tests against real MySQL -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -430,12 +451,6 @@
     <profiles>
         <profile>
             <id>integration-tests</id>
-            <activation>
-                <property>
-                    <name>groups</name>
-                    <value>integration</value>
-                </property>
-            </activation>
             <properties>
                 <surefire.excludedGroups></surefire.excludedGroups>
                 <groups>integration</groups>

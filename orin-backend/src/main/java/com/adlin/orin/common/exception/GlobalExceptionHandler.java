@@ -9,6 +9,7 @@ import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -138,6 +139,26 @@ public class GlobalExceptionHandler {
         Result<Object> response = Result.<Object>builder()
                 .code(ex.getErrorCode().getCode())
                 .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    /**
+     * Spring Security {@code @PreAuthorize} / method-security 拒绝 → 403。
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Result<Object>> handleAccessDeniedException(
+            AccessDeniedException ex, HttpServletRequest request) {
+
+        String traceId = getTraceId();
+        log.warn("[TraceId: {}] Access denied: {}", traceId, ex.getMessage());
+
+        Result<Object> response = Result.<Object>builder()
+                .code(ErrorCode.FORBIDDEN.getCode())
+                .message("权限不足：" + (ex.getMessage() != null ? ex.getMessage() : "access denied"))
                 .path(request.getRequestURI())
                 .traceId(traceId)
                 .build();
@@ -292,6 +313,14 @@ public class GlobalExceptionHandler {
                 return HttpStatus.LOCKED;
             }
             return HttpStatus.NOT_FOUND;
+        }
+        if (code.startsWith("1")) {
+            // 10003 UNAUTHORIZED → 401, 10004 FORBIDDEN → 403,
+            // 10005 TOO_MANY_REQUESTS → 429
+            if (code.equals("10003")) return HttpStatus.UNAUTHORIZED;
+            if (code.equals("10004")) return HttpStatus.FORBIDDEN;
+            if (code.equals("10005")) return HttpStatus.TOO_MANY_REQUESTS;
+            return HttpStatus.INTERNAL_SERVER_ERROR;
         }
         if (code.startsWith("7")) {
             if (code.equals("70004"))
