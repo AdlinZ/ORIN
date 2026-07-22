@@ -25,11 +25,18 @@ import java.util.Map;
  *
  * <p>Provides:
  * <ul>
- *   <li>Isolated MySQL 8.0 container with Flyway migrations applied</li>
+ *   <li>Isolated MySQL 8.0 container pre-loaded with the V1..V87 baseline
+ *       schema snapshot (see {@code db/orin-schema-V1-V87-baseline.sql}),
+ *       then Flyway applies V88..V95 on top</li>
  *   <li>JWT token generation helper for arbitrary user/role combinations</li>
  *   <li>MockMvc auto-configured with full Spring Security filter chain</li>
  *   <li>Test user/role seed data</li>
  * </ul>
+ *
+ * <p>Why the baseline snapshot: the historical Flyway migrations V1..V87
+ * are not idempotent from scratch (e.g. V5 expects {@code multimodal_files}
+ * which V1 does not create). The canonical local/CI flow is to load the
+ * snapshot then apply V88..V95; we replicate that here.
  *
  * <p>Tests are tagged {@code integration} and excluded from default surefire runs.
  * Activate with: {@code mvn test -Pintegration-tests -Dtest="..."}
@@ -45,7 +52,11 @@ public abstract class BaseIntegrationTest {
     static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0.40")
             .withDatabaseName("orindb")
             .withUsername("orin_test")
-            .withPassword("orin_test_pass");
+            .withPassword("orin_test_pass")
+            // Pre-load V1..V87 baseline schema so Flyway only applies V88..V95
+            // (combined with spring.flyway.baseline-on-migrate=true and
+            // baseline-version=87 in application-integration-test.yml).
+            .withInitScript("db/orin-schema-V1-V87-baseline.sql");
 
     @DynamicPropertySource
     static void configureDatasource(DynamicPropertyRegistry registry) {

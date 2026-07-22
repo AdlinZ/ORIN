@@ -21,6 +21,12 @@ spring:
 
   flyway:
     enabled: true
+    # Testcontainers MySQL is pre-loaded with the V1..V87 baseline schema via
+    # BaseIntegrationTest.withInitScript(...). Tell Flyway to baseline there
+    # so it only applies V88..V95 incremental migrations on top.
+    baseline-on-migrate: true
+    baseline-version: 87
+    baseline-description: "V1..V87 baseline schema loaded from docker/mysql/init/01-orin-schema.sql"
 
   # Use Caffeine instead of Redis for caching
   cache:

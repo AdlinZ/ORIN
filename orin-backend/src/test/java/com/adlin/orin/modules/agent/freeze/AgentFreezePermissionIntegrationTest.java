@@ -122,7 +122,7 @@ class AgentFreezePermissionIntegrationTest extends BaseIntegrationTest {
     void creatorCannotFreezeOthersAgent() throws Exception {
         mockMvc.perform(post("/api/v1/agents/{agentId}/versions", AGENT_CREATOR2_ID)
                         .header("Authorization", "Bearer " + jwtCreator())
-                        .header("Idempotency-Key", "test-key-ownership-1")
+                        .header("Idempotency-Key", "idem+ownership+001")
                         .contentType("application/json"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("10004"));
@@ -211,7 +211,7 @@ class AgentFreezePermissionIntegrationTest extends BaseIntegrationTest {
     @DisplayName("Unauthenticated POST freeze returns 401")
     void unauthenticatedPostFreezeReturns401() throws Exception {
         mockMvc.perform(post("/api/v1/agents/{agentId}/versions", AGENT_ID)
-                        .header("Idempotency-Key", "no-auth-key")
+                        .header("Idempotency-Key", "idem+noauth+001")
                         .contentType("application/json"))
                 .andExpect(status().isUnauthorized());
     }

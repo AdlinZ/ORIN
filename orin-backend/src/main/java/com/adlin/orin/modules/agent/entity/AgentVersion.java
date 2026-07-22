@@ -19,8 +19,13 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "agent_versions", indexes = {
-        @Index(name = "idx_agent_id", columnList = "agent_id"),
-        @Index(name = "idx_created_at", columnList = "created_at"),
+        // Index names are table-prefixed so H2/Hibernate ddl-auto=create-drop
+        // doesn't collide with AlertHistory/AgentLog/ConversationLog which also
+        // declare @Index(name="idx_agent_id"). MySQL still gets the V1
+        // `idx_agent_id` on agent_versions (from V1__Initial_schema.sql); the
+        // additional indexes here are F02-only and only materialise on H2.
+        @Index(name = "idx_agent_versions_agent_id", columnList = "agent_id"),
+        @Index(name = "idx_agent_versions_created_at", columnList = "created_at"),
         @Index(name = "idx_agent_version_status", columnList = "status"),
         @Index(name = "idx_agent_version_content_digest", columnList = "content_digest")
 }, uniqueConstraints = {

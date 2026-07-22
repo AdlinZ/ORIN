@@ -108,3 +108,17 @@ ebb8093bed8b7c2de3ffce4cd3ba8daf2f312f84:orin-backend/backend.log:generic-api-ke
 ee8343e752f1842ae210e6686e5b2d87f45b8a60:orin-backend/backend.log:generic-api-key:259
 f293aa72b546166554f884fb0e55179c6c8726d0:orin-backend/backend.log:generic-api-key:276
 f427b4922c9d1f4c8c9681b5297befddabbbb42e:orin-backend/backend.log:generic-api-key:261
+
+# === Test fixture allowances (commit ec669722 & historical c1553bd5/e9d6ea4a) ===
+# These are test fixture strings (HTTP Idempotency-Key values, mock enrollment
+# token IDs) — never real credentials. The strings are deliberately low-entropy
+# (contain '+' separators, no hex/base64 high-entropy substrings) but the
+# default `generic-api-key` rule still flags them because the surrounding
+# variable names or header names contain "key"/"token" keywords. Listed here
+# in (commit:file:rule:line) form so the rule stops re-flagging on subsequent
+# rescans of the same commits.
+ec669722f93c104854726683dcdccab6165b34ed:orin-backend/src/test/java/com/adlin/orin/modules/agent/freeze/AgentFreezePermissionIntegrationTest.java:generic-api-key:125
+ec669722f93c104854726683dcdccab6165b34ed:orin-backend/src/test/java/com/adlin/orin/modules/agent/freeze/AgentFreezePermissionIntegrationTest.java:generic-api-key:214
+ec669722f93c104854726683dcdccab6165b34ed:orin-backend/src/test/java/com/adlin/orin/modules/runner/service/RunnerServiceTest.java:generic-api-key:43
+c1553bd51e60960ff85227b1e3400d23f848c6f0:orin-backend/src/test/java/com/adlin/orin/modules/agent/freeze/AgentFreezePermissionIntegrationTest.java:generic-api-key:125
+e9d6ea4a90b998628f43d8a0e540f5394a78d812:orin-backend/src/test/java/com/adlin/orin/modules/runner/service/RunnerServiceTest.java:generic-api-key:38
