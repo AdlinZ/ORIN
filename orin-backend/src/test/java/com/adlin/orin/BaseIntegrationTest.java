@@ -193,5 +193,12 @@ public abstract class BaseIntegrationTest {
         public RedisConnectionFactory redisConnectionFactory() {
             return mock(RedisConnectionFactory.class);
         }
+
+        @Bean
+        @Primary
+        @SuppressWarnings("unchecked")
+        public org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate() {
+            return mock(org.springframework.data.redis.core.StringRedisTemplate.class);
+        }
     }
 }
