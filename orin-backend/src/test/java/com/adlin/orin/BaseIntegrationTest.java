@@ -176,14 +176,15 @@ public abstract class BaseIntegrationTest {
     }
 
     /**
-     * Stub configuration that supplies a Mockito-mocked
-     * {@link org.springframework.data.redis.connection.RedisConnectionFactory}
-     * bean so that beans like {@code RedisConfig#redisTemplate} (which
-     * constructor-injects the connection factory) and
-     * {@code UnifiedGatewayStatsService} can be created in tests where
-     * {@code integration-test} excludes {@code RedisAutoConfiguration}.
-     * The mock returns Mockito defaults (null/0/false) for every operation;
-     * F02 tests never exercise the actual Redis-backed code paths.
+     * Stub configuration that supplies Mockito-mocked Redis / RabbitMQ beans
+     * so that production {@code @Configuration} classes (RedisConfig,
+     * RabbitMQConfig) can be instantiated in tests where
+     * {@code integration-test} excludes {@code RedisAutoConfiguration} and
+     * {@code RabbitAutoConfiguration}. {@link RedisTemplate},
+     * {@link org.springframework.data.redis.core.StringRedisTemplate} and the
+     * connection factories are returned with deep stubs so chained calls
+     * ({@code redisTemplate.opsForValue().increment(...)},
+     * {@code redisTemplate.opsForList()}, ...) never NPE.
      */
     @TestConfiguration
     static class IntegrationTestStubBeans {
@@ -191,13 +192,14 @@ public abstract class BaseIntegrationTest {
         @Bean
         @Primary
         public RedisConnectionFactory redisConnectionFactory() {
-            return mock(RedisConnectionFactory.class);
+            return mock(RedisConnectionFactory.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         }
 
         @Bean
         @Primary
         public org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate() {
-            return mock(org.springframework.data.redis.core.StringRedisTemplate.class);
+            return mock(org.springframework.data.redis.core.StringRedisTemplate.class,
+                    org.mockito.Answers.RETURNS_DEEP_STUBS);
         }
 
         @Bean
