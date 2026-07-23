@@ -17,6 +17,7 @@ import com.adlin.orin.modules.agent.freeze.repository.AgentVersionFreezeIdempote
 import com.adlin.orin.modules.agent.freeze.repository.AgentVersionSecretRefRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,7 +25,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,6 +87,7 @@ public class AgentFreezeService {
     private final AgentDraftService draftService;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
+    private final AgentOwnershipResolver ownershipResolver;
 
     /**
      * 冻结入口。{@code idempotencyKey} 已经由 controller 哈希为 SHA-256 hex 字符串传入。
@@ -100,6 +101,7 @@ public class AgentFreezeService {
                                       String actor) {
         // 0) 锁草稿 → 读 pending secret refs
         AgentMetadata meta = lockDraftOrThrow(agentId);
+        ownershipResolver.assertCanManage(meta);
         List<FreezeSecretRefItem> pendingRefs = draftService.readPendingSecretRefs(agentId);
         validateRefs(pendingRefs);
 
@@ -109,22 +111,22 @@ public class AgentFreezeService {
                     historyRefsCount(agentId), pendingRefs.size());
         }
 
-        // 1) Idempotency 命中检查（DB-primary）
+        // 1) 先基于锁定后的完整草稿生成 canonical envelope。request_digest 必须覆盖所有
+        // freeze 输入，而不只是 SecretReference；否则同 key 修改 Prompt 后会错误回放旧版本。
+        String canonicalEnvelope = canonicalizeDraft(meta, pendingRefs);
+        String contentDigest = Sha256Digest.hex(canonicalEnvelope);
+        String requestDigest = contentDigest;
+
+        // 2) Idempotency 命中检查（DB-primary）
         Optional<AgentVersionFreezeIdempotency> existing =
                 idempotencyRepository.findByAgentIdAndIdempotencyKeyHash(agentId, idempotencyKeyHash);
-        String requestDigest = computeRequestDigest(agentId, pendingRefs);
         if (existing.isPresent()) {
             return handleIdempotentReplay(agentId, idempotencyKeyHash, pendingRefs,
                     requestDigest, existing.get(), actor);
         }
 
-        // 2) SecretReference 校验（CONTROL_PLANE 引用必须存在且 ACTIVE）
-        Map<String, GatewaySecret> gatewaySecretsById = validateSecretReferences(pendingRefs);
-
-        // 3) 装配 envelope（按 ADR-002 §D-2.4.3 顺序：config/model/tools/knowledge/workflow/secretRefs）
-        Map<String, Object> envelope = buildEnvelope(meta, pendingRefs);
-        String canonicalEnvelope = JcsCanonicalizer.canonicalize(toJson(envelope));
-        String contentDigest = Sha256Digest.hex(canonicalEnvelope);
+        // 3) SecretReference 校验（CONTROL_PLANE 引用必须存在且 ACTIVE）
+        validateSecretReferences(pendingRefs);
 
         // 4) INSERT agent_versions（FROZEN）
         int nextVersionNumber = agentVersionRepository.findMaxVersionNumber(agentId).orElse(0) + 1;
@@ -169,12 +171,9 @@ public class AgentFreezeService {
                 .createdAt(LocalDateTime.now())
                 .expiresAt(LocalDateTime.now().plusHours(IDEMPOTENCY_RETENTION_HOURS))
                 .build();
-        try {
-            idempotencyRepository.saveAndFlush(idem);
-        } catch (DataIntegrityViolationException dup) {
-            return handleConcurrentDuplicate(agentId, idempotencyKeyHash, pendingRefs,
-                    requestDigest, actor);
-        }
+        // 同一 agent 的 freeze 从方法开头即持有 agent_metadata 行锁，因此同 agent/key 不会并发
+        // 穿透到这里；不要在 flush 失败后继续使用已标记 rollback-only 的事务。
+        idempotencyRepository.saveAndFlush(idem);
 
         // 7) 首次 freeze 自动 active
         if (meta.getActiveVersionId() == null) {
@@ -233,19 +232,6 @@ public class AgentFreezeService {
                 .frozenBy(version.getFrozenBy())
                 .idempotentReplay(true)
                 .build();
-    }
-
-    private FreezeAgentResponse handleConcurrentDuplicate(String agentId,
-                                                           String idempotencyKeyHash,
-                                                           List<FreezeSecretRefItem> pendingRefs,
-                                                           String requestDigest,
-                                                           String actor) {
-        AgentVersionFreezeIdempotency existing = idempotencyRepository
-                .findByAgentIdAndIdempotencyKeyHash(agentId, idempotencyKeyHash)
-                .orElseThrow(() -> new BusinessException(ErrorCode.OPERATION_FAILED,
-                        "并发冲突：idempotency 命中但记录未读到"));
-        return handleIdempotentReplay(agentId, idempotencyKeyHash, pendingRefs,
-                requestDigest, existing, actor);
     }
 
     private AgentMetadata lockDraftOrThrow(String agentId) {
@@ -362,14 +348,13 @@ public class AgentFreezeService {
         return env;
     }
 
-    private String computeRequestDigest(String agentId, List<FreezeSecretRefItem> refs) {
-        try {
-            String body = toJson(refs);
-            return Sha256Digest.hex(agentId + "|" + body);
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.SNAPSHOT_CANONICALIZE_FAILED,
-                    "request digest 计算失败", e);
-        }
+    private String canonicalizeDraft(AgentMetadata meta, List<FreezeSecretRefItem> refs) {
+        return JcsCanonicalizer.canonicalize(toJson(buildEnvelope(meta, refs)));
+    }
+
+    /** 测试与审计校验使用；与 freeze 的 request_digest/content_digest 保持同一实现。 */
+    String calculateContentDigest(AgentMetadata meta, List<FreezeSecretRefItem> refs) {
+        return Sha256Digest.hex(canonicalizeDraft(meta, refs));
     }
 
     private String toJson(Object o) {

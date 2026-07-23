@@ -4,6 +4,7 @@ import com.adlin.orin.modules.agent.controller.AgentManageController;
 import com.adlin.orin.modules.agent.freeze.controller.AgentFreezeController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -129,6 +131,26 @@ class AgentControllerMappingTest {
     }
 
     @Test
+    @DisplayName("F02 写接口声明明确的 Creator / Operator 角色边界")
+    void write_endpoints_have_explicit_role_guards() throws Exception {
+        assertPreAuthorizeContains("createAgent", new Class<?>[]{AgentFreezeController.CreateAgentRequest.class},
+                "ROLE_USER");
+        assertPreAuthorizeContains("upsertDraft",
+                new Class<?>[]{String.class,
+                        com.adlin.orin.modules.agent.freeze.dto.AgentDraftUpsertRequest.class},
+                "ROLE_USER");
+        assertPreAuthorizeContains("freeze", new Class<?>[]{String.class, String.class}, "ROLE_USER");
+        assertPreAuthorizeContains("switchActiveVersion",
+                new Class<?>[]{String.class,
+                        com.adlin.orin.modules.agent.freeze.dto.SwitchActiveVersionRequest.class},
+                "ROLE_OPERATOR");
+        assertPreAuthorizeContains("deprecateVersion",
+                new Class<?>[]{String.class, String.class,
+                        com.adlin.orin.modules.agent.freeze.dto.DeprecateVersionRequest.class},
+                "ROLE_OPERATOR");
+    }
+
+    @Test
     @DisplayName("verify compile + reflection sanity check: 至少有一条 mapping 被找到")
     void reflection_picks_up_at_least_one_mapping() {
         int count = collectMappings(AgentManageController.class).size()
@@ -139,6 +161,15 @@ class AgentControllerMappingTest {
 
     private boolean colllectionsAreClean(List<String> collisions) {
         return collisions.isEmpty();
+    }
+
+    private static void assertPreAuthorizeContains(String methodName, Class<?>[] parameterTypes,
+                                                   String expectedAuthority) throws Exception {
+        Method method = AgentFreezeController.class.getDeclaredMethod(methodName, parameterTypes);
+        PreAuthorize guard = method.getAnnotation(PreAuthorize.class);
+        assertNotNull(guard, methodName + " 必须声明 @PreAuthorize");
+        assertTrue(guard.value().contains(expectedAuthority),
+                methodName + " 的角色表达式必须包含 " + expectedAuthority + "，实际为 " + guard.value());
     }
 
     private static class Mapping {

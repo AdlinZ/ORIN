@@ -8,6 +8,7 @@ import com.adlin.orin.modules.agent.freeze.dto.AgentDraftResponse;
 import com.adlin.orin.modules.agent.freeze.dto.AgentDraftUpsertRequest;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,8 +27,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * AgentDraftService 单测：覆盖 (a) 真 upsert INSERT-when-missing, (b) 真 upsert UPDATE,
- * (c) createAgent 生成后端 id, (d) getDraft 解析 active 指针, (e) not found。
+ * AgentDraftService 单测：覆盖 (a) 不允许用自选 id 创建草稿, (b) 真 UPDATE,
+ * (c) createAgent 生成后端 id 与 owner, (d) getDraft 解析 active 指针, (e) not found。
  */
 @ExtendWith(MockitoExtension.class)
 class AgentDraftServiceTest {
@@ -35,45 +36,44 @@ class AgentDraftServiceTest {
     @Mock AgentMetadataRepository agentMetadataRepository;
     @Mock AgentVersionRepository agentVersionRepository;
     @Mock AgentVersionAuditWriter auditWriter;
+    @Mock AgentOwnershipResolver ownershipResolver;
     AgentDraftService service;
 
     @BeforeEach
     void setup() {
         service = new AgentDraftService(agentMetadataRepository, agentVersionRepository,
-                auditWriter, new ObjectMapper());
+                auditWriter, new ObjectMapper(), ownershipResolver);
     }
 
     private AgentMetadata meta(String activeId) {
         return AgentMetadata.builder()
-                .agentId("ag_test").name("n").description("d").activeVersionId(activeId)
+                .agentId("ag_test").ownerUserId(1L).name("n").description("d").activeVersionId(activeId)
                 .build();
     }
 
     @Test
-    @DisplayName("createAgent: 生成 ag_<timestamp>_<rand> 形式的 agentId 并 INSERT")
+    @DisplayName("createAgent: 生成 ag_<uuid> 形式的 agentId、写入 owner 并 INSERT")
     void createAgent_generatesIdAndInserts() {
         when(agentMetadataRepository.save(any(AgentMetadata.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(1L);
         AgentDraftResponse resp = service.createAgent("my-agent", "demo", "user1");
         assertEquals("my-agent", resp.getName());
         assertEquals("demo", resp.getDescription());
         assertEquals(true, resp.getAgentId().startsWith("ag_"));
         verify(agentMetadataRepository).save(any(AgentMetadata.class));
+        verify(ownershipResolver).resolveFromCurrentRequest();
         verify(auditWriter).logAgentCreated("user1", resp.getAgentId(), "my-agent");
     }
 
     @Test
-    @DisplayName("upsertDraft: 草稿不存在 → INSERT；active_version_id 非空仍允许修改")
-    void upsert_missingAgent_inserts() {
+    @DisplayName("upsertDraft: 草稿不存在 → AGENT_NOT_FOUND，不能用自选 id 绕过 owner 初始化")
+    void upsert_missingAgent_rejected() {
         when(agentMetadataRepository.findById("ag_new")).thenReturn(Optional.empty());
-        when(agentMetadataRepository.save(any(AgentMetadata.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        AgentDraftResponse resp = service.upsertDraft("ag_new", AgentDraftUpsertRequest.builder()
-                .name("brand-new").build(), null, "user1");
-
-        assertEquals("brand-new", resp.getName());
-        assertEquals("ag_new", resp.getAgentId());
-        verify(agentMetadataRepository).save(any(AgentMetadata.class));
-        verify(auditWriter).logDraftUpdated("user1", "ag_new", null);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.upsertDraft("ag_new", AgentDraftUpsertRequest.builder()
+                        .name("brand-new").build(), null, "user1"));
+        assertEquals(ErrorCode.AGENT_NOT_FOUND, ex.getErrorCode());
+        verify(agentMetadataRepository, never()).save(any());
     }
 
     @Test
@@ -90,6 +90,7 @@ class AgentDraftServiceTest {
         // 关键：这里我们不复 throw AGENT_VERSION_FROZEN（旧的 v0 行为错误地抛错）；
         // 应当让 save 正常被调用。
         verify(agentMetadataRepository).save(any(AgentMetadata.class));
+        verify(ownershipResolver).assertCanManage(any(AgentMetadata.class));
     }
 
     @Test

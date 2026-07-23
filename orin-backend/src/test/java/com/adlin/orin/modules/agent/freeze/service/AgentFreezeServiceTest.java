@@ -12,6 +12,7 @@ import com.adlin.orin.modules.agent.freeze.repository.AgentVersionFreezeIdempote
 import com.adlin.orin.modules.agent.freeze.repository.AgentVersionSecretRefRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +55,7 @@ class AgentFreezeServiceTest {
     @Mock EntityManager entityManager;
     @Mock AgentVersionAuditWriter auditWriter;
     @Mock AgentDraftService draftService;
+    @Mock AgentOwnershipResolver ownershipResolver;
 
     ObjectMapper objectMapper = new ObjectMapper();
     AgentFreezeService service;
@@ -62,7 +64,7 @@ class AgentFreezeServiceTest {
     void setup() {
         service = new AgentFreezeService(agentMetadataRepository, agentVersionRepository,
                 secretRefRepository, idempotencyRepository, gatewaySecretRepository,
-                auditWriter, draftService, entityManager, objectMapper);
+                auditWriter, draftService, entityManager, objectMapper, ownershipResolver);
     }
 
     private List<FreezeSecretRefItem> sampleRefs() {
@@ -169,10 +171,7 @@ class AgentFreezeServiceTest {
                 .frozenAt(java.time.LocalDateTime.now())
                 .frozenBy("user1")
                 .build();
-        // 预计算 request_digest（取决于 pendingRefs 的 JSON）
-        String refsJson = objectMapper.writeValueAsString(sampleRefs());
-        String expectedDigest = com.adlin.orin.common.snapshot.Sha256Digest
-                .hex("ag_test|" + refsJson);
+        String expectedDigest = service.calculateContentDigest(meta, sampleRefs());
         AgentVersionFreezeIdempotency idem = AgentVersionFreezeIdempotency.builder()
                 .agentId("ag_test").idempotencyKeyHash("keyhash123")
                 .requestDigest(expectedDigest)
@@ -195,12 +194,14 @@ class AgentFreezeServiceTest {
     }
 
     @Test
-    @DisplayName("idempotent replay（同 key + 不同 payload）→ IDEMPOTENCY_KEY_CONFLICT")
-    void freeze_idempotencyKeyConflict_differentPayload() {
+    @DisplayName("同 key 修改 Prompt（secret refs 不变）→ IDEMPOTENCY_KEY_CONFLICT")
+    void freeze_idempotencyKeyConflict_whenDraftConfigChanged() {
         AgentMetadata meta = sampleMeta(null);
+        String originalDigest = service.calculateContentDigest(meta, sampleRefs());
+        meta.setSystemPrompt("changed prompt with the same secret refs");
         AgentVersionFreezeIdempotency idem = AgentVersionFreezeIdempotency.builder()
                 .agentId("ag_test").idempotencyKeyHash("keyhash123")
-                .requestDigest("definitely_different_payload_digest_xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+                .requestDigest(originalDigest)
                 .agentVersionId("ver_existing")
                 .createdAt(java.time.LocalDateTime.now())
                 .expiresAt(java.time.LocalDateTime.now().plusHours(24))

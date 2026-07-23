@@ -18,9 +18,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,7 +44,7 @@ import java.util.List;
  * <ul>
  *   <li>{@code POST /api/v1/agents} — 创建 Agent（后端生成 id，禁止前端传 id）</li>
  *   <li>{@code GET /api/v1/agents/{agentId}/draft} — 读取草稿（含 active version 指针）</li>
- *   <li>{@code PUT /api/v1/agents/{agentId}/draft} — Upsert 草稿（含 pendingSecretRefs）</li>
+ *   <li>{@code PUT /api/v1/agents/{agentId}/draft} — 更新既有草稿（含 pendingSecretRefs）</li>
  *   <li>{@code POST /api/v1/agents/{agentId}/versions} — 冻结（要求 {@code Idempotency-Key}）</li>
  *   <li>{@code GET /api/v1/agents/{agentId}/versions} — 版本列表</li>
  *   <li>{@code GET /api/v1/agents/{agentId}/versions/{vid}} — 版本详情</li>
@@ -60,6 +63,13 @@ import java.util.List;
 @RequestMapping("/api/v1/agents")
 @Tag(name = "F02: Agent Freeze", description = "创建并冻结 Agent（ADR-002 v4.1）")
 public class AgentFreezeController {
+
+    private static final String CREATOR_ROLES =
+            "hasAnyAuthority('ROLE_USER','USER','ROLE_ADMIN','ADMIN','ROLE_SUPER_ADMIN','ROLE_PLATFORM_ADMIN')";
+    private static final String READER_ROLES =
+            "hasAnyAuthority('ROLE_USER','USER','ROLE_OPERATOR','OPERATOR','ROLE_ADMIN','ADMIN','ROLE_SUPER_ADMIN','ROLE_PLATFORM_ADMIN')";
+    private static final String OPERATOR_ROLES =
+            "hasAnyAuthority('ROLE_OPERATOR','OPERATOR','ROLE_ADMIN','ADMIN','ROLE_SUPER_ADMIN','ROLE_PLATFORM_ADMIN')";
 
     private static final Logger log = LoggerFactory.getLogger(AgentFreezeController.class);
     private static final int IDEMPOTENCY_KEY_MAX_LEN = 200;
@@ -80,22 +90,23 @@ public class AgentFreezeController {
     }
 
     @PostMapping
+    @PreAuthorize(CREATOR_ROLES)
     @Operation(summary = "创建 Agent（后端生成 agentId）")
-    public AgentDraftResponse createAgent(@RequestBody(required = false) CreateAgentRequest req) {
+    public AgentDraftResponse createAgent(@Valid @RequestBody CreateAgentRequest req) {
         String actor = currentActor();
-        String name = req == null ? null : req.name();
-        String description = req == null ? null : req.description();
-        return draftService.createAgent(name, description, actor);
+        return draftService.createAgent(req.name(), req.description(), actor);
     }
 
     @GetMapping("/{agentId}/draft")
+    @PreAuthorize(READER_ROLES)
     @Operation(summary = "查询 Agent 草稿（含 active version 指针）")
     public AgentDraftResponse getDraft(@PathVariable String agentId) {
         return draftService.getDraft(agentId);
     }
 
     @PutMapping("/{agentId}/draft")
-    @Operation(summary = "Upsert Agent 草稿（首次 upsert 即 INSERT；可携带 pendingSecretRefs）")
+    @PreAuthorize(CREATOR_ROLES)
+    @Operation(summary = "更新既有 Agent 草稿（可携带 pendingSecretRefs）")
     public AgentDraftResponse upsertDraft(@PathVariable String agentId,
                                           @Valid @RequestBody AgentDraftUpsertRequest request) {
         String pendingRefsJson;
@@ -111,6 +122,7 @@ public class AgentFreezeController {
     }
 
     @PostMapping("/{agentId}/versions")
+    @PreAuthorize(CREATOR_ROLES)
     @Operation(summary = "冻结 Agent 生成不可变 AgentVersion（要求 Idempotency-Key；secret refs 来自草稿）")
     public FreezeAgentResponse freeze(@PathVariable String agentId,
                                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
@@ -129,12 +141,14 @@ public class AgentFreezeController {
     }
 
     @GetMapping("/{agentId}/versions")
+    @PreAuthorize(READER_ROLES)
     @Operation(summary = "查询 Agent 全部版本列表")
     public List<AgentVersionListItem> listVersions(@PathVariable String agentId) {
         return lifecycleService.listVersions(agentId);
     }
 
     @GetMapping("/{agentId}/versions/{versionId}")
+    @PreAuthorize(READER_ROLES)
     @Operation(summary = "查询单个 AgentVersion 详情（FROZEN 完全只读）")
     public AgentVersionDetailResponse getVersion(@PathVariable String agentId,
                                                 @PathVariable String versionId) {
@@ -142,6 +156,7 @@ public class AgentFreezeController {
     }
 
     @PutMapping("/{agentId}/active-version")
+    @PreAuthorize(OPERATOR_ROLES)
     @Operation(summary = "切换 active version pointer（仅切指针，不触发 deprecate）")
     public AgentVersionDetailResponse switchActiveVersion(@PathVariable String agentId,
                                                           @Valid @RequestBody SwitchActiveVersionRequest request) {
@@ -149,6 +164,7 @@ public class AgentFreezeController {
     }
 
     @PostMapping("/{agentId}/versions/{versionId}/deprecate")
+    @PreAuthorize(OPERATOR_ROLES)
     @Operation(summary = "Deprecate FROZEN 版本（受控可改字段：status / deprecated_*）")
     public AgentVersionDetailResponse deprecateVersion(@PathVariable String agentId,
                                                        @PathVariable String versionId,
@@ -157,6 +173,7 @@ public class AgentFreezeController {
     }
 
     @GetMapping("/_active-gateway-secrets")
+    @PreAuthorize(CREATOR_ROLES)
     @Operation(summary = "查询 ACTIVE 状态的 GatewaySecret 列表（用于前端 SecretReference 编辑下拉）")
     public List<AgentSecretSummary> listActiveGatewaySecrets() {
         return lifecycleService.listActiveGatewaySecrets();
@@ -177,8 +194,10 @@ public class AgentFreezeController {
     }
 
     /**
-     * 创建 Agent 的请求体；轻量字段，全空时按后端默认生成。
+     * 创建 Agent 的请求体；name 必填，description 可选。
      */
-    public record CreateAgentRequest(String name, String description) {
+    public record CreateAgentRequest(
+            @NotBlank @Size(max = 120) String name,
+            @Size(max = 1000) String description) {
     }
 }

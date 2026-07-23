@@ -10,6 +10,7 @@ import com.adlin.orin.modules.agent.freeze.dto.AgentDraftUpsertRequest;
 import com.adlin.orin.modules.agent.freeze.dto.FreezeSecretRefItem;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * F02 Agent 草稿服务。
@@ -46,17 +48,20 @@ public class AgentDraftService {
     private final AgentVersionRepository agentVersionRepository;
     private final AgentVersionAuditWriter auditWriter;
     private final ObjectMapper objectMapper;
+    private final AgentOwnershipResolver ownershipResolver;
 
     /**
      * 创建一个全新 Agent（POST /api/v1/agents）。
-     * <p>不依赖前端传入的 agentId，由后端用 ULID-style 短 ID 生成（避免随机数冲突）。
+     * <p>不依赖前端传入的 agentId，由后端生成 UUID；owner 始终来自 JWT principal，
+     * 普通用户不能通过请求体覆盖资源归属。
      */
     @Transactional
     public AgentDraftResponse createAgent(String name, String description, String actor) {
-        String agentId = "ag_" + Long.toString(System.currentTimeMillis(), 36)
-                + "_" + Long.toString((long) (Math.random() * 0x1_000_000L), 36);
+        String agentId = "ag_" + UUID.randomUUID();
+        Long ownerUserId = ownershipResolver.resolveFromCurrentRequest();
         AgentMetadata meta = AgentMetadata.builder()
                 .agentId(agentId)
+                .ownerUserId(ownerUserId)
                 .name(name != null ? name : agentId)
                 .description(description)
                 .mode("agent")
@@ -77,19 +82,18 @@ public class AgentDraftService {
     /**
      * Upsert 草稿（PUT /api/v1/agents/{agentId}/draft）。
      *
-     * <p>真 upsert：{@code agentId} 不存在 → INSERT；存在 → UPDATE。<b>不</b>因为
-     * {@code active_version_id != null} 拒绝修改（这是上版错误的"冻结后草稿锁死"行为），
+     * <p>只更新由 {@code POST /api/v1/agents} 创建的既有草稿；不存在时返回 404，防止调用方
+     * 通过自选 agentId 绕过 owner 初始化。<b>不</b>因为 {@code active_version_id != null}
+     * 拒绝修改（这是上版错误的"冻结后草稿锁死"行为），
      * F02 故事要求用户能多次修改草稿并 freeze 出 v1/v2/v3。
      */
     @Transactional
     public AgentDraftResponse upsertDraft(String agentId, AgentDraftUpsertRequest req,
                                           String pendingSecretRefsJson,
                                           String actor) {
-        Optional<AgentMetadata> existing = agentMetadataRepository.findById(agentId);
-        AgentMetadata meta = existing.orElseGet(() -> AgentMetadata.builder()
-                .agentId(agentId)
-                .syncTime(LocalDateTime.now())
-                .build());
+        AgentMetadata meta = loadAgentOrThrow(agentId);
+        ownershipResolver.assertCanManage(meta);
+        String previousSecretRefs = meta.getPendingSecretRefs();
 
         meta.setName(req.getName());
         meta.setDescription(req.getDescription());
@@ -112,9 +116,12 @@ public class AgentDraftService {
         meta.setPendingSecretRefs(pendingSecretRefsJson);
 
         agentMetadataRepository.save(meta);
+        if (!Objects.equals(previousSecretRefs, pendingSecretRefsJson)) {
+            auditWriter.logDraftSecretRefChanged(actor, agentId,
+                    countSecretRefs(previousSecretRefs), countSecretRefs(pendingSecretRefsJson));
+        }
         auditWriter.logDraftUpdated(actor, agentId, req.getChangeDescription());
-        log.info("F02 draft upserted agent={} actor={} created={}",
-                agentId, actor, !existing.isPresent());
+        log.info("F02 draft updated agent={} actor={}", agentId, actor);
         return toDraftResponse(meta);
     }
 
@@ -122,6 +129,7 @@ public class AgentDraftService {
     @Transactional(readOnly = true)
     public AgentDraftResponse getDraft(String agentId) {
         AgentMetadata meta = loadAgentOrThrow(agentId);
+        ownershipResolver.assertCanManage(meta);
         return toDraftResponse(meta);
     }
 
@@ -132,6 +140,7 @@ public class AgentDraftService {
     @Transactional(readOnly = true)
     public List<FreezeSecretRefItem> readPendingSecretRefs(String agentId) {
         AgentMetadata meta = loadAgentOrThrow(agentId);
+        ownershipResolver.assertCanManage(meta);
         String json = meta.getPendingSecretRefs();
         if (json == null || json.isBlank()) {
             return List.of();
@@ -145,21 +154,21 @@ public class AgentDraftService {
         }
     }
 
-    /**
-     * 旧的"已冻结后禁止草稿编辑"已删除。active_version_id 仅在 freeze / switchActive / deprecate
-     * 流程里被读写，永远不阻碍 AgentMetadata 自身的 upsert（见 ADR-002 §D-2.1 + F02 用户旅程）。
-     *
-     * <p>该方法保留为空 stub 以兼容 README / 角色矩阵里提到的旧名称；新代码不要调用。
-     */
-    @Deprecated
-    public void requireEditable(AgentMetadata meta, String agentId) {
-        // no-op：保留接口以兼容现有可能调用方；F02 R3 不再阻断草稿编辑。
-    }
-
     private AgentMetadata loadAgentOrThrow(String agentId) {
         return agentMetadataRepository.findById(agentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_NOT_FOUND,
                         "Agent 未找到：" + agentId));
+    }
+
+    private int countSecretRefs(String json) {
+        if (json == null || json.isBlank()) {
+            return 0;
+        }
+        try {
+            return objectMapper.readTree(json).size();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private AgentDraftResponse toDraftResponse(AgentMetadata meta) {

@@ -9,6 +9,7 @@ import com.adlin.orin.modules.agent.freeze.dto.AgentVersionDetailResponse;
 import com.adlin.orin.modules.agent.freeze.repository.AgentVersionSecretRefRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
 import jakarta.persistence.EntityManager;
@@ -45,17 +46,18 @@ class AgentVersionLifecycleServiceTest {
     @Mock GatewaySecretRepository gatewaySecretRepository;
     @Mock EntityManager entityManager;
     @Mock AgentVersionAuditWriter auditWriter;
+    @Mock AgentOwnershipResolver ownershipResolver;
 
     AgentVersionLifecycleService service;
 
     @BeforeEach
     void setup() {
         service = new AgentVersionLifecycleService(agentMetadataRepository, agentVersionRepository,
-                secretRefRepository, gatewaySecretRepository, auditWriter, entityManager);
+                secretRefRepository, gatewaySecretRepository, auditWriter, entityManager, ownershipResolver);
     }
 
     private AgentMetadata meta(String activeId) {
-        return AgentMetadata.builder().agentId("ag_test").name("n").activeVersionId(activeId).build();
+        return AgentMetadata.builder().agentId("ag_test").ownerUserId(1L).name("n").activeVersionId(activeId).build();
     }
 
     private AgentVersion version(String id, int n, AgentVersion.Status status) {
@@ -168,7 +170,6 @@ class AgentVersionLifecycleServiceTest {
     @Test
     @DisplayName("listVersions：返回 is_active 标记当前 active 的版本")
     void list_marksActive() {
-        when(agentMetadataRepository.existsById("ag_test")).thenReturn(true);
         when(agentMetadataRepository.findById("ag_test")).thenReturn(Optional.of(meta("ver_active")));
         when(agentVersionRepository.findByAgentIdOrderByVersionNumberDesc("ag_test"))
                 .thenReturn(List.of(

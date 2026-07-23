@@ -12,6 +12,7 @@ import com.adlin.orin.modules.agent.freeze.entity.AgentVersionSecretRef;
 import com.adlin.orin.modules.agent.freeze.repository.AgentVersionSecretRefRepository;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
 import jakarta.persistence.EntityManager;
@@ -52,6 +53,7 @@ public class AgentVersionLifecycleService {
     private final GatewaySecretRepository gatewaySecretRepository;
     private final AgentVersionAuditWriter auditWriter;
     private final EntityManager entityManager;
+    private final AgentOwnershipResolver ownershipResolver;
 
     /**
      * 切 active version（PUT /api/v1/agents/{agentId}/active-version）。
@@ -64,6 +66,7 @@ public class AgentVersionLifecycleService {
         if (meta == null) {
             throw new BusinessException(ErrorCode.AGENT_NOT_FOUND, "Agent 未找到：" + agentId);
         }
+        ownershipResolver.assertCanManage(meta);
 
         AgentVersion target = agentVersionRepository.findByIdAndAgentId(versionId, agentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_VERSION_NOT_FOUND,
@@ -107,6 +110,7 @@ public class AgentVersionLifecycleService {
         if (meta == null) {
             throw new BusinessException(ErrorCode.AGENT_NOT_FOUND, "Agent 未找到：" + agentId);
         }
+        ownershipResolver.assertCanManage(meta);
 
         AgentVersion target = agentVersionRepository.findByIdAndAgentId(versionId, agentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_VERSION_NOT_FOUND,
@@ -139,10 +143,9 @@ public class AgentVersionLifecycleService {
 
     @Transactional(readOnly = true)
     public List<AgentVersionListItem> listVersions(String agentId) {
-        if (!agentMetadataRepository.existsById(agentId)) {
-            throw new BusinessException(ErrorCode.AGENT_NOT_FOUND, "Agent 未找到：" + agentId);
-        }
-        String activeId = agentMetadataRepository.findById(agentId).map(AgentMetadata::getActiveVersionId).orElse(null);
+        AgentMetadata meta = loadAgentOrThrow(agentId);
+        ownershipResolver.assertCanManage(meta);
+        String activeId = meta.getActiveVersionId();
 
         List<AgentVersion> versions = agentVersionRepository
                 .findByAgentIdOrderByVersionNumberDesc(agentId);
@@ -165,11 +168,19 @@ public class AgentVersionLifecycleService {
 
     @Transactional(readOnly = true)
     public AgentVersionDetailResponse getVersion(String agentId, String versionId) {
+        AgentMetadata meta = loadAgentOrThrow(agentId);
+        ownershipResolver.assertCanManage(meta);
         AgentVersion v = agentVersionRepository.findByIdAndAgentId(versionId, agentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_VERSION_NOT_FOUND,
                         "AgentVersion " + versionId + " 不属于 agent " + agentId));
-        String activeId = agentMetadataRepository.findById(agentId).map(AgentMetadata::getActiveVersionId).orElse(null);
+        String activeId = meta.getActiveVersionId();
         return toDetailResponse(v, versionId.equals(activeId));
+    }
+
+    private AgentMetadata loadAgentOrThrow(String agentId) {
+        return agentMetadataRepository.findById(agentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_NOT_FOUND,
+                        "Agent 未找到：" + agentId));
     }
 
     private AgentVersionDetailResponse toDetailResponse(AgentVersion v, boolean isActive) {
