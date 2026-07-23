@@ -3,6 +3,8 @@ package com.adlin.orin.common.security;
 import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.common.exception.ErrorCode;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -24,6 +26,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * - 普通用户: 需 owner_user_id == currentUserId
  */
 public abstract class BaseOwnershipResolver {
+
+    private static final Logger log = LoggerFactory.getLogger(BaseOwnershipResolver.class);
 
     /**
      * 资源级 ACL 严格集: 仅 admin 角色。
@@ -89,10 +93,14 @@ public abstract class BaseOwnershipResolver {
      * final 防止子类乱覆盖破坏语义。protected 防止外部直接传 Long 调用造成方法重载歧义。
      */
     protected final void checkOwnership(Long ownerUserId) {
-        if (isCurrentUserPrivileged()) {
+        boolean privileged = isCurrentUserPrivileged();
+        Long currentUserId = null;
+        try { currentUserId = resolveFromCurrentRequest(); } catch (Exception ignored) {}
+        log.warn("F02-DEBUG checkOwnership ownerUserId={} currentUserId={} privileged={}",
+                ownerUserId, currentUserId, privileged);
+        if (privileged) {
             return;
         }
-        Long currentUserId = resolveFromCurrentRequest();
         if (ownerUserId != null && ownerUserId.equals(currentUserId)) {
             return;
         }

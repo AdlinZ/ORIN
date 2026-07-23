@@ -445,17 +445,17 @@ const routes = [
                         meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
                     },
 
-                    // 服务器监控
+                    // Runner 服务器（F01 接入并监控服务器 — replaces old Server Monitor）
                     {
                         path: 'server/:serverId',
                         name: 'RuntimeServerNode',
-                        component: () => import('@/views/Monitor/ServerNodeDetail.vue'),
-                        meta: { title: '节点监控详情', hidden: true }
+                        component: () => import('@/views/revamp/runners/RunnerDetailView.vue'),
+                        meta: { title: 'Runner 详情', hidden: true }
                     },
                     {
                         path: 'server',
                         name: 'RuntimeServer',
-                        component: () => import('@/views/Monitor/ServerMonitor.vue'),
+                        component: () => import('@/views/revamp/runners/RunnerListView.vue'),
                         meta: { title: '服务器监控', icon: 'Monitor' }
                     },
 
@@ -768,6 +768,48 @@ const routes = [
                 name: 'NotFound',
                 component: () => import('@/views/Error/NotFound.vue'),
                 meta: { title: '页面不存在' }
+            }
+        ]
+    },
+
+    // ==================== F02 Workspace vNext 入口（Agents / Runners / Runs / Endpoints 四一级） ====================
+    {
+        path: '/workspace',
+        component: MainLayout,
+        redirect: () => ROUTES.AGENTS.WORKSPACE_LIST,
+        children: [
+            // F02 暂时只暴露 Agents；Runners / Runs / Endpoints 留待 F03~F05 实施时再添加
+            {
+                path: 'agents',
+                name: 'WorkspaceAgents',
+                component: () => import('@/views/workspace/agents/AgentListPage.vue'),
+                meta: { title: 'Agents（vNext）', icon: 'User' }
+            },
+            {
+                path: 'agents/:agentId',
+                name: 'WorkspaceAgentDraft',
+                component: () => import('@/views/workspace/agents/AgentDraftPage.vue'),
+                meta: { title: 'Agent 草稿', hidden: true }
+            },
+            {
+                path: 'agents/:agentId/versions',
+                name: 'WorkspaceAgentVersions',
+                component: () => import('@/views/workspace/agents/AgentVersionListPage.vue'),
+                meta: { title: 'Agent 版本', hidden: true }
+            },
+            {
+                path: 'agents/:agentId/versions/:versionId',
+                name: 'WorkspaceAgentVersionDetail',
+                component: () => import('@/views/workspace/agents/AgentVersionDetailPage.vue'),
+                meta: { title: 'AgentVersion 详情', hidden: true }
+            },
+            {
+                path: 'agents/:agentId/versions/:versionId/deprecate',
+                redirect: (to) => ({
+                    path: `/workspace/agents/${to.params.agentId}/versions/${to.params.versionId}`,
+                    query: { ...to.query, deprecate: '1' }
+                }),
+                meta: { hidden: true }
             }
         ]
     },

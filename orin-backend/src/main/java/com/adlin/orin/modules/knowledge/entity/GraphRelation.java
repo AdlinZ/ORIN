@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "graph_relations", indexes = {
-        @Index(name = "idx_graph_id", columnList = "graph_id"),
+        @Index(name = "idx_graph_relations_graph_id", columnList = "graph_id"),
         @Index(name = "idx_source_entity", columnList = "source_entity_id"),
         @Index(name = "idx_target_entity", columnList = "target_entity_id"),
         @Index(name = "idx_relation_type", columnList = "relation_type")

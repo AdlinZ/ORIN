@@ -1,0 +1,80 @@
+# Integration Test Profile — Testcontainers MySQL + Flyway enabled
+# Used by BaseIntegrationTest (@ActiveProfiles("integration-test"))
+#
+# Key differences from default test profile:
+# - Real MySQL via Testcontainers (not H2)
+# - Flyway enabled (runs all migrations)
+# - Hibernate validates against migrations (ddl-auto=validate)
+# - Redis / RabbitMQ / Milvus disabled
+
+spring:
+  # Datasource provided by Testcontainers @DynamicPropertySource
+  # These defaults are fallbacks only
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # The integration-test profile reuses a single Testcontainers MySQL across
+    # both AgentDraftOwnershipIntegrationTest and AgentFreezePermissionIntegrationTest
+    # in the same JVM. The second class sometimes waits >30s for an idle pool
+    # entry to become valid (Hibernate + Milvus init in the first class can hold
+    # the connection for a while). Bump the timeout so we get a definitive test
+    # failure rather than a flaky HikariPool "Connection is not available".
+    hikari:
+      connection-timeout: 120000
+      validation-timeout: 10000
+      leak-detection-threshold: 180000
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+  flyway:
+    enabled: true
+    # Testcontainers MySQL is pre-loaded with the V1..V87 baseline schema via
+    # BaseIntegrationTest.withInitScript(...). Tell Flyway to baseline there
+    # so it only applies V88..V95 incremental migrations on top.
+    baseline-on-migrate: true
+    baseline-version: 87
+    baseline-description: "V1..V87 baseline schema loaded from docker/mysql/init/01-orin-schema.sql"
+
+  # Use Caffeine instead of Redis for caching
+  cache:
+    type: caffeine
+
+  # Disable RabbitMQ
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
+# JWT — use the same test secret as application-test.properties
+jwt:
+  secret: test-secret-key-for-testing-only-must-be-at-least-256-bits-long
+  expiration: 3600000
+
+# Disable RabbitMQ listener auto-startup
+orin:
+  rabbitmq:
+    listeners:
+      auto-startup: false
+  collaboration:
+    listeners:
+      auto-startup: false
+  # Disable auto-bootstrap of default admin (use seed SQL instead)
+  default-admin:
+    password: ""
+
+# Milvus — provide dummy values to satisfy @ConfigurationProperties
+milvus:
+  host: localhost
+  port: 19530
+
+# Logging
+logging:
+  level:
+    com.adlin.orin: INFO
+    org.springframework.security: DEBUG
+    org.flywaydb: INFO
+    org.testcontainers: INFO

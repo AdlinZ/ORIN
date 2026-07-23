@@ -13,12 +13,12 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "audit_logs", indexes = {
-        @Index(name = "idx_user_id", columnList = "userId"),
+        @Index(name = "idx_audit_logs_user_id", columnList = "userId"),
         @Index(name = "idx_api_key_id", columnList = "apiKeyId"),
-        @Index(name = "idx_created_at", columnList = "createdAt"),
+        @Index(name = "idx_audit_logs_created_at", columnList = "createdAt"),
         @Index(name = "idx_endpoint", columnList = "endpoint"),
         @Index(name = "idx_conversation_id", columnList = "conversationId"),
-        @Index(name = "idx_trace_id", columnList = "traceId")
+        @Index(name = "idx_audit_logs_trace_id", columnList = "traceId")
 })
 @Data
 @Builder

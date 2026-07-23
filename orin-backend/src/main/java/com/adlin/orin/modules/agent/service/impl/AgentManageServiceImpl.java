@@ -433,7 +433,6 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
-    @Cacheable(value = "agent_list")
     public java.util.List<AgentMetadata> getAllAgents() {
         // 资源级 ACL 第 2 刀: admin / operator 看全部, 普通用户按 owner 过滤
         if (ownershipResolver.isCurrentUserPrivileged()) {

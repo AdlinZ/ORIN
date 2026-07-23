@@ -9,6 +9,7 @@ import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -146,6 +147,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Spring Security {@code @PreAuthorize} / method-security 拒绝 → 403。
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Result<Object>> handleAccessDeniedException(
+            AccessDeniedException ex, HttpServletRequest request) {
+
+        String traceId = getTraceId();
+        log.warn("[TraceId: {}] Access denied: {}", traceId, ex.getMessage());
+
+        Result<Object> response = Result.<Object>builder()
+                .code(ErrorCode.FORBIDDEN.getCode())
+                .message("权限不足：" + (ex.getMessage() != null ? ex.getMessage() : "access denied"))
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    /**
      * 处理参数映射异常 (@Valid 触发)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -271,9 +292,15 @@ public class GlobalExceptionHandler {
 
     /**
      * 根据 ErrorCode 确定 HTTP 状态码
+     * （包内可见以便 unit test 直接验证；不暴露为 public API。）
      */
-    private HttpStatus determineHttpStatus(ErrorCode errorCode) {
+    HttpStatus determineHttpStatus(ErrorCode errorCode) {
         String code = errorCode.getCode();
+        // 显式优先：F02 AgentVersion / SecretReference / Idempotency 错误码（30006..30016）
+        HttpStatus explicit = EXPLICIT_AGENT_VERSION_STATUS.get(code);
+        if (explicit != null) {
+            return explicit;
+        }
         if (code.startsWith("2")) {
             // 20002 RESOURCE_ALREADY_EXISTS → 409 Conflict
             // 20003 RESOURCE_CONFLICT       → 409 Conflict
@@ -287,6 +314,14 @@ public class GlobalExceptionHandler {
             }
             return HttpStatus.NOT_FOUND;
         }
+        if (code.startsWith("1")) {
+            // 10003 UNAUTHORIZED → 401, 10004 FORBIDDEN → 403,
+            // 10005 TOO_MANY_REQUESTS → 429
+            if (code.equals("10003")) return HttpStatus.UNAUTHORIZED;
+            if (code.equals("10004")) return HttpStatus.FORBIDDEN;
+            if (code.equals("10005")) return HttpStatus.TOO_MANY_REQUESTS;
+            return HttpStatus.INTERNAL_SERVER_ERROR;
+        }
         if (code.startsWith("7")) {
             if (code.equals("70004"))
                 return HttpStatus.FORBIDDEN;
@@ -296,6 +331,24 @@ public class GlobalExceptionHandler {
             return HttpStatus.BAD_REQUEST;
         return HttpStatus.INTERNAL_SERVER_ERROR;
     }
+
+    /**
+     * F02 AgentVersion / SecretReference / Idempotency 错误码 → HTTP 显式映射表。
+     * 保持 explicit 表 + 前缀兜底两层，避免被现有 3xxxx → 500 的回退路径吞掉。
+     */
+    private static final Map<String, HttpStatus> EXPLICIT_AGENT_VERSION_STATUS = Map.ofEntries(
+            Map.entry("30006", HttpStatus.CONFLICT),               // AGENT_VERSION_FROZEN
+            Map.entry("30007", HttpStatus.METHOD_NOT_ALLOWED),      // AGENT_VERSION_DELETE_FORBIDDEN
+            Map.entry("30008", HttpStatus.NOT_FOUND),               // AGENT_VERSION_NOT_FOUND
+            Map.entry("30009", HttpStatus.CONFLICT),               // RUN_VERSION_RETIRED
+            Map.entry("30010", HttpStatus.CONFLICT),               // IDEMPOTENCY_KEY_CONFLICT
+            Map.entry("30011", HttpStatus.UNPROCESSABLE_ENTITY),   // SNAPSHOT_SCHEMA_INCOMPATIBLE
+            Map.entry("30012", HttpStatus.INTERNAL_SERVER_ERROR),  // SNAPSHOT_CANONICALIZE_FAILED
+            Map.entry("30013", HttpStatus.NOT_FOUND),              // SECRET_REFERENCE_NOT_FOUND
+            Map.entry("30014", HttpStatus.UNPROCESSABLE_ENTITY),   // RUNNER_LOCAL_SECRET_MISSING
+            Map.entry("30015", HttpStatus.BAD_REQUEST),            // MISSING_IDEMPOTENCY_KEY
+            Map.entry("30016", HttpStatus.BAD_REQUEST)             // AGENT_DRAFT_INVALID
+    );
 
     /**
      * 判断是否为开发模式

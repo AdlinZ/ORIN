@@ -13,9 +13,12 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "alert_history", indexes = {
-        @Index(name = "idx_rule_id", columnList = "rule_id"),
-        @Index(name = "idx_agent_id", columnList = "agent_id"),
-        @Index(name = "idx_triggered_at", columnList = "triggered_at"),
+        // Index names are table-prefixed so H2/Hibernate ddl-auto=create-drop
+        // doesn't collide with AgentLog/AgentVersion/ConversationLog which also
+        // declare @Index(name="idx_agent_id").
+        @Index(name = "idx_alert_history_rule_id", columnList = "rule_id"),
+        @Index(name = "idx_alert_history_agent_id", columnList = "agent_id"),
+        @Index(name = "idx_alert_history_triggered_at", columnList = "triggered_at"),
         @Index(name = "idx_alert_fingerprint_status", columnList = "fingerprint,status")
 })
 @Data
