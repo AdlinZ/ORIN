@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_audit_logs_created_at", columnList = "createdAt"),
         @Index(name = "idx_endpoint", columnList = "endpoint"),
         @Index(name = "idx_conversation_id", columnList = "conversationId"),
-        @Index(name = "idx_trace_id", columnList = "traceId")
+        @Index(name = "idx_audit_logs_trace_id", columnList = "traceId")
 })
 @Data
 @Builder
