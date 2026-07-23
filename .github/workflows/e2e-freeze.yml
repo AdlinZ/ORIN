@@ -53,8 +53,13 @@ jobs:
       - name: Run permission integration tests
         run: |
           cd orin-backend
+          # forkCount=0 so both test classes run in the same JVM and share the
+          # single @Container MySQL container (saves ~30s on a second container
+          # start AND prevents the second class from getting a stale connection
+          # pool from a freshly started JVM).
           mvn -B test -Pintegration-tests \
             -Dtest="AgentFreezePermissionIntegrationTest,AgentDraftOwnershipIntegrationTest" \
+            -DforkCount=0 \
             2>&1
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
