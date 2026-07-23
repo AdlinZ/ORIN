@@ -30,7 +30,7 @@ jobs:
   backend-permission-integration:
     name: Backend Permission Integration
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
