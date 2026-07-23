@@ -326,7 +326,7 @@
         <dependency>
             <groupId>io.opentelemetry.instrumentation</groupId>
             <artifactId>opentelemetry-instrumentation-annotations</artifactId>
-            <version>2.1.0</version>
+            <version>2.30.0</version>
         </dependency>
 
         <!-- Structured JSON logging via logstash-logback-encoder -->
