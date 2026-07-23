@@ -12,6 +12,16 @@ spring:
   # These defaults are fallbacks only
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
+    # The integration-test profile reuses a single Testcontainers MySQL across
+    # both AgentDraftOwnershipIntegrationTest and AgentFreezePermissionIntegrationTest
+    # in the same JVM. The second class sometimes waits >30s for an idle pool
+    # entry to become valid (Hibernate + Milvus init in the first class can hold
+    # the connection for a while). Bump the timeout so we get a definitive test
+    # failure rather than a flaky HikariPool "Connection is not available".
+    hikari:
+      connection-timeout: 120000
+      validation-timeout: 10000
+      leak-detection-threshold: 180000
 
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
