@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "api_keys", indexes = {
         @Index(name = "idx_key_hash", columnList = "keyHash"),
-        @Index(name = "idx_user_id", columnList = "userId")
+        @Index(name = "idx_api_keys_user_id", columnList = "userId")
 })
 @Data
 @Builder

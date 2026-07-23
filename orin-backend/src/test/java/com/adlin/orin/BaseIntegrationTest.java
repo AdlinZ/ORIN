@@ -7,6 +7,10 @@ import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -19,6 +23,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
 import java.util.Map;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * Integration test base class using Testcontainers MySQL.
@@ -165,5 +171,24 @@ public abstract class BaseIntegrationTest {
     /** Convenience: JWT for the ROLE_OPERATOR test-operator. */
     protected String jwtOperator() {
         return jwtFor(OPERATOR_ID, OPERATOR_USERNAME, "ROLE_OPERATOR");
+    }
+
+    /**
+     * Stub configuration that supplies a Mockito-mocked {@link RedisTemplate}
+     * bean so that beans like {@code UnifiedGatewayStatsService} (which
+     * constructor-injects {@code RedisTemplate}) can be created in tests
+     * where {@code integration-test} excludes {@code RedisAutoConfiguration}.
+     * The mock returns Mockito defaults (null/0/false) for every operation;
+     * F02 tests never exercise the actual Redis-backed code paths.
+     */
+    @TestConfiguration
+    static class IntegrationTestStubBeans {
+
+        @Bean
+        @Primary
+        @SuppressWarnings("unchecked")
+        public RedisTemplate<String, String> redisTemplate() {
+            return (RedisTemplate<String, String>) mock(RedisTemplate.class);
+        }
     }
 }
