@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -52,6 +53,7 @@ import static org.mockito.Mockito.mock;
 @ActiveProfiles("integration-test")
 @AutoConfigureMockMvc
 @Testcontainers
+@Import(BaseIntegrationTest.IntegrationTestStubBeans.class)
 public abstract class BaseIntegrationTest {
 
     @Container
