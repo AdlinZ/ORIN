@@ -205,5 +205,12 @@ public abstract class BaseIntegrationTest {
         public org.springframework.amqp.rabbit.connection.ConnectionFactory rabbitConnectionFactory() {
             return mock(org.springframework.amqp.rabbit.connection.ConnectionFactory.class);
         }
+
+        @Bean
+        @Primary
+        public org.springframework.amqp.core.AmqpAdmin amqpAdmin(
+                org.springframework.amqp.rabbit.connection.ConnectionFactory cf) {
+            return mock(org.springframework.amqp.core.AmqpAdmin.class);
+        }
     }
 }
