@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -174,10 +174,12 @@ public abstract class BaseIntegrationTest {
     }
 
     /**
-     * Stub configuration that supplies a Mockito-mocked {@link RedisTemplate}
-     * bean so that beans like {@code UnifiedGatewayStatsService} (which
-     * constructor-injects {@code RedisTemplate}) can be created in tests
-     * where {@code integration-test} excludes {@code RedisAutoConfiguration}.
+     * Stub configuration that supplies a Mockito-mocked
+     * {@link org.springframework.data.redis.connection.RedisConnectionFactory}
+     * bean so that beans like {@code RedisConfig#redisTemplate} (which
+     * constructor-injects the connection factory) and
+     * {@code UnifiedGatewayStatsService} can be created in tests where
+     * {@code integration-test} excludes {@code RedisAutoConfiguration}.
      * The mock returns Mockito defaults (null/0/false) for every operation;
      * F02 tests never exercise the actual Redis-backed code paths.
      */
@@ -186,9 +188,8 @@ public abstract class BaseIntegrationTest {
 
         @Bean
         @Primary
-        @SuppressWarnings("unchecked")
-        public RedisTemplate<String, String> redisTemplate() {
-            return (RedisTemplate<String, String>) mock(RedisTemplate.class);
+        public RedisConnectionFactory redisConnectionFactory() {
+            return mock(RedisConnectionFactory.class);
         }
     }
 }
