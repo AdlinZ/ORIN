@@ -8,14 +8,16 @@ Usage::
         --token sk-enroll-... \\
         --url https://orin.example.com
 
-After successful enrollment the Runner starts a heartbeat loop that
-runs until SIGTERM / SIGINT or the machine credential is rejected. Drain only
-stops new work; it does not stop heartbeats.
+After successful enrollment the Runner starts a heartbeat loop AND a work
+loop that run concurrently until SIGTERM / SIGINT or the machine credential
+is rejected.  The heartbeat loop keeps the Runner ONLINE; the work loop
+claims Agent Runs and executes them via TaskRuntime.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import os
 import sys
@@ -25,6 +27,7 @@ from app.runner.client import RunnerClient
 from app.runner.credential_store import clear, load, save
 from app.runner.enrollment import enroll
 from app.runner.heartbeat import HeartbeatLoop
+from app.runner.work_loop import WorkLoop
 
 logger = logging.getLogger(__name__)
 
@@ -111,18 +114,14 @@ def _cmd_enroll(args: argparse.Namespace) -> int:
     save(args.url, response)
     logger.info("Credentials saved to ~/.orin/credentials.json")
 
-    # 3) Start heartbeat loop
-    interval = response.get("heartbeatIntervalSec", 15)
-    loop = HeartbeatLoop(
+    # 3) Start heartbeat loop + work loop concurrently
+    _run_loops(
         client=client,
         runner_id=runner_id,
         credential=response["credential"],
-        interval_sec=interval,
+        heartbeat_interval=response.get("heartbeatIntervalSec", 15),
+        max_concurrency=args.concurrency,
     )
-    try:
-        loop.run()
-    except KeyboardInterrupt:
-        logger.info("Runner stopped by user")
     return 0
 
 
@@ -133,17 +132,60 @@ def _cmd_resume() -> int:
         return 1
 
     client = RunnerClient(creds["control_plane_url"])
-    loop = HeartbeatLoop(
+    _run_loops(
         client=client,
         runner_id=creds["runner_id"],
         credential=creds["credential"],
-        interval_sec=creds.get("heartbeat_interval_sec", 15),
+        heartbeat_interval=creds.get("heartbeat_interval_sec", 15),
+        max_concurrency=1,
     )
+    return 0
+
+
+def _run_loops(
+    *,
+    client: RunnerClient,
+    runner_id: str,
+    credential: str,
+    heartbeat_interval: int,
+    max_concurrency: int,
+) -> None:
+    """Run HeartbeatLoop (sync) + WorkLoop (async) concurrently."""
+    heartbeat = HeartbeatLoop(
+        client=client,
+        runner_id=runner_id,
+        credential=credential,
+        interval_sec=heartbeat_interval,
+    )
+    work_loop = WorkLoop(
+        client=client,
+        runner_id=runner_id,
+        credential=credential,
+        max_concurrency=max_concurrency,
+    )
+
+    async def _run_all():
+        loop = asyncio.get_running_loop()
+        # Run sync heartbeat in a thread so it doesn't block the event loop
+        heartbeat_task = loop.run_in_executor(None, _run_heartbeat_safe, heartbeat)
+        work_task = asyncio.create_task(work_loop.run())
+        try:
+            await asyncio.gather(heartbeat_task, work_task)
+        except asyncio.CancelledError:
+            pass
+
     try:
-        loop.run()
+        asyncio.run(_run_all())
     except KeyboardInterrupt:
         logger.info("Runner stopped by user")
-    return 0
+
+
+def _run_heartbeat_safe(heartbeat: HeartbeatLoop) -> None:
+    """Wrapper that doesn't leak exceptions across the executor boundary."""
+    try:
+        heartbeat.run()
+    except Exception:
+        logger.exception("Heartbeat loop exited with error")
 
 
 def _cmd_status() -> int:

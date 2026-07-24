@@ -2,6 +2,7 @@ package com.adlin.orin.modules.system.controller;
 
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.knowledge.service.sync.DifyFullSyncService;
+import com.adlin.orin.modules.run.service.RunService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,6 +24,7 @@ public class SchedulerController {
 
     private final DifyFullSyncService difyFullSyncService;
     private final AuditLogRepository auditLogRepository;
+    private final RunService runService;
 
     private final AtomicLong syncTaskCount = new AtomicLong(0);
     private final AtomicLong cleanupTaskCount = new AtomicLong(0);
@@ -47,6 +49,22 @@ public class SchedulerController {
         } catch (Exception e) {
             log.error("Scheduled knowledge sync failed: {}", e.getMessage());
             lastSyncResult.set(2);
+        }
+    }
+
+    /**
+     * 定时检测超时 Run（每 60 秒执行一次）。
+     * 将 lease 过期的 assignment 标记为 EXPIRED，同步 Run 为 FAILED。
+     */
+    @Scheduled(fixedRate = 60_000)
+    public void scheduledRunTimeout() {
+        try {
+            int count = runService.timeoutStaleRuns();
+            if (count > 0) {
+                log.info("Run timeout scan: {} stale assignment(s) expired", count);
+            }
+        } catch (Exception e) {
+            log.error("Run timeout scan failed: {}", e.getMessage());
         }
     }
 

@@ -115,6 +115,131 @@ class RunnerClient:
         _check_auth(resp)
         resp.raise_for_status()
 
+    # ------------------------------------------------------------------
+    # F03 / R2 — lease claim / renew / events / result / secret-bind
+    # ------------------------------------------------------------------
+
+    def claim_lease(
+        self, runner_id: str, credential: str,
+    ) -> Dict[str, Any]:
+        """POST /api/system/runners/{runnerId}/lease/claim.
+
+        Returns the parsed JSON response which includes ``acquired``,
+        ``runId``, ``assignmentId``, ``leaseId``, ``leaseToken``,
+        ``configSnapshot``, ``input``, ``leaseExpiresAt``, ``traceId``.
+
+        When ``acquired`` is false, only that field is present.
+        """
+        resp = self._client.post(
+            f"/api/system/runners/{runner_id}/lease/claim",
+            headers={
+                "Authorization": f"Runner {credential}",
+                TRACEPARENT_HEADER: _new_traceparent(),
+            },
+        )
+        _check_auth(resp)
+        resp.raise_for_status()
+        return resp.json()
+
+    def submit_result(
+        self,
+        runner_id: str,
+        run_id: str,
+        lease_id: str,
+        status: str,
+        output: str = None,
+        error_message: str = None,
+        error_code: str = None,
+    ) -> None:
+        """POST /api/system/runners/{runnerId}/runs/{runId}/result.
+
+        ``status`` must be ``"COMPLETED"`` or ``"FAILED"``.
+        """
+        body: Dict[str, Any] = {
+            "leaseId": lease_id,
+            "status": status,
+        }
+        if output is not None:
+            body["output"] = output
+        if error_message is not None:
+            body["errorMessage"] = error_message
+        if error_code is not None:
+            body["errorCode"] = error_code
+        resp = self._client.post(
+            f"/api/system/runners/{runner_id}/runs/{run_id}/result",
+            json=body,
+            headers={
+                "Authorization": f"Runner {credential}",
+                TRACEPARENT_HEADER: _new_traceparent(),
+            },
+        )
+        _check_auth(resp)
+        resp.raise_for_status()
+
+    def submit_events(
+        self,
+        runner_id: str,
+        run_id: str,
+        lease_id: str,
+        events,
+    ) -> None:
+        """POST /api/system/runners/{runnerId}/runs/{runId}/events.
+
+        ``events`` is a list of dicts with keys ``seq``, ``level``, ``message``,
+        and optional ``timestamp``.
+        """
+        resp = self._client.post(
+            f"/api/system/runners/{runner_id}/runs/{run_id}/events",
+            json={"leaseId": lease_id, "events": events},
+            headers={
+                "Authorization": f"Runner {credential}",
+                TRACEPARENT_HEADER: _new_traceparent(),
+            },
+        )
+        _check_auth(resp)
+        resp.raise_for_status()
+
+    def renew_lease(
+        self, runner_id: str, run_id: str, lease_id: str,
+    ) -> Dict[str, Any]:
+        """POST /api/system/runners/{runnerId}/runs/{runId}/lease/renew.
+
+        Returns ``{"action": "no_op"|"cancel"|"drain", "reason": ...,
+        "leaseExpiresAt": ..., "traceId": ...}``.
+        """
+        resp = self._client.post(
+            f"/api/system/runners/{runner_id}/runs/{run_id}/lease/renew",
+            json={"leaseId": lease_id},
+            headers={
+                "Authorization": f"Runner {credential}",
+                TRACEPARENT_HEADER: _new_traceparent(),
+            },
+        )
+        _check_auth(resp)
+        resp.raise_for_status()
+        return resp.json()
+
+    def bind_secrets(
+        self, runner_id: str, run_id: str, assignment_id: str,
+    ) -> Dict[str, Any]:
+        """POST /api/system/runners/{runnerId}/runs/{runId}/secret-bind.
+
+        Request body: ``{"assignmentId": "..."}``.
+        Returns ``{"leaseId", "runId", "materializedSecrets": {...},
+        "secretRevisionBindings": {...}, "expiresAtEpochMs": ...}``.
+        """
+        resp = self._client.post(
+            f"/api/system/runners/{runner_id}/runs/{run_id}/secret-bind",
+            json={"assignmentId": assignment_id},
+            headers={
+                "Authorization": f"Runner {credential}",
+                TRACEPARENT_HEADER: _new_traceparent(),
+            },
+        )
+        _check_auth(resp)
+        resp.raise_for_status()
+        return resp.json()
+
 
 def _new_traceparent() -> str:
     """Generate a fresh traceparent for outbound Runner requests.

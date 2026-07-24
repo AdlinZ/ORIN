@@ -10,6 +10,8 @@ import com.adlin.orin.modules.runner.entity.RunnerStatus;
 import com.adlin.orin.modules.runner.repository.RunnerHeartbeatSnapshotRepository;
 import com.adlin.orin.modules.run.dto.LeaseRunResponse;
 import com.adlin.orin.modules.run.dto.BatchEventsRequest;
+import com.adlin.orin.modules.run.dto.RenewLeaseRequest;
+import com.adlin.orin.modules.run.dto.RenewLeaseResponse;
 import com.adlin.orin.modules.run.dto.SecretBindRequest;
 import com.adlin.orin.modules.run.dto.SecretBindResponse;
 import com.adlin.orin.modules.run.dto.SubmitResultRequest;
@@ -221,11 +223,10 @@ public class RunnerMachineController {
     }
 
     // ============================================================
-    // F03 Runner 机器通道 — ADR-001 端点（MVP 子集）
+    // F03 Runner 机器通道 — ADR-001 端点（R2 全六端点）
     //
-    // 当前实现的端点：/lease/claim、/result、/events、/secret-bind。
-    // /lease/{leaseId}/renew 在 R2（run_assignment 表 + lease 持久化）之前
-    // 无法正确实现，暂不暴露。
+    // 已实现：/lease/claim、/renew、/result、/events、/secret-bind + heartbeat/command-ack。
+    // R2 新增 /renew 端点 + leaseId 支持。
     // ============================================================
 
     @PostMapping("/{runnerId}/lease/claim")
@@ -235,13 +236,23 @@ public class RunnerMachineController {
         return runService.leaseRun(runnerId);
     }
 
+    @PostMapping("/{runnerId}/runs/{runId}/lease/renew")
+    @Operation(summary = "Runner 续租（ADR-001 /lease/{leaseId}/renew）")
+    public RenewLeaseResponse renewLease(@PathVariable String runnerId,
+                                          @PathVariable String runId,
+                                          @Valid @RequestBody RenewLeaseRequest request) {
+        requireRunnerPrincipal(runnerId);
+        return runService.renewLease(runnerId, runId, request.getLeaseId());
+    }
+
     @PostMapping("/{runnerId}/runs/{runId}/result")
     @Operation(summary = "Runner 提交最终结果（ADR-001 /result）")
     public ResponseEntity<Void> submitResult(@PathVariable String runnerId,
                                               @PathVariable String runId,
                                               @Valid @RequestBody SubmitResultRequest request) {
         requireRunnerPrincipal(runnerId);
-        runService.submitResult(runId, request.getLeaseToken(),
+        String leaseId = request.getLeaseId() != null ? request.getLeaseId() : request.getLeaseToken();
+        runService.submitResult(runId, leaseId,
                 request.getStatus(), request.getOutput(),
                 request.getErrorMessage(), request.getErrorCode());
         return ResponseEntity.noContent().build();
@@ -253,7 +264,8 @@ public class RunnerMachineController {
                                               @PathVariable String runId,
                                               @Valid @RequestBody BatchEventsRequest request) {
         requireRunnerPrincipal(runnerId);
-        runService.appendEvents(runId, request.getLeaseToken(), request.getEvents());
+        String leaseId = request.getLeaseId() != null ? request.getLeaseId() : request.getLeaseToken();
+        runService.appendEvents(runId, leaseId, request.getEvents());
         return ResponseEntity.noContent().build();
     }
 

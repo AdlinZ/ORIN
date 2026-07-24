@@ -43,6 +43,20 @@ def _bounded_int(value: Any, fallback: int, minimum: int = 256, maximum: int = 1
     return max(minimum, min(maximum, parsed))
 
 
+def _build_headers(materialized_secrets: Dict[str, str]) -> Dict[str, str]:
+    """Build HTTP headers from materialized secrets (ADR-002 /secret-bind).
+
+    Keys ending with ``_API_KEY`` are also sent as ``Authorization: Bearer <value>``.
+    """
+    headers: Dict[str, str] = {"Content-Type": "application/json"}
+    for inject_as, value in materialized_secrets.items():
+        if value:
+            headers[f"X-ORIN-Secret-{inject_as}"] = value
+            if inject_as.upper().endswith("_API_KEY"):
+                headers["Authorization"] = f"Bearer {value}"
+    return headers
+
+
 class TaskRuntime:
     """Single execution kernel for collaboration subtasks."""
 
@@ -54,9 +68,17 @@ class TaskRuntime:
         description: str,
         expected_role: str,
         context: Optional[Dict[str, Any]] = None,
+        materialized_secrets: Optional[Dict[str, str]] = None,
     ) -> str:
-        """Execute one agent-style (LLM) subtask."""
+        """Execute one agent-style (LLM) subtask.
+
+        When ``materialized_secrets`` is provided (from ADR-002 /secret-bind),
+        inject-as keys are added as HTTP headers on outbound calls to the Java
+        backend.  Keys ending with ``_API_KEY`` are also sent as
+        ``Authorization: Bearer <value>``.
+        """
         context = context or {}
+        materialized_secrets = materialized_secrets or {}
 
         # Prefer ORIN native agent runtime when a specific agent is provided.
         # This path avoids requiring OPENAI_API_KEY in ai-engine.
@@ -83,8 +105,7 @@ class TaskRuntime:
                 "temperature": ephemeral_agent.get("temperature", 0.45),
                 "max_tokens": _bounded_int(ephemeral_agent.get("max_tokens"), agent_max_tokens),
             }
-            trace_id = context.get("_trace_id")
-            headers = {"Content-Type": "application/json"}
+            headers = _build_headers(materialized_secrets)
             # trace_id 由 `app.core.trace_httpx.httpx_client` 注入 W3C
             # `traceparent` header，无需手动设 `X-Trace-Id` legacy。
 
@@ -113,8 +134,7 @@ class TaskRuntime:
                 # Keep subtask outputs bounded to reduce long-tail latency in collaborative runs.
                 "max_tokens": agent_max_tokens,
             }
-            trace_id = context.get("_trace_id")
-            headers = {"Content-Type": "application/json"}
+            headers = _build_headers(materialized_secrets)
             # trace_id 由 `app.core.trace_httpx.httpx_client` 注入 W3C
             # `traceparent` header，无需手动设 `X-Trace-Id` legacy。
 

@@ -5,8 +5,9 @@ import lombok.Data;
 
 /**
  * F03 lease/claim 响应（ADR-001 /lease/claim）。
- * <p>MVP：leaseToken 同时充当 lease 标识与鉴权。
- * 独立 leaseId 在 R2（run_assignment 表持久化）时加入。
+ *
+ * <p>R2：run_assignment 是 lease/attempt/终端原因的唯一事实。
+ * leaseToken 保留作为鉴权与向后兼容标识；assignmentId + leaseId 是新的权威标识。
  */
 @Data
 @Builder
@@ -18,7 +19,13 @@ public class LeaseRunResponse {
     /** Run id。 */
     private String runId;
 
-    /** Lease 验证令牌（不透明 bearer；MVP 同时作为 lease 标识）。 */
+    /** run_assignment.id（R2 新增——secret-bind 与 renew 的主键）。 */
+    private String assignmentId;
+
+    /** 显式 lease 标识（R2 新增——与 leaseToken 值相同，语义明确）。 */
+    private String leaseId;
+
+    /** Lease 验证令牌（不透明 bearer；与 leaseId 同值，保留向后兼容）。 */
     private String leaseToken;
 
     /** Agent config_snapshot（JSON）。 */

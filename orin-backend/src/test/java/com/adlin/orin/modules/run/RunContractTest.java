@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -84,14 +86,19 @@ class RunContractTest extends BaseIntegrationTest {
     @Test
     void secretBind_UnauthenticatedReturns401() throws Exception {
         // /secret-bind requires a valid Runner credential to get past auth.
-        // This test covers only the authentication boundary. The 501
-        // RUN_FEATURE_NOT_AVAILABLE response needs a valid Runner credential
-        // fixture and is intentionally deferred to the R2 integration suite.
         mockMvc.perform(post("/api/system/runners/test-runner/runs/some-run/secret-bind")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"assignmentId\":\"assign-1\"}"))
                 .andExpect(status().isUnauthorized()) // blocked by auth filter
                 .andExpect(jsonPath("$.code").value("100002"));
+    }
+
+    @Test
+    void renewLease_Unauthenticated_Returns401() throws Exception {
+        mockMvc.perform(post("/api/system/runners/test-runner/runs/some-run/lease/renew")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"leaseId\":\"lease-1\"}"))
+                .andExpect(status().isUnauthorized());
     }
 
     // ============================================================
@@ -141,6 +148,8 @@ class RunContractTest extends BaseIntegrationTest {
         LeaseRunResponse full = LeaseRunResponse.builder()
                 .acquired(true)
                 .runId("run-1")
+                .assignmentId("asgn-1")
+                .leaseId("lease-1")
                 .leaseToken("token-1")
                 .configSnapshot("{}")
                 .input("hello")
@@ -149,19 +158,43 @@ class RunContractTest extends BaseIntegrationTest {
                 .build();
         assertTrue(full.isAcquired());
         assertEquals("run-1", full.getRunId());
+        assertEquals("asgn-1", full.getAssignmentId());
+        assertEquals("lease-1", full.getLeaseId());
         assertEquals("token-1", full.getLeaseToken());
         assertEquals("trace-1", full.getTraceId());
     }
 
     @Test
-    void submitResultRequest_BothStatuses() {
-        SubmitResultRequest success = new SubmitResultRequest();
-        success.setStatus("COMPLETED");
-        assertTrue(success.isSuccess());
+    void renewLeaseResponse_HasControlActionFields() {
+        RenewLeaseResponse noOp = RenewLeaseResponse.noOp(2000L, "trace-2");
+        assertEquals("no_op", noOp.getAction());
+        assertNull(noOp.getReason());
+        assertEquals(2000L, noOp.getLeaseExpiresAt());
+        assertEquals("trace-2", noOp.getTraceId());
 
-        SubmitResultRequest failure = new SubmitResultRequest();
-        failure.setStatus("FAILED");
-        assertFalse(failure.isSuccess());
+        RenewLeaseResponse cancel = RenewLeaseResponse.builder()
+                .action("cancel")
+                .reason("USER_CANCELLED")
+                .leaseExpiresAt(0L)
+                .traceId("trace-3")
+                .build();
+        assertEquals("cancel", cancel.getAction());
+        assertEquals("USER_CANCELLED", cancel.getReason());
+    }
+
+    @Test
+    void secretBindResponse_HasMaterializedFields() {
+        SecretBindResponse resp = SecretBindResponse.builder()
+                .leaseId("lease-1")
+                .runId("run-1")
+                .materializedSecrets(Map.of("OPENAI_API_KEY", "sk-test"))
+                .secretRevisionBindings(Map.of("OPENAI_API_KEY", "gsec_1@v1"))
+                .expiresAtEpochMs(2000L)
+                .build();
+        assertEquals("lease-1", resp.getLeaseId());
+        assertEquals("run-1", resp.getRunId());
+        assertEquals("sk-test", resp.getMaterializedSecrets().get("OPENAI_API_KEY"));
+        assertEquals(2000L, resp.getExpiresAtEpochMs());
     }
 
     @Test

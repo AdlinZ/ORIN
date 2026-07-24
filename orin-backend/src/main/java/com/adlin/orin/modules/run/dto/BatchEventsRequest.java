@@ -16,9 +16,11 @@ import java.util.List;
 @Data
 public class BatchEventsRequest {
 
-    /** Lease 验证令牌。 */
-    @NotBlank
+    /** Lease 验证令牌（R2：leaseId 优先；leaseToken 保留向后兼容）。 */
     private String leaseToken;
+
+    /** Lease 标识（R2 新增——优先于 leaseToken 使用）。 */
+    private String leaseId;
 
     /** 批量事件数组。 */
     @NotEmpty
