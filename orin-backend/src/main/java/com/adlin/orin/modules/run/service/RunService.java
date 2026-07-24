@@ -8,7 +8,9 @@ import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
 import com.adlin.orin.modules.run.dto.CreateRunRequest;
 import com.adlin.orin.modules.run.dto.LeaseRunResponse;
+import com.adlin.orin.modules.run.dto.BatchEventsRequest;
 import com.adlin.orin.modules.run.dto.RunResponse;
+import com.adlin.orin.modules.run.dto.SecretBindResponse;
 import com.adlin.orin.modules.run.entity.Run;
 import com.adlin.orin.modules.run.entity.RunStatus;
 import com.adlin.orin.modules.run.entity.RunLog;
@@ -94,6 +96,7 @@ public class RunService {
                 .configSnapshot(version.getConfigSnapshot())
                 .input(request.getInput())
                 .createdBy(createdBy)
+                .traceId(UUID.randomUUID().toString())
                 .build();
 
         run = runRepository.save(run);
@@ -115,6 +118,7 @@ public class RunService {
                     "Run 当前状态不可取消: " + run.getStatus());
         }
         run.setStatus(RunStatus.CANCELLED);
+        run.setTerminalReason("USER_CANCELLED");
         run.setCompletedAt(Instant.now().toEpochMilli());
         run = runRepository.save(run);
         log.info("Run cancelled: {} by {}", runId, operator);
@@ -145,7 +149,7 @@ public class RunService {
                 .createdBy(operator)
                 .retryCount(original.getRetryCount() + 1)
                 .maxRetries(original.getMaxRetries())
-                .originalRunId(runId)
+                .retryOfRunId(runId)
                 .build();
 
         retry = runRepository.save(retry);
@@ -175,7 +179,8 @@ public class RunService {
     // ============================================================
 
     /**
-     * Runner 轮询领取排队的 Run。
+     * Runner 轮询领取排队的 Run（ADR-001 /lease/claim）。
+     * <p>MVP 不做真正的 long-poll；无可用 Run 时返回 acquired=false。
      */
     @Transactional
     public LeaseRunResponse leaseRun(String runnerId) {
@@ -195,7 +200,7 @@ public class RunService {
 
         Run run = queued.get(0);
 
-        // 分配 lease
+        // 分配 lease（MVP：leaseToken 充当 lease 标识 + 鉴权，R2 引入独立 leaseId）
         String leaseToken = UUID.randomUUID().toString();
         long now = Instant.now().toEpochMilli();
         run.setStatus(RunStatus.LEASED);
@@ -203,9 +208,11 @@ public class RunService {
         run.setLeasedAt(now);
         run.setLeaseExpiresAt(now + LEASE_TIMEOUT_MS);
         run.setRunnerId(runnerId); // 以实际领取的 Runner 为准
+        run.setRunAttempt(run.getRunAttempt() + 1);
         runRepository.save(run);
 
-        log.info("Run leased: {} → runner={} expires={}", run.getId(), runnerId, run.getLeaseExpiresAt());
+        log.info("Run leased: {} → runner={} expires={}",
+                run.getId(), runnerId, run.getLeaseExpiresAt());
 
         return LeaseRunResponse.builder()
                 .acquired(true)
@@ -214,95 +221,80 @@ public class RunService {
                 .configSnapshot(run.getConfigSnapshot())
                 .input(run.getInput())
                 .leaseExpiresAt(run.getLeaseExpiresAt())
+                .traceId(run.getTraceId())
                 .build();
     }
 
     /**
-     * Runner 确认开始执行 Run。
+     * Runner 提交最终执行结果（ADR-001 /result）。
+     * <p>合并旧 completeRun + failRun 为单一端点。
+     * 首次 /result 时原子将 LEASED→RUNNING→COMPLETED/FAILED。
      */
     @Transactional
-    public void startRun(String runId, String leaseToken) {
+    public void submitResult(String runId, String leaseToken, String resultStatus,
+                             String output, String errorMessage, String errorCode) {
         Run run = runRepository.findById(runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
 
-        if (run.getStatus() != RunStatus.LEASED) {
-            throw new BusinessException(ErrorCode.RUN_INVALID_STATE,
-                    "Run 不在 LEASED 状态: " + run.getStatus());
-        }
         if (!leaseToken.equals(run.getLeaseToken())) {
             throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
                     "Lease token 不匹配");
         }
+
+        boolean success = "COMPLETED".equalsIgnoreCase(resultStatus);
         long now = Instant.now().toEpochMilli();
-        if (run.getLeaseExpiresAt() != null && now > run.getLeaseExpiresAt()) {
-            throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
-                    "Lease 已过期");
+
+        // 如果在 LEASED 状态收到 result，自动过渡到 RUNNING 再终结
+        if (run.getStatus() == RunStatus.LEASED) {
+            run.setStatus(RunStatus.RUNNING);
+            run.setStartedAt(now);
         }
-
-        run.setStatus(RunStatus.RUNNING);
-        run.setStartedAt(now);
-        runRepository.save(run);
-        log.info("Run started: {}", runId);
-    }
-
-    /**
-     * Runner 上报执行完成。
-     */
-    @Transactional
-    public void completeRun(String runId, String leaseToken, String output) {
-        Run run = runRepository.findById(runId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
 
         if (run.getStatus() != RunStatus.RUNNING) {
             throw new BusinessException(ErrorCode.RUN_INVALID_STATE,
-                    "Run 不在 RUNNING 状态: " + run.getStatus());
-        }
-        // Re-verify lease token for security
-        if (!leaseToken.equals(run.getLeaseToken())) {
-            throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
-                    "Lease token 不匹配");
+                    "Run 不在可执行状态: " + run.getStatus());
         }
 
-        run.setStatus(RunStatus.COMPLETED);
-        run.setOutput(output);
-        run.setCompletedAt(Instant.now().toEpochMilli());
+        if (success) {
+            run.setStatus(RunStatus.COMPLETED);
+            run.setOutput(output);
+        } else {
+            run.setStatus(RunStatus.FAILED);
+            run.setErrorMessage(errorMessage);
+        }
+        run.setCompletedAt(now);
         runRepository.save(run);
-        log.info("Run completed: {}", runId);
+
+        log.info("Run result: {} status={} {}", runId, resultStatus,
+                errorMessage != null ? "error=" + errorMessage : "");
     }
 
     /**
-     * Runner 上报执行失败。
+     * Runner 获取物化 secrets（ADR-001/ADR-002 /secret-bind）。
+     * <p>R2 实现前返回 501 FEATURE_NOT_AVAILABLE。
+     * 当前不存在 run_assignment 表与 lease 持久化，
+     * 无法校验 assignmentId 与 run/runner/lease 的关联。
      */
-    @Transactional
-    public void failRun(String runId, String leaseToken, String errorMessage) {
-        Run run = runRepository.findById(runId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
-
-        if (run.getStatus() != RunStatus.RUNNING && run.getStatus() != RunStatus.LEASED) {
-            throw new BusinessException(ErrorCode.RUN_INVALID_STATE,
-                    "Run 不可标记失败: " + run.getStatus());
-        }
-        if (!leaseToken.equals(run.getLeaseToken())) {
-            throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
-                    "Lease token 不匹配");
-        }
-
-        run.setStatus(RunStatus.FAILED);
-        run.setErrorMessage(errorMessage);
-        run.setCompletedAt(Instant.now().toEpochMilli());
-        runRepository.save(run);
-        log.info("Run failed: {} — {}", runId, errorMessage);
+    public SecretBindResponse bindSecrets(String runId, String assignmentId) {
+        throw new BusinessException(ErrorCode.RUN_FEATURE_NOT_AVAILABLE,
+                "secret-bind 在 R2 run_assignment 持久化之前不可用。"
+                        + "当前无法校验 assignmentId=" + assignmentId
+                        + " 与 run=" + runId + " 的关联。");
     }
 
     // ============================================================
-    // F04 日志推送 / 拉取
+    // F04 事件推送 / 日志拉取
     // ============================================================
 
     /**
-     * Runner 推送一条日志行。
+     * Runner 批量推送中间态事件 / 日志（ADR-001 /events）。
+     * <p>使用 Runner 提供的 seq 作为 event 序号；
+     * 幂等键 run:idemp:{runId}:{leaseToken}:{runAttempt}:{eventSeq}。
+     * R2 接入 run_events 表 + UNIQUE 约束后实现真正的幂等抑制。
      */
     @Transactional
-    public void appendLog(String runId, String leaseToken, String level, String message) {
+    public void appendEvents(String runId, String leaseToken,
+                             List<BatchEventsRequest.EventEntry> events) {
         Run run = runRepository.findById(runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
         if (!leaseToken.equals(run.getLeaseToken())) {
@@ -311,17 +303,21 @@ public class RunService {
         }
         if (!run.getStatus().isActive()) {
             throw new BusinessException(ErrorCode.RUN_ALREADY_TERMINAL,
-                    "Run 已终结，不可写日志");
+                    "Run 已终结，不可写事件");
         }
 
-        long count = runLogRepository.countByRunId(runId);
-        RunLog entry = RunLog.builder()
-                .runId(runId)
-                .sequence((int) count)
-                .level(level != null ? level : "INFO")
-                .message(message)
-                .build();
-        runLogRepository.save(entry);
+        for (BatchEventsRequest.EventEntry event : events) {
+            RunLog entry = RunLog.builder()
+                    .runId(runId)
+                    .sequence(event.getSeq() != null ? event.getSeq() : 0)
+                    .level(event.getLevel() != null ? event.getLevel() : "INFO")
+                    .message(event.getMessage())
+                    .build();
+            runLogRepository.save(entry);
+        }
+        if (!events.isEmpty()) {
+            log.debug("Run events appended: run={} count={}", runId, events.size());
+        }
     }
 
     /**
@@ -340,7 +336,7 @@ public class RunService {
     // ============================================================
 
     /**
-     * 将超过 5 分钟仍 RUNNING 的 Run 标记为 FAILED。
+     * 将超时未完成的 Run 标记为 FAILED（ADR-001 D-1.4.3: NETWORK_LOST）。
      * 由定时任务调用。
      */
     @Transactional
@@ -354,6 +350,7 @@ public class RunService {
             if (run.getStartedAt() != null && run.getStartedAt() < timeoutThreshold) {
                 run.setStatus(RunStatus.FAILED);
                 run.setErrorMessage("Run 执行超时（超过 5 分钟无响应）");
+                run.setTerminalReason("NETWORK_LOST");
                 run.setCompletedAt(now);
                 runRepository.save(run);
                 count++;

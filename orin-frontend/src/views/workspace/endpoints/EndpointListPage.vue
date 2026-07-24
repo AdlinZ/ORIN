@@ -12,6 +12,10 @@
       <el-button type="primary" :icon="Plus" @click="openPublishDialog">发布端点</el-button>
     </div>
 
+    <el-alert type="info" :closable="false" style="margin-bottom: 16px">
+      此功能处于原型阶段。REST/MCP 真调用需要 F03 Runner 闭环（R2 实现中）。当前仅展示数据模型与页面结构。
+    </el-alert>
+
     <OrinAsyncState :status="state.status" empty-text="暂无端点。选择已冻结的 Agent 版本发布。" @retry="loadData">
       <OrinDataTable>
         <el-table :data="endpoints" stripe border v-loading="state.status === 'loading'">

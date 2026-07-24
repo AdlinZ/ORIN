@@ -9,10 +9,10 @@
 | ID | 功能 | 用户结果 | 当前状态 |
 | --- | --- | --- | --- |
 | F01 | [接入并监控服务器](./F01-接入并监控服务器.md) | 用户把自己的服务器接入 ORIN，并看到真实在线状态和资源 | Partially Integrated |
-| F02 | [创建并冻结 Agent](./F02-创建并冻结Agent.md) | 用户完成 Agent 草稿配置并得到不可变 AgentVersion | Not Started |
-| F03 | [在 Runner 上运行 Agent](./F03-在Runner上运行Agent.md) | 用户选择 Runner/RunnerPool，真实执行一个固定 AgentVersion | Not Started |
-| F04 | [观察和控制 Run](./F04-观察和控制Run.md) | 用户查看状态、日志、Trace、结果，并能取消或重试 | Not Started |
-| F05 | [发布 API 与 MCP](./F05-发布API与MCP.md) | 用户把已验证 AgentVersion 发布并从外部真实调用 | Not Started |
+| F02 | [创建并冻结 Agent](./F02-创建并冻结Agent.md) | 用户完成 Agent 草稿配置并得到不可变 AgentVersion | E2E Working |
+| F03 | [在 Runner 上运行 Agent](./F03-在Runner上运行Agent.md) | 用户选择 Runner/RunnerPool，真实执行一个固定 AgentVersion | Prototype |
+| F04 | [观察和控制 Run](./F04-观察和控制Run.md) | 用户查看状态、日志、Trace、结果，并能取消或重试 | Prototype |
+| F05 | [发布 API 与 MCP](./F05-发布API与MCP.md) | 用户把已验证 AgentVersion 发布并从外部真实调用 | Prototype |
 
 功能按 F01 → F05 形成主路径。允许并行准备后续功能的技术基础，但不得在前置用户旅程尚未成立时把后续功能标记为完成。
 
@@ -21,6 +21,7 @@
 | 状态 | 判定 |
 | --- | --- |
 | `Not Started` | 用户旅程尚不可执行；即使已有旧代码或设计，也仍算未开始 |
+| `Prototype` | 有后端骨架与前端占位页面，但核心业务语义（lease 持久化、Runner 闭环、幂等等）尚未实现 |
 | `Backend Only` | 只有数据模型、服务或接口；用户无法从产品界面完成旅程 |
 | `Partially Integrated` | 多端已经连接，但关键正常路径或失败路径仍需人工绕过 |
 | `E2E Working` | 用户可从真实界面完成旅程，真实后端 E2E 与手工 smoke 通过 |

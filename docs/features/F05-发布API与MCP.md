@@ -53,3 +53,12 @@
 - [MCP Client Setup](../mcp-client-setup.md)
 - [Open Demo Checklist](../open-demo-checklist.md)
 - [角色矩阵](../角色矩阵.md)
+
+## 7. 实现状态（2026-07-24）
+
+**当前状态：Backend Only**
+
+- 已有：`agent_endpoints` 表（V98）、Endpoint CRUD
+- 已有：`EndpointListPage.vue`（前端占位页）
+- 缺失：REST 执行 / MCP `tools/list` `tools/call`、API Key 权限、速率限制、真实外部调用
+- 升级到 E2E Working 需要：F03 Runner 闭环 → 端点绑定 AgentVersion + RunnerPool → 外部 HTTP/MCP 调用产生 Run

@@ -50,3 +50,12 @@
 - [ADR-001](../adr/001-runner-dispatch-and-lease.md)
 - [开发规范](../开发规范.md)
 - [角色矩阵](../角色矩阵.md)
+
+## 7. 实现状态（2026-07-24）
+
+**当前状态：Backend Only**
+
+- 已有：`appendEvents()`（批量事件推送，已对齐 ADR-001 /events）、`getLogs()`（增量拉取）、`timeoutStaleRuns()`（超时检测 + terminal_reason）
+- 已有：`RunListPage.vue`（前端占位页，含状态列表）
+- 缺失：实时日志流（无 Runner 真执行）、Trace 查看、Cancel/Drain/Retry 完成闭环
+- 升级到 E2E Working 需要：Runner 产生真实日志 + 用户在 Workspace 实时查看

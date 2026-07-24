@@ -46,5 +46,5 @@ public interface RunRepository extends JpaRepository<Run, String> {
     long countByRunnerIdAndStatusIn(String runnerId, List<RunStatus> statuses);
 
     /** 查原始 Run 的所有重试。 */
-    List<Run> findByOriginalRunIdOrderByCreatedAtAsc(String originalRunId);
+    List<Run> findByRetryOfRunIdOrderByCreatedAtAsc(String retryOfRunId);
 }

@@ -12,6 +12,10 @@
       <el-button type="primary" :icon="Plus" @click="openCreateDialog">创建 Run</el-button>
     </div>
 
+    <el-alert type="info" :closable="false" style="margin-bottom: 16px">
+      此功能处于原型阶段。Run 执行需要 Runner 闭环（R2 实现中）。当前仅展示数据模型与页面结构。
+    </el-alert>
+
     <!-- Run 列表 -->
     <OrinAsyncState :status="state.status" empty-text="暂无 Run。点击「创建 Run」开始。" @retry="loadRuns">
       <OrinDataTable>

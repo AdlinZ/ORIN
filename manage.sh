@@ -248,32 +248,17 @@ function start() {
         exit 1
     fi
 
-    # 0.1 自动修复 Flyway checksum 问题（处理历史上迁移脚本被修改的情况）
+    # 0.1 检查 Flyway 迁移状态，失败时停止启动并提示手动修复
     echo -e "${YELLOW}检查 Flyway 迁移状态...${NC}"
-    local checksum_issues=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND checksum IS NULL;" 2>/dev/null | tail -n 1)
-    if [ "$checksum_issues" -gt 0 ]; then
-        echo -e "${YELLOW}发现 $checksum_issues 个迁移记录 checksum 异常，自动修复...${NC}"
-        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "UPDATE flyway_schema_history SET checksum = NULL WHERE success=1;" 2>/dev/null
-        echo -e "${GREEN}✓ Flyway 修复完成${NC}"
-    fi
-
-    # 0.2 自动修复失败的迁移（删除失败记录让 Flyway 重新执行）
-    local failed_count=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" 2>/dev/null | tail -n 1)
-    if [ "$failed_count" -gt 0 ]; then
-        echo -e "${YELLOW}发现 $failed_count 个失败的迁移记录，自动清理...${NC}"
-        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "DELETE FROM flyway_schema_history WHERE success=0;" 2>/dev/null
-        echo -e "${GREEN}✓ 失败的迁移记录已清理${NC}"
-    fi
-
-    # 0.3 检查并手动执行 V45 迁移（如有需要）
-    local v45_exists=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$DB_NAME' AND TABLE_NAME='sys_user' AND COLUMN_NAME='department_id';" 2>/dev/null | tail -n 1)
-    if [ "$v45_exists" -eq 0 ]; then
-        echo -e "${YELLOW}手动执行 V45 迁移...${NC}"
-        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "ALTER TABLE sys_user ADD COLUMN department_id BIGINT;" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "INSERT INTO flyway_schema_history (version, description, type, script, success, installed_on) VALUES ('45', 'Add_User_Department', 'SQL', 'V45__Add_User_Department.sql', 1, NOW());" 2>/dev/null
-            echo -e "${GREEN}✓ V45 迁移完成${NC}"
+    if command -v mysql &> /dev/null; then
+        local failed_count=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" 2>/dev/null | tail -n 1)
+        if [ "$failed_count" -gt 0 ]; then
+            echo -e "${RED}发现 $failed_count 个失败的迁移记录，无法自动修复${NC}"
+            echo -e "${YELLOW}请手动执行修复: $0 flyway-repair${NC}"
+            echo -e "${YELLOW}或查看失败详情: $0 flyway-status${NC}"
+            exit 1
         fi
+        echo -e "${GREEN}✓ Flyway 迁移状态正常${NC}"
     fi
 
     # 1. 启动后端 (Java)
@@ -297,7 +282,6 @@ function start() {
     nohup java -jar "$backend_jar" \
         --spring.profiles.active=dev \
         --spring.jpa.hibernate.ddl-auto=none \
-        --spring.flyway.validate-on-migrate=false \
         < /dev/null > "$BACKEND_LOG" 2>&1 &
     BPID=$!
     echo $BPID > $PID_FILE

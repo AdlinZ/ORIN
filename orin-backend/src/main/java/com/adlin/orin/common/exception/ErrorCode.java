@@ -157,6 +157,10 @@ public enum ErrorCode {
     RUN_LEASE_EXPIRED("140005", "Run lease 已过期"),
     RUN_RETRY_EXHAUSTED("140006", "重试次数耗尽"),
     RUN_VERSION_NOT_FROZEN("140007", "AgentVersion 未冻结，不可执行"),
+    RUN_LEASE_NOT_FOUND("140008", "Lease 不存在"),
+    RUN_RESULT_CONFLICT("140009", "幂等键冲突：同一 key 不同 payload"),
+    RUN_ASSIGNMENT_NOT_FOUND("140010", "Assignment 不存在"),
+    RUN_FEATURE_NOT_AVAILABLE("140011", "功能尚未实现"),
 
     // ============================================
     // Agent Endpoint 发布 (15xxxx) - F05

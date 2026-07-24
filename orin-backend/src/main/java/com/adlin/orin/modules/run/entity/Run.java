@@ -100,7 +100,20 @@ public class Run {
     private Integer maxRetries = 3;
 
     @Column(name = "original_run_id", length = 40)
-    private String originalRunId;
+    private String retryOfRunId;
+
+    /** W3C traceId（Run 创建时由 Control Plane 生成）。 */
+    @Column(name = "trace_id", length = 64)
+    private String traceId;
+
+    /** Run attempt 序号（同一 run_id 下每次 lease 分配递增，ADR-001 D-1.4.3）。 */
+    @Column(name = "run_attempt", nullable = false)
+    @Builder.Default
+    private Integer runAttempt = 0;
+
+    /** 终态原因（USER_CANCELLED / NETWORK_LOST / CREDENTIAL_REVOKED / RUNNER_REVOKED，ADR-001 D-1.4.2）。 */
+    @Column(name = "terminal_reason", length = 64)
+    private String terminalReason;
 
     @PrePersist
     protected void onCreate() {

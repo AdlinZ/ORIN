@@ -317,9 +317,11 @@ public class GlobalExceptionHandler {
         if (code.startsWith("1")) {
             // 10003 UNAUTHORIZED → 401, 10004 FORBIDDEN → 403,
             // 10005 TOO_MANY_REQUESTS → 429
+            // 140011 RUN_FEATURE_NOT_AVAILABLE → 501
             if (code.equals("10003")) return HttpStatus.UNAUTHORIZED;
             if (code.equals("10004")) return HttpStatus.FORBIDDEN;
             if (code.equals("10005")) return HttpStatus.TOO_MANY_REQUESTS;
+            if (code.equals("140011")) return HttpStatus.NOT_IMPLEMENTED;
             return HttpStatus.INTERNAL_SERVER_ERROR;
         }
         if (code.startsWith("7")) {

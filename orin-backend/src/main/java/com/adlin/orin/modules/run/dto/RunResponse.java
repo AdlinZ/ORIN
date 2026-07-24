@@ -26,7 +26,10 @@ public class RunResponse {
     private String createdBy;
     private Integer retryCount;
     private Integer maxRetries;
-    private String originalRunId;
+    private String retryOfRunId;
+    private String traceId;
+    private String terminalReason;
+    private Integer runAttempt;
 
     public static RunResponse from(Run run) {
         return RunResponse.builder()
@@ -45,7 +48,10 @@ public class RunResponse {
                 .createdBy(run.getCreatedBy())
                 .retryCount(run.getRetryCount())
                 .maxRetries(run.getMaxRetries())
-                .originalRunId(run.getOriginalRunId())
+                .retryOfRunId(run.getRetryOfRunId())
+                .traceId(run.getTraceId())
+                .terminalReason(run.getTerminalReason())
+                .runAttempt(run.getRunAttempt())
                 .build();
     }
 }

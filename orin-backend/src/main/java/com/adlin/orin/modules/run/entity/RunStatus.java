@@ -9,6 +9,11 @@ import java.util.Set;
 /**
  * Run 状态枚举（F03 Agent→Runner 执行记录）。
  *
+ * <p>这是 <b>Run 维度</b>的状态机（不是 run_assignment 的状态）。
+ * ADR-001 定义了独立的 run_assignment 状态机
+ * （ASSIGNED→ACKED→COMPLETED|FAILED|CANCELLED|EXPIRED），
+ * 将在 R2 引入独立 run_assignment 表时实现。
+ *
  * <p>状态机：
  * <pre>
  *   QUEUED → LEASED → RUNNING → COMPLETED

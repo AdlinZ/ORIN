@@ -28,8 +28,9 @@ describe('top menu IA behavior (Workspace vNext 四入口)', () => {
   })
 
   it('routes each role cohort to its default landing page', () => {
-    expect(getDefaultHomeByRoles(['ROLE_ADMIN'])).toBe(ROUTES.SYSTEM.ADMIN_DASHBOARD)
-    expect(getDefaultHomeByRoles(['ROLE_USER'])).toBe(ROUTES.PORTAL_API_KEYS)
+    // vNext: all roles land on the workspace home (Agents)
+    expect(getDefaultHomeByRoles(['ROLE_ADMIN'])).toBe(ROUTES.HOME)
+    expect(getDefaultHomeByRoles(['ROLE_USER'])).toBe(ROUTES.HOME)
   })
 
   it('keeps regular users out of dashboard navigation', () => {

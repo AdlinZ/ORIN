@@ -66,3 +66,13 @@
 - [ADR-002](../adr/002-agent-version-immutability-and-secret-reference.md)
 - [Runner 架构设计](../Runner架构设计.md)
 - [API 文档](../API文档.md)
+
+## 8. 实现状态（2026-07-24）
+
+**当前状态：Backend Only**
+
+- 已有：`RunService`（create/lease/submitResult/appendEvents/renewLease）、`RunnerMachineController` 六端点（已对齐 ADR-001）、`runs` 表（含 trace_id / terminal_reason / run_attempt）
+- 已有：`RunListPage.vue`（前端占位页）
+- 缺失：Runner 真执行闭环（Python Runner 尚未实现 lease claim / 执行 / 回传 result）
+- 缺失：`run_assignment` 表（R2）、W3C traceparent 传播（R2）、Redis 幂等加速（R2）、secret-bind 物化（R2）
+- 升级到 E2E Working 需要：冻结 Agent 在真实 Runner 上执行并回传结果

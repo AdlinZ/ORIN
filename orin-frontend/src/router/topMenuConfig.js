@@ -45,11 +45,9 @@ export function canAccessAnyRole(userRoles = [], targetRoles = []) {
 }
 
 export function getDefaultHomeByRoles(userRoles = []) {
-  if (isAdminLike(userRoles)) {
-    return ROUTES.SYSTEM.ADMIN_DASHBOARD
-  }
-
-  return ROUTES.PORTAL_API_KEYS
+  // vNext workspace is the default landing for all roles.
+  // Old Dashboard is still reachable via "更多工具" → 运行总览.
+  return ROUTES.HOME
 }
 
 /**
