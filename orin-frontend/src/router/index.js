@@ -776,14 +776,14 @@ const routes = [
     {
         path: '/workspace',
         component: MainLayout,
-        redirect: () => ROUTES.AGENTS.WORKSPACE_LIST,
+        redirect: () => ROUTES.WORKSPACE.AGENTS,
         children: [
-            // F02 暂时只暴露 Agents；Runners / Runs / Endpoints 留待 F03~F05 实施时再添加
+            // ---- Agents (F02) ----
             {
                 path: 'agents',
                 name: 'WorkspaceAgents',
                 component: () => import('@/views/workspace/agents/AgentListPage.vue'),
-                meta: { title: 'Agents（vNext）', icon: 'User' }
+                meta: { title: 'Agents', icon: 'User' }
             },
             {
                 path: 'agents/:agentId',
@@ -810,7 +810,43 @@ const routes = [
                     query: { ...to.query, deprecate: '1' }
                 }),
                 meta: { hidden: true }
-            }
+            },
+
+            // ---- Runners (F02) — 接入、状态、容量 ----
+            {
+                path: 'runners',
+                name: 'WorkspaceRunners',
+                component: () => import('@/views/workspace/runners/RunnerListPage.vue'),
+                meta: { title: 'Runners', icon: 'Monitor' }
+            },
+            {
+                path: 'runners/:runnerId',
+                name: 'WorkspaceRunnerDetail',
+                component: () => import('@/views/revamp/runners/RunnerDetailView.vue'),
+                meta: { title: 'Runner 详情', hidden: true }
+            },
+
+            // ---- Runs (F03 占位) — 执行、日志、取消、重试 ----
+            {
+                path: 'runs',
+                name: 'WorkspaceRuns',
+                component: () => import('@/views/workspace/runs/RunListPage.vue'),
+                meta: { title: 'Runs', icon: 'VideoPlay' }
+            },
+            {
+                path: 'runs/:runId',
+                name: 'WorkspaceRunDetail',
+                component: () => import('@/views/workspace/runs/RunListPage.vue'),
+                meta: { title: 'Run 详情', hidden: true }
+            },
+
+            // ---- Endpoints (F05 占位) — 发布 API / MCP ----
+            {
+                path: 'endpoints',
+                name: 'WorkspaceEndpoints',
+                component: () => import('@/views/workspace/endpoints/EndpointListPage.vue'),
+                meta: { title: 'Endpoints', icon: 'Connection' }
+            },
         ]
     },
 

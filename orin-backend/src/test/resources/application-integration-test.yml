@@ -71,6 +71,14 @@ milvus:
   host: localhost
   port: 19530
 
+# Neo4j — provide dummy values; integration tests do not require a running Neo4j
+neo4j:
+  host: localhost
+  port: 7687
+  username: neo4j
+  password: ""
+  database: neo4j
+
 # Logging
 logging:
   level:

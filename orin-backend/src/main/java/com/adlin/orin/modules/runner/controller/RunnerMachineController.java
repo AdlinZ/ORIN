@@ -8,6 +8,8 @@ import com.adlin.orin.modules.runner.entity.RunnerCredential;
 import com.adlin.orin.modules.runner.entity.RunnerHeartbeatSnapshot;
 import com.adlin.orin.modules.runner.entity.RunnerStatus;
 import com.adlin.orin.modules.runner.repository.RunnerHeartbeatSnapshotRepository;
+import com.adlin.orin.modules.run.dto.LeaseRunResponse;
+import com.adlin.orin.modules.run.service.RunService;
 import com.adlin.orin.modules.runner.service.RunnerCredentialService;
 import com.adlin.orin.modules.runner.service.RunnerService;
 import com.adlin.orin.security.EnrollmentTokenPrincipal;
@@ -48,6 +50,7 @@ import java.time.Instant;
 public class RunnerMachineController {
 
     private final RunnerService runnerService;
+    private final RunService runService;
     private final RunnerHeartbeatSnapshotRepository heartbeatSnapshotRepository;
     private final AuditHelper auditHelper;
     private final ObjectMapper objectMapper;
@@ -214,6 +217,51 @@ public class RunnerMachineController {
     }
 
     // ============================================================
+    // F03 lease / start / complete — Runner 领取 + 执行 + 回传结果
+    // ============================================================
+
+    @PostMapping("/{runnerId}/lease")
+    @Operation(summary = "Runner 轮询领取排队的 Run")
+    public LeaseRunResponse lease(@PathVariable String runnerId) {
+        requireRunnerPrincipal(runnerId);
+        return runService.leaseRun(runnerId);
+    }
+
+    @PostMapping("/{runnerId}/runs/{runId}/start")
+    @Operation(summary = "Runner 确认开始执行 Run")
+    public ResponseEntity<Void> startRun(@PathVariable String runnerId,
+                                          @PathVariable String runId,
+                                          @RequestBody StartRunRequest request) {
+        requireRunnerPrincipal(runnerId);
+        runService.startRun(runId, request.leaseToken());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{runnerId}/runs/{runId}/complete")
+    @Operation(summary = "Runner 上报执行结果（成功 / 失败）")
+    public ResponseEntity<Void> completeRun(@PathVariable String runnerId,
+                                             @PathVariable String runId,
+                                             @RequestBody CompleteRunRequest request) {
+        requireRunnerPrincipal(runnerId);
+        if (request.output() != null && request.errorMessage() == null) {
+            runService.completeRun(runId, request.leaseToken(), request.output());
+        } else {
+            runService.failRun(runId, request.leaseToken(), request.errorMessage());
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{runnerId}/runs/{runId}/log")
+    @Operation(summary = "Runner 推送一条执行日志（F04 观察控制）")
+    public ResponseEntity<Void> appendLog(@PathVariable String runnerId,
+                                           @PathVariable String runId,
+                                           @RequestBody LogEntryRequest request) {
+        requireRunnerPrincipal(runnerId);
+        runService.appendLog(runId, request.leaseToken(), request.level(), request.message());
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================================
     // helpers
     // ============================================================
 
@@ -307,5 +355,16 @@ public class RunnerMachineController {
     }
 
     public record CommandAckRequest(String command) {
+    }
+
+    // ---- F03 Run lifecycle DTOs ----
+
+    public record StartRunRequest(@NotBlank String leaseToken) {
+    }
+
+    public record CompleteRunRequest(@NotBlank String leaseToken, String output, String errorMessage) {
+    }
+
+    public record LogEntryRequest(@NotBlank String leaseToken, String level, @NotBlank String message) {
     }
 }

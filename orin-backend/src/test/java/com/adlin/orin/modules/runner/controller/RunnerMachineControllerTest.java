@@ -6,6 +6,7 @@ import com.adlin.orin.modules.runner.entity.Runner;
 import com.adlin.orin.modules.runner.entity.RunnerCredential;
 import com.adlin.orin.modules.runner.entity.RunnerStatus;
 import com.adlin.orin.modules.runner.repository.RunnerHeartbeatSnapshotRepository;
+import com.adlin.orin.modules.run.service.RunService;
 import com.adlin.orin.modules.runner.service.RunnerCredentialService;
 import com.adlin.orin.modules.runner.service.RunnerService;
 import com.adlin.orin.security.EnrollmentTokenPrincipal;
@@ -39,6 +40,8 @@ class RunnerMachineControllerTest {
     @Mock
     private RunnerService runnerService;
     @Mock
+    private RunService runService;
+    @Mock
     private RunnerHeartbeatSnapshotRepository heartbeatSnapshotRepository;
     @Mock
     private AuditHelper auditHelper;
@@ -48,7 +51,7 @@ class RunnerMachineControllerTest {
     @BeforeEach
     void setUp() {
         controller = new RunnerMachineController(
-                runnerService, heartbeatSnapshotRepository, auditHelper,
+                runnerService, runService, heartbeatSnapshotRepository, auditHelper,
                 new ObjectMapper().findAndRegisterModules());
         ReflectionTestUtils.setField(controller, "expectedIntervalSec", 15);
     }

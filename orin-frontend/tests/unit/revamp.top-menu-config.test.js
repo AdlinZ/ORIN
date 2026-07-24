@@ -2,22 +2,26 @@ import { describe, expect, it } from 'vitest'
 import { ROUTES } from '@/router/routes'
 import { getActiveMenuId, getDefaultHomeByRoles, getVisibleMenus } from '@/router/topMenuConfig'
 
-describe('top menu IA behavior', () => {
-  it('filters admin-only system domain for non-admin users', () => {
+describe('top menu IA behavior (Workspace vNext 四入口)', () => {
+  it('filters legacy admin sections for non-admin users', () => {
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
     const userMenus = getVisibleMenus(['ROLE_USER'])
 
-    expect(adminMenus.some((menu) => menu.id === 'control')).toBe(true)
+    // Admins see the full menu including legacy
+    expect(adminMenus.some((menu) => menu.id === 'legacy')).toBe(true)
+    // Regular users with only ROLE_USER have no dashboard menu access
     expect(userMenus).toEqual([])
   })
 
-  it('keeps API key self-service outside the admin control console', () => {
+  it('keeps API key self-service outside the admin dashboard', () => {
     const userMenus = getVisibleMenus(['ROLE_USER'])
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
 
     expect(ROUTES.PORTAL_API_KEYS).toBe('/portal/api-keys')
     expect(userMenus).toEqual([])
-    expect(adminMenus.find((menu) => menu.id === 'control').children).toContainEqual(expect.objectContaining({
+    // Gateway is now under "更多工具" (legacy)
+    const legacyMenu = adminMenus.find((menu) => menu.id === 'legacy')
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
       title: '统一网关',
       path: ROUTES.SYSTEM.GATEWAY,
     }))
@@ -32,96 +36,99 @@ describe('top menu IA behavior', () => {
     expect(getVisibleMenus(['ROLE_USER'])).toEqual([])
   })
 
-  it('shows the complete dashboard menu for admins', () => {
+  it('shows the complete workspace-first menu for admins', () => {
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
 
     expect(adminMenus.map((menu) => menu.title)).toEqual([
-      '平台控制',
-      '运行观测',
-      '应用构建',
-      '资源知识',
+      'Agents',
+      'Runners',
+      'Runs',
+      'Endpoints',
+      '更多工具',
     ])
 
-    const controlMenu = adminMenus.find((menu) => menu.id === 'control')
-    expect(controlMenu.children.map((child) => child.title)).toContain('统一网关')
-    expect(controlMenu.children.map((child) => child.title)).toContain('环境配置')
+    // Workspace entries
+    expect(adminMenus.some((menu) => menu.id === 'agents')).toBe(true)
+    expect(adminMenus.some((menu) => menu.id === 'runners')).toBe(true)
+    expect(adminMenus.some((menu) => menu.id === 'runs')).toBe(true)
+    expect(adminMenus.some((menu) => menu.id === 'endpoints')).toBe(true)
+
+    // Legacy menu still contains essential admin tools
+    const legacyMenu = adminMenus.find((menu) => menu.id === 'legacy')
+    expect(legacyMenu.children.map((child) => {
+      if (child.type === 'section') return child.title
+      return child.title
+    })).toContain('用户管理')
   })
 
   it('does not expose role management while the role model is simplified', () => {
-    const controlMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'control')
+    const legacyMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'legacy')
 
-    expect(controlMenu.children).not.toContainEqual(expect.objectContaining({
+    expect(legacyMenu.children).not.toContainEqual(expect.objectContaining({
       title: '角色管理',
       path: ROUTES.SYSTEM.ROLES,
     }))
   })
 
   it('keeps section headers only when they have visible children', () => {
-    const controlMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'control')
+    const legacyMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'legacy')
 
-    expect(controlMenu.children).toContainEqual(expect.objectContaining({
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
       type: 'section',
-      title: '组织权限',
+      title: '智能体（旧版）',
     }))
-    expect(controlMenu.children).toContainEqual(expect.objectContaining({
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
       type: 'section',
-      title: '平台配置',
+      title: '工作流',
     }))
   })
 
   it('matches active top-level domain by route path', () => {
-    expect(getActiveMenuId('/dashboard/applications/agents')).toBe('applications')
-    expect(getActiveMenuId(ROUTES.MCP.SERVERS)).toBe('applications')
-    expect(getActiveMenuId('/dashboard/runtime/overview')).toBe('runtime')
-    expect(getActiveMenuId('/dashboard/control/users')).toBe('control')
+    // /workspace paths map to the new four entries
+    expect(getActiveMenuId(ROUTES.WORKSPACE.AGENTS)).toBe('agents')
+    expect(getActiveMenuId(ROUTES.WORKSPACE.RUNNERS)).toBe('runners')
+    expect(getActiveMenuId(ROUTES.WORKSPACE.RUNS)).toBe('runs')
+    expect(getActiveMenuId(ROUTES.WORKSPACE.ENDPOINTS)).toBe('endpoints')
+    // Legacy paths still map to "更多工具"
+    expect(getActiveMenuId('/dashboard/runtime/overview')).toBe('legacy')
+    expect(getActiveMenuId('/dashboard/control/users')).toBe('legacy')
   })
 
-  it('keeps workflow management under application building', () => {
-    const applicationMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'applications')
+  it('keeps workflow management under legacy tools', () => {
+    const legacyMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'legacy')
 
-    expect(applicationMenu).toMatchObject({ path: ROUTES.AGENTS.ROOT })
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Connection' }))
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL, icon: 'Edit' }))
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({ title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay' }))
-  })
-
-  it('keeps multi-agent collaboration visible under application building', () => {
-    const applicationMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'applications')
-
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({
-      title: '多智能体协同',
-      path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
+      title: '工作流中心',
+      path: ROUTES.AGENTS.WORKFLOWS,
       icon: 'Connection',
+    }))
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
+      title: '执行记录',
+      path: ROUTES.AGENTS.WORKFLOW_EXECUTION,
+      icon: 'VideoPlay',
     }))
   })
 
-  it('exposes extension tabs as navigation entries while keeping platform MCP configuration', () => {
+  it('exposes extension tabs in legacy tools while keeping platform MCP config', () => {
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
-    const applicationMenu = adminMenus.find((menu) => menu.id === 'applications')
-    const controlMenu = adminMenus.find((menu) => menu.id === 'control')
+    const legacyMenu = adminMenus.find((menu) => menu.id === 'legacy')
 
     expect(ROUTES.MCP.SERVERS).toBe('/dashboard/applications/extensions?tab=mcp')
     expect(ROUTES.AGENTS.SKILLS).toBe('/dashboard/applications/extensions?tab=skills')
     expect(ROUTES.AGENTS.MODEL_TOOLS).toBe('/dashboard/applications/extensions?tab=bindings')
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
       title: 'Skills',
       path: ROUTES.AGENTS.SKILLS,
       icon: 'Star',
     }))
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
       title: 'MCP 服务',
-      path: ROUTES.MCP.SERVERS,
+      path: ROUTES.AGENTS.MCP,
       icon: 'Connection',
     }))
-    expect(applicationMenu.children).toContainEqual(expect.objectContaining({
-      title: '模型工具',
-      path: ROUTES.AGENTS.MODEL_TOOLS,
-      icon: 'Setting',
-    }))
-    expect(controlMenu.children).toContainEqual(expect.objectContaining({
-      title: 'MCP 服务',
-      path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE,
-      icon: 'Connection',
+    expect(legacyMenu.children).toContainEqual(expect.objectContaining({
+      title: '用户管理',
+      path: ROUTES.SYSTEM.USERS,
     }))
   })
 })

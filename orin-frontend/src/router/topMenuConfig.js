@@ -53,84 +53,94 @@ export function getDefaultHomeByRoles(userRoles = []) {
 }
 
 /**
- * 顶部导航菜单配置
- * 一级菜单固定为四个产品域，二级菜单按 section 收敛入口，避免把历史模块平铺到顶栏。
+ * 顶部导航菜单配置（Workspace vNext 四入口 + 更多工具）
+ *
+ * 主线：
+ *   1. Agents   — 创建、草稿、冻结版本
+ *   2. Runners  — 接入、状态、容量
+ *   3. Runs     — 执行、日志、取消、重试
+ *   4. Endpoints — 发布 API / MCP
+ *
+ * 旧模块（智能体管理 / 知识库 / 运行观测 / 系统设置）收进"更多工具"，
+ * 不再占一级导航，但路由保持可访问。
  */
 export const TOP_MENU_CONFIG = [
   {
-    id: 'control',
-    title: '平台控制',
-    icon: 'Setting',
-    color: '#64748b',
-    path: ROUTES.SYSTEM.ROOT,
-    roles: SYSTEM_MENU_ROLES,
-    children: [
-      { type: 'section', title: '组织权限' },
-      { title: '用户管理', path: ROUTES.SYSTEM.USERS, icon: 'User', roles: ORGANIZATION_MENU_ROLES },
-      { title: '部门管理', path: ROUTES.SYSTEM.DEPARTMENTS, icon: 'OfficeBuilding', roles: ORGANIZATION_MENU_ROLES },
-      { type: 'section', title: '平台配置' },
-      { title: '平台总览', path: ROUTES.SYSTEM.ADMIN_DASHBOARD, icon: 'DataBoard', roles: SYSTEM_MENU_ROLES },
-      { title: '模型管理', path: ROUTES.SYSTEM.MODELS, icon: 'SetUp', roles: SYSTEM_MENU_ROLES },
-      { title: '定价配置', path: ROUTES.SYSTEM.PRICING, icon: 'PriceTag', roles: SYSTEM_MENU_ROLES },
-      { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE, icon: 'Setting', roles: SYSTEM_MENU_ROLES },
-      { title: '通知设置', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS, icon: 'Bell', roles: SYSTEM_MENU_ROLES },
-      { title: '数据资产', path: ROUTES.SYSTEM.DATA_ASSETS, icon: 'Folder', roles: SYSTEM_MENU_ROLES },
-      { type: 'section', title: '开放与网关' },
-      { title: 'MCP 服务', path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE, icon: 'Connection', roles: SYSTEM_MENU_ROLES },
-      { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY, icon: 'Router', roles: SYSTEM_MENU_ROLES },
-    ],
-  },
-  {
-    id: 'runtime',
-    title: '运行观测',
-    icon: 'Monitor',
-    color: '#475569',
-    path: ROUTES.MONITOR.ROOT,
-    roles: MONITOR_MENU_ROLES,
-    children: [
-      { title: '运行总览', path: ROUTES.HOME, icon: 'DataAnalysis', roles: MONITOR_MENU_ROLES },
-      { title: '服务器监控', path: ROUTES.MONITOR.SERVER, icon: 'DataAnalysis', roles: MONITOR_MENU_ROLES },
-      { title: '任务队列', path: ROUTES.MONITOR.TASKS, icon: 'Tickets', roles: MONITOR_MENU_ROLES },
-      { title: '调用链路', path: ROUTES.MONITOR.TRACES, icon: 'Share', roles: MONITOR_MENU_ROLES },
-      { title: '用量统计', path: ROUTES.MONITOR.TOKENS, icon: 'Coin', roles: MONITOR_MENU_ROLES },
-      { title: '性能分析', path: ROUTES.MONITOR.LATENCY, icon: 'Timer', roles: MONITOR_MENU_ROLES },
-      { title: '告警与日志', path: ROUTES.MONITOR.ALERTS, icon: 'Bell', roles: MONITOR_MENU_ROLES },
-    ],
-  },
-  {
-    id: 'applications',
-    title: '应用构建',
+    id: 'agents',
+    title: 'Agents',
     icon: 'Robot',
-    color: '#0f766e',
-    path: ROUTES.AGENTS.ROOT,
+    color: '#155eef',
+    path: ROUTES.WORKSPACE.AGENTS,
     roles: BUILDER_MENU_ROLES,
     children: [
-      { type: 'section', title: '智能体' },
-      { title: '工作台', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', roles: BUILDER_MENU_ROLES },
-      { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'List', roles: BUILDER_MENU_ROLES },
+      { title: 'Agent 列表', path: ROUTES.WORKSPACE.AGENTS, icon: 'List', roles: BUILDER_MENU_ROLES },
+    ],
+  },
+  {
+    id: 'runners',
+    title: 'Runners',
+    icon: 'Monitor',
+    color: '#0f766e',
+    path: ROUTES.WORKSPACE.RUNNERS,
+    roles: BUILDER_MENU_ROLES,
+    children: [
+      { title: 'Runner 列表', path: ROUTES.WORKSPACE.RUNNERS, icon: 'Monitor', roles: BUILDER_MENU_ROLES },
+    ],
+  },
+  {
+    id: 'runs',
+    title: 'Runs',
+    icon: 'VideoPlay',
+    color: '#f59e0b',
+    path: ROUTES.WORKSPACE.RUNS,
+    roles: BUILDER_MENU_ROLES,
+    children: [
+      { title: '执行记录', path: ROUTES.WORKSPACE.RUNS, icon: 'VideoPlay', roles: BUILDER_MENU_ROLES },
+    ],
+  },
+  {
+    id: 'endpoints',
+    title: 'Endpoints',
+    icon: 'Connection',
+    color: '#8b5cf6',
+    path: ROUTES.WORKSPACE.ENDPOINTS,
+    roles: BUILDER_MENU_ROLES,
+    children: [
+      { title: 'API / MCP', path: ROUTES.WORKSPACE.ENDPOINTS, icon: 'Connection', roles: BUILDER_MENU_ROLES },
+    ],
+  },
+  {
+    id: 'legacy',
+    title: '更多工具',
+    icon: 'MoreFilled',
+    color: '#64748b',
+    path: '/dashboard',
+    roles: BUILDER_MENU_ROLES,
+    children: [
+      { type: 'section', title: '智能体（旧版）' },
+      { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'Grid', roles: BUILDER_MENU_ROLES },
+      { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', roles: BUILDER_MENU_ROLES },
       { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS, icon: 'ChatDotRound', roles: BUILDER_MENU_ROLES },
-      { type: 'section', title: '工作流与协作' },
+      { type: 'section', title: '工作流' },
       { title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Connection', roles: BUILDER_MENU_ROLES },
-      { title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL, icon: 'Edit', roles: BUILDER_MENU_ROLES },
       { title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay', roles: BUILDER_MENU_ROLES },
-      { title: '多智能体协同', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS, icon: 'Connection', roles: BUILDER_MENU_ROLES },
+      { type: 'section', title: '知识库' },
+      { title: '知识中心', path: ROUTES.KNOWLEDGE.CENTER, icon: 'Reading', roles: BUILDER_MENU_ROLES },
+      { title: '知识资产', path: ROUTES.KNOWLEDGE.ASSETS, icon: 'Collection', roles: BUILDER_MENU_ROLES },
       { type: 'section', title: '扩展' },
       { title: 'Skills', path: ROUTES.AGENTS.SKILLS, icon: 'Star', roles: BUILDER_MENU_ROLES },
       { title: 'MCP 服务', path: ROUTES.AGENTS.MCP, icon: 'Connection', roles: BUILDER_MENU_ROLES },
-      { title: '模型工具', path: ROUTES.AGENTS.MODEL_TOOLS, icon: 'Setting', roles: BUILDER_MENU_ROLES },
-    ],
-  },
-  {
-    id: 'resources',
-    title: '资源知识',
-    icon: 'Reading',
-    color: '#334155',
-    path: ROUTES.KNOWLEDGE.CENTER,
-    roles: BUILDER_MENU_ROLES,
-    children: [
-      { title: '知识中心', path: ROUTES.KNOWLEDGE.CENTER, icon: 'Reading', roles: BUILDER_MENU_ROLES },
-      { title: '知识资产', path: ROUTES.KNOWLEDGE.ASSETS, icon: 'Collection', roles: BUILDER_MENU_ROLES },
-      { title: '检索实验', path: ROUTES.KNOWLEDGE.RETRIEVAL_LAB, icon: 'Search', roles: BUILDER_MENU_ROLES },
+      { type: 'section', title: '模型' },
+      { title: '模型管理', path: ROUTES.AGENTS.MODELS, icon: 'Cpu', roles: BUILDER_MENU_ROLES },
+      { type: 'section', title: '运行观测' },
+      { title: '运行总览', path: ROUTES.HOME, icon: 'DataAnalysis', roles: MONITOR_MENU_ROLES },
+      { title: '服务器监控', path: ROUTES.MONITOR.SERVER, icon: 'Monitor', roles: MONITOR_MENU_ROLES },
+      { title: '调用链路', path: ROUTES.MONITOR.TRACES, icon: 'Share', roles: MONITOR_MENU_ROLES },
+      { title: '告警与日志', path: ROUTES.MONITOR.ALERTS, icon: 'Bell', roles: MONITOR_MENU_ROLES },
+      { type: 'section', title: '系统管理' },
+      { title: '用户管理', path: ROUTES.SYSTEM.USERS, icon: 'User', roles: SYSTEM_MENU_ROLES },
+      { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE, icon: 'Setting', roles: SYSTEM_MENU_ROLES },
+      { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY, icon: 'Router', roles: SYSTEM_MENU_ROLES },
     ],
   },
 ]
@@ -141,15 +151,8 @@ export const TOP_MENU_CONFIG = [
  * @returns {Array} 过滤后的菜单配置
  */
 export function getVisibleMenus(userRoles = []) {
-  const adminLike = isAdminLike(userRoles)
-
   return TOP_MENU_CONFIG.filter((menu) => {
-    switch (menu.id) {
-      case 'runtime':
-        return adminLike
-      default:
-        return hasAnyRole(userRoles, menu.roles)
-    }
+    return hasAnyRole(userRoles, menu.roles)
   }).map((menu) => ({
     ...menu,
     children: filterMenuChildren(menu.children || [], userRoles, menu.roles),

@@ -94,6 +94,7 @@ public enum ErrorCode {
     RUNNER_NOT_ENROLLED("70009", "Runner 未完成接入"),
     ENROLLMENT_TOKEN_INVALID("70010", "Enrollment Token 无效或已使用"),
     ENROLLMENT_TOKEN_EXPIRED("70011", "Enrollment Token 已过期"),
+    RUNNER_NOT_FOUND("70012", "Runner 不存在"),
 
     // ============================================
     // External Service错误 (8xxxx)
@@ -144,7 +145,25 @@ public enum ErrorCode {
     // ============================================
     // 服务可用性 (13xxxx) - Gateway MVP 专用
     // ============================================
-    SERVICE_UNAVAILABLE("130001", "服务暂不可用");
+    SERVICE_UNAVAILABLE("130001", "服务暂不可用"),
+
+    // ============================================
+    // Agent Run 执行记录 (14xxxx) - F03
+    // ============================================
+    RUN_NOT_FOUND("140001", "Run 未找到"),
+    RUN_INVALID_STATE("140002", "Run 状态非法"),
+    RUN_ALREADY_TERMINAL("140003", "Run 已终结，不可修改"),
+    RUN_NO_AVAILABLE_RUNNER("140004", "无可用的 Runner"),
+    RUN_LEASE_EXPIRED("140005", "Run lease 已过期"),
+    RUN_RETRY_EXHAUSTED("140006", "重试次数耗尽"),
+    RUN_VERSION_NOT_FROZEN("140007", "AgentVersion 未冻结，不可执行"),
+
+    // ============================================
+    // Agent Endpoint 发布 (15xxxx) - F05
+    // ============================================
+    ENDPOINT_NOT_FOUND("150001", "Endpoint 未找到"),
+    ENDPOINT_PATH_CONFLICT("150002", "Endpoint 路径已被占用"),
+    ENDPOINT_VERSION_NOT_FROZEN("150003", "AgentVersion 未冻结，不可发布");
 
     /**
      * 错误代码

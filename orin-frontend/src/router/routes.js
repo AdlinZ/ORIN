@@ -2,12 +2,14 @@
  * ORIN 系统路由常量
  * 集中管理所有路由路径，避免硬编码
  *
- * 菜单结构：
- * 1. 智能体管理 - 智能体列表、智能体工作台、多智能体协同、扩展管理
- * 2. 工作流管理 - 工作流中心
- * 3. 知识库管理 - 知识库、知识资产、同步管理
- * 4. 运行监控 - 监控总览、链路与分析、告警与事件、运维操作
- * 5. 系统设置 - 组织权限、平台设置、模型管理、统一网关、支持维护
+ * Workspace vNext 四入口（主线）：
+ * 1. Agents   — 创建、草稿、冻结版本
+ * 2. Runners  — 接入、状态、容量
+ * 3. Runs     — 执行、日志、取消、重试
+ * 4. Endpoints — 发布 API / MCP
+ *
+ * 旧模块已降级为历史重定向，不再占一级导航：
+ * - 智能体管理 / 知识库 / 运行监控 / 系统设置 → LEGACY_ROUTE_REDIRECTS
  */
 
 const agentRoutes = {
@@ -45,6 +47,20 @@ const agentRoutes = {
     WORKSPACE_VERSIONS: '/workspace/agents/:agentId/versions',
     WORKSPACE_VERSION_DETAIL: '/workspace/agents/:agentId/versions/:versionId',
     WORKSPACE_VERSION_DEPRECATE: '/workspace/agents/:agentId/versions/:versionId/deprecate',
+}
+
+// ==================== Workspace vNext 四入口 ====================
+const workspaceRoutes = {
+    ROOT: '/workspace',
+    AGENTS: '/workspace/agents',
+    AGENT_DRAFT: '/workspace/agents/:agentId',
+    AGENT_VERSIONS: '/workspace/agents/:agentId/versions',
+    AGENT_VERSION_DETAIL: '/workspace/agents/:agentId/versions/:versionId',
+    RUNNERS: '/workspace/runners',
+    RUNNER_DETAIL: '/workspace/runners/:runnerId',
+    RUNS: '/workspace/runs',
+    RUN_DETAIL: '/workspace/runs/:runId',
+    ENDPOINTS: '/workspace/endpoints',
 }
 
 const knowledgeRoutes = {
@@ -148,7 +164,8 @@ export const ROUTES = {
     SETUP: '/setup',
     PORTAL: '/portal',
     PORTAL_API_KEYS: '/portal/api-keys',
-    HOME: '/dashboard/runtime/overview',
+    HOME: '/workspace/agents',
+    WORKSPACE: workspaceRoutes,
     MCP: mcpRoutes,
     AGENTS: agentRoutes,
     KNOWLEDGE: knowledgeRoutes,
@@ -322,205 +339,142 @@ function buildLegacyRedirects(rawMap) {
 // 清理重定向噪音：过滤掉自重定向与空映射，统一输出稳定映射表
 export const LEGACY_ROUTE_REDIRECTS = buildLegacyRedirects(LEGACY_ROUTE_REDIRECTS_RAW)
 
-// ==================== 侧边栏菜单配置 ====================
-// 支持二级和三级菜单
+// ==================== 侧边栏菜单配置（Workspace vNext 四入口 + 更多工具） ====================
 export const SIDEBAR_MENU_CONFIG = [
-    // ==================== 1. 智能体管理 ====================
+    // ==================== 1. Agents ====================
     {
         id: 'agents',
-        title: '智能体管理',
+        title: 'Agents',
         icon: 'Robot',
         color: '#155eef',
+        path: ROUTES.WORKSPACE.AGENTS,
+        redirect: ROUTES.WORKSPACE.AGENTS,
+        children: [
+            { title: 'Agent 列表', path: ROUTES.WORKSPACE.AGENTS },
+        ],
+    },
+
+    // ==================== 2. Runners ====================
+    {
+        id: 'runners',
+        title: 'Runners',
+        icon: 'Monitor',
+        color: '#0f766e',
+        path: ROUTES.WORKSPACE.RUNNERS,
+        redirect: ROUTES.WORKSPACE.RUNNERS,
+        children: [
+            { title: 'Runner 列表', path: ROUTES.WORKSPACE.RUNNERS },
+        ],
+    },
+
+    // ==================== 3. Runs ====================
+    {
+        id: 'runs',
+        title: 'Runs',
+        icon: 'VideoPlay',
+        color: '#f59e0b',
+        path: ROUTES.WORKSPACE.RUNS,
+        redirect: ROUTES.WORKSPACE.RUNS,
+        children: [
+            { title: '执行记录', path: ROUTES.WORKSPACE.RUNS },
+        ],
+    },
+
+    // ==================== 4. Endpoints ====================
+    {
+        id: 'endpoints',
+        title: 'Endpoints',
+        icon: 'Connection',
+        color: '#8b5cf6',
+        path: ROUTES.WORKSPACE.ENDPOINTS,
+        redirect: ROUTES.WORKSPACE.ENDPOINTS,
+        children: [
+            { title: 'API / MCP', path: ROUTES.WORKSPACE.ENDPOINTS },
+        ],
+    },
+
+    // ==================== 5. 更多工具（旧模块降级入口） ====================
+    {
+        id: 'legacy',
+        title: '更多工具',
+        icon: 'MoreFilled',
+        color: '#64748b',
         path: ROUTES.AGENTS.ROOT,
         redirect: ROUTES.AGENTS.LIST,
         children: [
-            // 智能体管理（三级）
+            // 智能体（旧入口）
             {
-                id: 'agent-manage',
-                title: '智能体管理',
+                id: 'legacy-agents',
+                title: '智能体（旧版）',
                 icon: 'Grid',
-                path: '/dashboard/agents/manage',
+                path: '/dashboard/legacy/agents',
                 children: [
                     { title: '智能体列表', path: ROUTES.AGENTS.LIST },
-                    { title: '智能体接入', path: ROUTES.AGENTS.ONBOARD },
-                    { title: '智能体控制台', path: ROUTES.AGENTS.CONSOLE },
-                ]
-            },
-            // 会话管理（三级）
-            {
-                id: 'session-manage',
-                title: '会话管理',
-                icon: 'ChatDotRound',
-                path: '/dashboard/agents/session',
-                children: [
-                    { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS },
                     { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE },
-                    { title: '多智能体协同', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS },
+                    { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS },
                 ]
             },
-            // 扩展管理（三级）
+            // 工作流
             {
-                id: 'capability',
-                title: '扩展管理',
-                icon: 'MagicStick',
-                path: '/dashboard/agents/capability',
-                children: [
-                    { title: '技能管理', path: ROUTES.AGENTS.SKILLS },
-                    { title: '扩展管理', path: ROUTES.AGENTS.EXTENSIONS },
-                ]
-            },
-            // 工作流管理
-            {
-                id: 'workflow',
-                title: '工作流中心',
+                id: 'legacy-workflows',
+                title: '工作流',
                 icon: 'Connection',
                 path: ROUTES.AGENTS.WORKFLOWS,
+                children: [
+                    { title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS },
+                    { title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL },
+                    { title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION },
+                ]
             },
-        ],
-    },
-
-    // ==================== 2. 知识库管理 ====================
-    {
-        id: 'knowledge',
-        title: '知识库管理',
-        icon: 'Reading',
-        color: '#8b5cf6',
-        path: ROUTES.KNOWLEDGE.ROOT,
-        redirect: ROUTES.KNOWLEDGE.CENTER,
-        children: [
+            // 知识库
             {
-                id: 'knowledge-center',
-                title: '知识检索',
+                id: 'legacy-knowledge',
+                title: '知识库',
                 icon: 'Reading',
                 path: ROUTES.KNOWLEDGE.CENTER,
+                children: [
+                    { title: '知识中心', path: ROUTES.KNOWLEDGE.CENTER },
+                    { title: '知识资产', path: ROUTES.KNOWLEDGE.ASSETS },
+                ]
             },
+            // 扩展
             {
-                id: 'knowledge-assets',
-                title: '知识资产',
-                icon: 'Collection',
-                path: ROUTES.KNOWLEDGE.ASSETS,
+                id: 'legacy-extensions',
+                title: '扩展管理',
+                icon: 'MagicStick',
+                path: ROUTES.AGENTS.EXTENSIONS,
+                children: [
+                    { title: 'Skills', path: ROUTES.AGENTS.SKILLS },
+                    { title: 'MCP 服务', path: ROUTES.AGENTS.MCP },
+                    { title: '模型工具', path: ROUTES.AGENTS.MODEL_TOOLS },
+                ]
             },
-        ],
-    },
-
-    // ==================== 3. 运行监控 ====================
-    {
-        id: 'monitor',
-        title: '运行监控',
-        icon: 'Monitor',
-        color: '#f59e0b',
-        path: ROUTES.MONITOR.ROOT,
-        redirect: ROUTES.HOME,
-        children: [
+            // 模型
+            { title: '模型管理', path: ROUTES.AGENTS.MODELS, icon: 'Cpu' },
+            // 监控
             {
-                id: 'overview',
-                title: '监控总览',
+                id: 'legacy-monitor',
+                title: '运行观测',
                 icon: 'DataAnalysis',
-                path: ROUTES.HOME,
+                path: ROUTES.MONITOR.ROOT,
                 children: [
-                    { title: '监控总览', path: ROUTES.HOME },
+                    { title: '运行总览', path: ROUTES.HOME },
                     { title: '服务器监控', path: ROUTES.MONITOR.SERVER },
-                    { title: '任务队列', path: ROUTES.MONITOR.TASKS },
-                ]
-            },
-            {
-                id: 'analysis',
-                title: '链路与分析',
-                icon: 'TrendCharts',
-                path: '/dashboard/monitor/analysis',
-                children: [
                     { title: '调用链路', path: ROUTES.MONITOR.TRACES },
-                    { title: 'Token 统计', path: ROUTES.MONITOR.TOKENS },
-                    { title: '时延统计', path: ROUTES.MONITOR.LATENCY },
-                    { title: '错误统计', path: ROUTES.MONITOR.ERRORS },
+                    { title: '告警日志', path: ROUTES.MONITOR.ALERTS },
                 ]
             },
+            // 系统
             {
-                id: 'incidents',
-                title: '告警与事件',
-                icon: 'Bell',
-                path: ROUTES.MONITOR.ALERTS,
-            },
-            {
-                id: 'ops',
-                title: '运维操作',
-                icon: 'Tools',
-                path: '/dashboard/monitor/ops',
-                children: [
-                    { title: '日志归档', path: ROUTES.MONITOR.LOGS },
-                    { title: '系统维护', path: ROUTES.MONITOR.MAINTENANCE },
-                ]
-            },
-        ],
-    },
-
-    // ==================== 4. 系统设置 ====================
-    {
-        id: 'system',
-        title: '系统设置',
-        icon: 'Setting',
-        color: '#64748b',
-        path: ROUTES.SYSTEM.ROOT,
-        redirect: ROUTES.SYSTEM.USERS,
-        requiresAdmin: true,
-        children: [
-            // 组织权限（三级）
-            {
-                id: 'organization',
-                title: '组织权限',
-                icon: 'User',
-                path: '/dashboard/system/organization',
+                id: 'legacy-system',
+                title: '系统设置',
+                icon: 'Setting',
+                path: ROUTES.SYSTEM.ROOT,
+                requiresAdmin: true,
                 children: [
                     { title: '用户管理', path: ROUTES.SYSTEM.USERS },
-                    { title: '部门管理', path: ROUTES.SYSTEM.DEPARTMENTS },
-                    { title: '角色管理', path: ROUTES.SYSTEM.ROLES },
-                ]
-            },
-            // 平台设置（三级）
-            {
-                id: 'platform',
-                title: '平台设置',
-                icon: 'Tools',
-                path: '/dashboard/system/platform',
-                children: [
-                    { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE },
-                    { title: '通知设置', path: ROUTES.SYSTEM.SETTINGS_NOTIFICATIONS },
-                    { title: '数据资产', path: ROUTES.SYSTEM.DATA_ASSETS },
-                    { title: 'MCP 服务', path: ROUTES.SYSTEM.SETTINGS_MCP_SERVICE },
-                ]
-            },
-            // 模型与文件（三级）
-            {
-                id: 'resources',
-                title: '模型与文件',
-                icon: 'Cpu',
-                path: '/dashboard/system/resources',
-                children: [
-                    { title: '模型管理', path: ROUTES.SYSTEM.MODELS },
-                    { title: '定价配置', path: ROUTES.SYSTEM.PRICING },
-                ]
-            },
-            // 网关与审计（三级）
-            {
-                id: 'security-ops',
-                title: '网关与审计',
-                icon: 'Shield',
-                path: '/dashboard/system/security-ops',
-                children: [
                     { title: '统一网关', path: ROUTES.SYSTEM.GATEWAY },
-                    { title: '监控配置', path: ROUTES.SYSTEM.SETTINGS_MONITOR },
-                    { title: '审计日志', path: ROUTES.SYSTEM.AUDIT_LOGS },
-                ]
-            },
-            // 支持维护（三级）
-            {
-                id: 'support',
-                title: '支持维护',
-                icon: 'QuestionFilled',
-                path: '/dashboard/system/support',
-                children: [
-                    { title: '帮助中心', path: ROUTES.SYSTEM.HELP_CENTER },
-                    { title: '统计分析', path: ROUTES.SYSTEM.STATISTICS },
+                    { title: '环境配置', path: ROUTES.SYSTEM.SETTINGS_BASE },
                 ]
             },
         ],

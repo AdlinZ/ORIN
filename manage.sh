@@ -25,56 +25,87 @@ NC='\033[0m' # No Color
 FRONTEND_HOST="${ORIN_FRONTEND_HOST:-127.0.0.1}"
 FRONTEND_PORT="${ORIN_FRONTEND_PORT:-5173}"
 
-# 数据库配置 (支持环境变量覆盖)
-# 使用方法: export ORIN_DB_PASS="your_password" 后再运行脚本
-DB_NAME="${ORIN_DB_NAME:-orindb}"
-DB_USER="${ORIN_DB_USER:-root}"
-DB_PASS="${ORIN_DB_PASS:-password}"
-DB_HOST="${ORIN_DB_HOST:-localhost}"
-DB_PORT="${ORIN_DB_PORT:-3306}"
+# 加载 .env 文件（如存在），使 manage.sh 与 docker-compose 共享同一套变量
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
+# 数据库配置（优先级：.env > ORIN_DB_* 环境变量 > 硬编码默认值）
+# manage.sh 使用 DB_USERNAME / DB_PASSWORD 与应用层 application.properties 对齐；
+# docker-compose 侧通过 MYSQL_* 映射到 DB_*，此处直接支持两套命名
+DB_HOST="${DB_HOST:-${ORIN_DB_HOST:-localhost}}"
+DB_PORT="${DB_PORT:-${ORIN_DB_PORT:-3306}}"
+DB_NAME="${DB_NAME:-${ORIN_DB_NAME:-orindb}}"
+DB_USERNAME="${DB_USERNAME:-${ORIN_DB_USER:-root}}"
+DB_PASSWORD="${DB_PASSWORD:-${ORIN_DB_PASS:-password}}"
 
 function flyway_runtime_props() {
     local jwt_secret="${JWT_SECRET:-${ORIN_JWT_SECRET:-0123456789012345678901234567890123456789012345678901234567890123}}"
     local datasource_url="jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
     echo "--spring.datasource.url=$datasource_url"
-    echo "--spring.datasource.username=$DB_USER"
-    echo "--spring.datasource.password=$DB_PASS"
+    echo "--spring.datasource.username=$DB_USERNAME"
+    echo "--spring.datasource.password=$DB_PASSWORD"
     echo "--jwt.secret=$jwt_secret"
 }
 
 function check_mysql() {
     echo -e "${BLUE}检查 MySQL 连接...${NC}"
 
-    # 检查 MySQL 是否运行
-    if ! command -v mysql &> /dev/null; then
-        echo -e "${RED}错误: MySQL 未安装${NC}"
-        echo -e "${YELLOW}请先安装 MySQL: brew install mysql${NC}"
-        return 1
-    fi
-
-    # 检查 MySQL 服务是否运行
-    if ! pgrep -x mysqld > /dev/null; then
-        echo -e "${YELLOW}MySQL 服务未运行，正在启动...${NC}"
-        brew services start mysql
-        sleep 3
-    fi
-
-    # 检查数据库是否存在
-    if mysql -u"$DB_USER" -p"$DB_PASS" -e "USE $DB_NAME" 2>/dev/null; then
-        echo -e "${GREEN}✓ MySQL 连接成功，数据库 '$DB_NAME' 已就绪${NC}"
-        return 0
-    else
-        echo -e "${YELLOW}数据库 '$DB_NAME' 不存在，正在创建...${NC}"
-        mysql -u"$DB_USER" -p"$DB_PASS" -e "CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✓ 数据库创建成功${NC}"
-            return 0
+    # 优先通过 mysqladmin ping 检测连接（跨平台，不依赖 pgrep / brew）
+    if command -v mysqladmin &> /dev/null; then
+        if mysqladmin ping -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" --silent 2>/dev/null; then
+            echo -e "${GREEN}✓ MySQL 连接成功 (${DB_HOST}:${DB_PORT})${NC}"
         else
-            echo -e "${RED}✗ 数据库创建失败，请检查 MySQL 配置${NC}"
-            echo -e "${YELLOW}提示: 请确保 application.properties 中的数据库密码正确${NC}"
+            echo -e "${RED}✗ MySQL 连接失败 (${DB_HOST}:${DB_PORT})${NC}"
+            echo -e "${YELLOW}请确认 MySQL 已启动。如果使用 Docker，请运行:${NC}"
+            echo -e "${YELLOW}  docker compose up -d mysql${NC}"
+            return 1
+        fi
+    elif command -v mysql &> /dev/null; then
+        # 回退：直接用 mysql 客户端检测
+        if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1" 2>/dev/null > /dev/null; then
+            echo -e "${GREEN}✓ MySQL 连接成功 (${DB_HOST}:${DB_PORT})${NC}"
+        else
+            echo -e "${RED}✗ MySQL 连接失败 (${DB_HOST}:${DB_PORT})${NC}"
+            echo -e "${YELLOW}请确认 MySQL 已启动。如果使用 Docker，请运行:${NC}"
+            echo -e "${YELLOW}  docker compose up -d mysql${NC}"
+            return 1
+        fi
+    else
+        # 无 mysql CLI：检查是否通过 Docker 提供
+        if command -v docker &> /dev/null && docker compose ps mysql 2>/dev/null | grep -q "Up"; then
+            echo -e "${GREEN}✓ MySQL 容器运行中 (Docker)${NC}"
+        else
+            echo -e "${RED}✗ 未检测到 MySQL 客户端或 Docker 容器${NC}"
+            echo -e "${YELLOW}请选择以下方式之一启动 MySQL:${NC}"
+            echo -e "${YELLOW}  1. Docker:  docker compose up -d mysql${NC}"
+            echo -e "${YELLOW}  2. 本机:   安装 mysql-client 并启动 MySQL 服务${NC}"
             return 1
         fi
     fi
+
+    # 检查数据库是否存在（仅当有 mysql CLI 时）
+    if command -v mysql &> /dev/null; then
+        if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "USE $DB_NAME" 2>/dev/null; then
+            echo -e "${GREEN}✓ 数据库 '$DB_NAME' 已就绪${NC}"
+            return 0
+        else
+            echo -e "${YELLOW}数据库 '$DB_NAME' 不存在，正在创建...${NC}"
+            mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ 数据库创建成功${NC}"
+                return 0
+            else
+                echo -e "${RED}✗ 数据库创建失败，请检查 MySQL 配置${NC}"
+                echo -e "${YELLOW}提示: 用户 $DB_USERNAME 可能需要 CREATE DATABASE 权限${NC}"
+                return 1
+            fi
+        fi
+    fi
+
+    return 0
 }
 
 function stop_existing_services() {
@@ -105,26 +136,32 @@ function stop_existing_services() {
 function db_status() {
     echo -e "${BLUE}=== 数据库状态 ===${NC}"
 
-    if ! command -v mysql &> /dev/null; then
-        echo -e "MySQL: ${RED}未安装${NC}"
+    # 通过 mysqladmin ping 检测（跨平台）
+    if command -v mysqladmin &> /dev/null; then
+        if mysqladmin ping -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" --silent 2>/dev/null; then
+            echo -e "MySQL 服务: ${GREEN}运行中${NC} (${DB_HOST}:${DB_PORT})"
+        else
+            echo -e "MySQL 服务: ${RED}无法连接${NC} (${DB_HOST}:${DB_PORT})"
+            return
+        fi
+    elif command -v docker &> /dev/null && docker compose ps mysql 2>/dev/null | grep -q "Up"; then
+        echo -e "MySQL 服务: ${GREEN}运行中${NC} (Docker)"
+    else
+        echo -e "MySQL: ${RED}未检测到${NC}"
         return
     fi
 
-    if pgrep -x mysqld > /dev/null; then
-        echo -e "MySQL 服务: ${GREEN}运行中${NC}"
-
-        if mysql -u"$DB_USER" -p"$DB_PASS" -e "USE $DB_NAME" 2>/dev/null; then
+    if command -v mysql &> /dev/null; then
+        if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "USE $DB_NAME" 2>/dev/null; then
             echo -e "数据库 '$DB_NAME': ${GREEN}存在${NC}"
 
             # 显示表信息
-            TABLE_COUNT=$(mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SHOW TABLES;" 2>/dev/null | wc -l)
+            TABLE_COUNT=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SHOW TABLES;" 2>/dev/null | wc -l)
             TABLE_COUNT=$((TABLE_COUNT - 1))
             echo -e "数据表数量: ${GREEN}$TABLE_COUNT${NC}"
         else
             echo -e "数据库 '$DB_NAME': ${RED}不存在${NC}"
         fi
-    else
-        echo -e "MySQL 服务: ${RED}未运行${NC}"
     fi
 }
 
@@ -132,13 +169,13 @@ function db_status() {
 function flyway_status() {
     echo -e "${BLUE}=== Flyway 迁移状态 ===${NC}"
 
-    if ! mysql -u"$DB_USER" -p"$DB_PASS" -e "USE $DB_NAME" 2>/dev/null; then
+    if ! mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "USE $DB_NAME" 2>/dev/null; then
         echo -e "${RED}数据库 '$DB_NAME' 不存在${NC}"
         return 1
     fi
 
     # Check if flyway_schema_history table exists
-    local table_exists=$(mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SHOW TABLES LIKE 'flyway_schema_history';" 2>/dev/null | wc -l)
+    local table_exists=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SHOW TABLES LIKE 'flyway_schema_history';" 2>/dev/null | wc -l)
 
     if [ "$table_exists" -eq 0 ]; then
         echo -e "${YELLOW}Flyway 未初始化 (flyway_schema_history 表不存在)${NC}"
@@ -147,14 +184,14 @@ function flyway_status() {
 
     # Show successful migrations
     echo -e "${GREEN}已完成的迁移:${NC}"
-    mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SELECT version, description, success FROM flyway_schema_history WHERE type='SQL' ORDER BY installed_rank;" 2>/dev/null
+    mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT version, description, success FROM flyway_schema_history WHERE type='SQL' ORDER BY installed_rank;" 2>/dev/null
 
     # Check for failed migrations
-    local failed_count=$(mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" 2>/dev/null | tail -n 1)
+    local failed_count=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" 2>/dev/null | tail -n 1)
 
     if [ "$failed_count" -gt 0 ]; then
         echo -e "${RED}失败的迁移数量: $failed_count${NC}"
-        mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SELECT version, description, installed_on, failure_msg FROM flyway_schema_history WHERE success=0;" 2>/dev/null
+        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT version, description, installed_on, failure_msg FROM flyway_schema_history WHERE success=0;" 2>/dev/null
         return 1
     else
         echo -e "${GREEN}✓ 无失败的迁移${NC}"
@@ -213,28 +250,28 @@ function start() {
 
     # 0.1 自动修复 Flyway checksum 问题（处理历史上迁移脚本被修改的情况）
     echo -e "${YELLOW}检查 Flyway 迁移状态...${NC}"
-    local checksum_issues=$(mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND checksum IS NULL;" 2>/dev/null | tail -n 1)
+    local checksum_issues=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND checksum IS NULL;" 2>/dev/null | tail -n 1)
     if [ "$checksum_issues" -gt 0 ]; then
         echo -e "${YELLOW}发现 $checksum_issues 个迁移记录 checksum 异常，自动修复...${NC}"
-        mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "UPDATE flyway_schema_history SET checksum = NULL WHERE success=1;" 2>/dev/null
+        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "UPDATE flyway_schema_history SET checksum = NULL WHERE success=1;" 2>/dev/null
         echo -e "${GREEN}✓ Flyway 修复完成${NC}"
     fi
 
     # 0.2 自动修复失败的迁移（删除失败记录让 Flyway 重新执行）
-    local failed_count=$(mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" 2>/dev/null | tail -n 1)
+    local failed_count=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM flyway_schema_history WHERE success=0;" 2>/dev/null | tail -n 1)
     if [ "$failed_count" -gt 0 ]; then
         echo -e "${YELLOW}发现 $failed_count 个失败的迁移记录，自动清理...${NC}"
-        mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "DELETE FROM flyway_schema_history WHERE success=0;" 2>/dev/null
+        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "DELETE FROM flyway_schema_history WHERE success=0;" 2>/dev/null
         echo -e "${GREEN}✓ 失败的迁移记录已清理${NC}"
     fi
 
     # 0.3 检查并手动执行 V45 迁移（如有需要）
-    local v45_exists=$(mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$DB_NAME' AND TABLE_NAME='sys_user' AND COLUMN_NAME='department_id';" 2>/dev/null | tail -n 1)
+    local v45_exists=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$DB_NAME' AND TABLE_NAME='sys_user' AND COLUMN_NAME='department_id';" 2>/dev/null | tail -n 1)
     if [ "$v45_exists" -eq 0 ]; then
         echo -e "${YELLOW}手动执行 V45 迁移...${NC}"
-        mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "ALTER TABLE sys_user ADD COLUMN department_id BIGINT;" 2>/dev/null
+        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "ALTER TABLE sys_user ADD COLUMN department_id BIGINT;" 2>/dev/null
         if [ $? -eq 0 ]; then
-            mysql -u"$DB_USER" -p"$DB_PASS" -D"$DB_NAME" -e "INSERT INTO flyway_schema_history (version, description, type, script, success, installed_on) VALUES ('45', 'Add_User_Department', 'SQL', 'V45__Add_User_Department.sql', 1, NOW());" 2>/dev/null
+            mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -D"$DB_NAME" -e "INSERT INTO flyway_schema_history (version, description, type, script, success, installed_on) VALUES ('45', 'Add_User_Department', 'SQL', 'V45__Add_User_Department.sql', 1, NOW());" 2>/dev/null
             echo -e "${GREEN}✓ V45 迁移完成${NC}"
         fi
     fi
