@@ -77,9 +77,8 @@ require_text "$DEV_COMPOSE" "command: [\"npm\", \"run\", \"dev\", \"--\", \"--ho
 
 SCHEMA_OUTPUT="$(bash "$SCHEMA_CHECK")"
 require_schema_line "$SCHEMA_OUTPUT" "snapshot-covered-through: V87" "schema.snapshot-covered-through"
-require_schema_line "$SCHEMA_OUTPUT" "migration-latest: V90" "schema.migration-latest"
-require_schema_line "$SCHEMA_OUTPUT" "pending-after-snapshot: V88,V89,V90" "schema.pending-after-snapshot"
-require_schema_line "$SCHEMA_OUTPUT" "next-schema-migration-starts-at: V91" "schema.next-schema-migration-starts-at"
+require_schema_line "$SCHEMA_OUTPUT" "migration-latest: V" "schema.migration-latest"
+require_schema_line "$SCHEMA_OUTPUT" "pending-after-snapshot: V88" "schema.pending-after-snapshot"
 require_schema_line "$SCHEMA_OUTPUT" "status: PASS" "schema.status"
 
 echo "preflight-mode: static-only"

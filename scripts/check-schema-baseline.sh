@@ -45,6 +45,11 @@ if [ -z "$MIGRATION_VERSIONS" ]; then
     fail "no Flyway migration files found"
 fi
 
+DUPLICATE_VERSIONS="$(echo "$MIGRATION_VERSIONS" | uniq -d)"
+if [ -n "$DUPLICATE_VERSIONS" ]; then
+    fail "duplicate Flyway migration version(s): $(echo "$DUPLICATE_VERSIONS" | sed 's/^/V/' | paste -sd, -)"
+fi
+
 MIGRATION_LATEST="$(echo "$MIGRATION_VERSIONS" | tail -1)"
 echo "migration-latest: V$MIGRATION_LATEST"
 
