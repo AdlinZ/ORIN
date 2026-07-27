@@ -23,4 +23,7 @@ public class CreateRunRequest {
 
     /** 幂等键（可选）。 */
     private String idempotencyKey;
+
+    /** F05：创建此 Run 的 Endpoint ID（可选）。 */
+    private String endpointId;
 }

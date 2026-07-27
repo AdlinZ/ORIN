@@ -115,6 +115,10 @@ public class Run {
     @Column(name = "terminal_reason", length = 64)
     private String terminalReason;
 
+    /** F05：创建此 Run 的 Endpoint ID（FK → agent_endpoints.id）。NULL = 非 Endpoint 创建。 */
+    @Column(name = "endpoint_id", length = 40)
+    private String endpointId;
+
     @PrePersist
     protected void onCreate() {
         long now = Instant.now().toEpochMilli();

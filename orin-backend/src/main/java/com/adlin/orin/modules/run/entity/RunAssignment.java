@@ -73,6 +73,10 @@ public class RunAssignment {
     @Column(name = "trace_id", length = 64)
     private String traceId;
 
+    /** SHA-256 of the accepted final-result payload; enables idempotent result replay. */
+    @Column(name = "result_payload_hash", length = 64)
+    private String resultPayloadHash;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Long createdAt;
 

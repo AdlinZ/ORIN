@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import ANY, patch
 
-from app.runner.client import AuthError, RunnerClient, _new_traceparent
+from app.runner.client import AuthError, LeaseTerminalError, RunnerClient, _new_traceparent
 
 
 class TestRunnerClientEnroll:
@@ -90,6 +90,57 @@ class TestRunnerClientAck:
             call_kwargs = mock_http.return_value.post.call_args
             assert call_kwargs.kwargs["json"]["command"] == "DRAIN"
             assert "traceparent" in call_kwargs.kwargs["headers"]
+
+
+class TestRunnerClientRunProtocol:
+    def test_renew_uses_accepted_lease_path_and_runner_credential(self):
+        with patch("app.runner.client.httpx.Client") as mock_http:
+            mock_resp = mock_http.return_value.post.return_value
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"action": "no_op"}
+
+            client = RunnerClient("https://orin.example.com")
+            response = client.renew_lease("runner-a", "credential-a", "lease-a")
+
+            assert response["action"] == "no_op"
+            call_args = mock_http.return_value.post.call_args
+            assert call_args.args[0] == "/api/system/runners/runner-a/lease/lease-a/renew"
+            assert "json" not in call_args.kwargs
+            assert call_args.kwargs["headers"]["Authorization"] == "Runner credential-a"
+
+    def test_result_events_and_secret_bind_send_runner_credential(self):
+        with patch("app.runner.client.httpx.Client") as mock_http:
+            mock_resp = mock_http.return_value.post.return_value
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"materializedSecrets": {}}
+            client = RunnerClient("https://orin.example.com")
+
+            client.submit_result("runner-a", "credential-a", "run-a", "lease-a", "COMPLETED")
+            assert mock_http.return_value.post.call_args.kwargs["headers"]["Authorization"] == "Runner credential-a"
+
+            client.submit_events("runner-a", "credential-a", "run-a", "lease-a", [{"seq": 1, "message": "ok"}])
+            assert mock_http.return_value.post.call_args.kwargs["headers"]["Authorization"] == "Runner credential-a"
+
+            client.bind_secrets("runner-a", "credential-a", "run-a", "assignment-a")
+            assert mock_http.return_value.post.call_args.kwargs["headers"]["Authorization"] == "Runner credential-a"
+
+    @pytest.mark.parametrize(
+        ("status_code", "code"),
+        [(409, "140012"), (410, "140005")],
+    )
+    def test_renew_surfaces_terminal_lease_protocol(self, status_code, code):
+        with patch("app.runner.client.httpx.Client") as mock_http:
+            mock_resp = mock_http.return_value.post.return_value
+            mock_resp.status_code = status_code
+            mock_resp.json.return_value = {"code": code, "message": "lease stopped"}
+            mock_resp.text = "lease stopped"
+
+            client = RunnerClient("https://orin.example.com")
+            with pytest.raises(LeaseTerminalError) as raised:
+                client.renew_lease("runner-a", "credential-a", "lease-a")
+
+            assert raised.value.status_code == status_code
+            assert raised.value.code == code
 
 
 class TestRunnerClientBaseUrl:

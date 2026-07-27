@@ -13,7 +13,7 @@ from app.core.otel_setup import setup_tracing, shutdown_tracing
 from app.core.trace_middleware import TraceContextMiddleware
 from app.engine.mq_worker import get_mq_dependency_status
 
-app = FastAPI(title="ORIN AI Engine", version="0.1.0")
+app = FastAPI(title="ORIN AI Engine", version="0.3.0-rc.1")
 
 # 启动期根据 ORIN_LOG_JSON_FORMAT 选 JSON / 文本 formatter；幂等，
 # 重复 import（pytest reload / uvicorn --reload）不会累加 handler。

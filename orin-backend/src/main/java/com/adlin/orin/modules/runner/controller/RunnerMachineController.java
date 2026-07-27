@@ -10,7 +10,6 @@ import com.adlin.orin.modules.runner.entity.RunnerStatus;
 import com.adlin.orin.modules.runner.repository.RunnerHeartbeatSnapshotRepository;
 import com.adlin.orin.modules.run.dto.LeaseRunResponse;
 import com.adlin.orin.modules.run.dto.BatchEventsRequest;
-import com.adlin.orin.modules.run.dto.RenewLeaseRequest;
 import com.adlin.orin.modules.run.dto.RenewLeaseResponse;
 import com.adlin.orin.modules.run.dto.SecretBindRequest;
 import com.adlin.orin.modules.run.dto.SecretBindResponse;
@@ -236,13 +235,12 @@ public class RunnerMachineController {
         return runService.leaseRun(runnerId);
     }
 
-    @PostMapping("/{runnerId}/runs/{runId}/lease/renew")
+    @PostMapping("/{runnerId}/lease/{leaseId}/renew")
     @Operation(summary = "Runner 续租（ADR-001 /lease/{leaseId}/renew）")
     public RenewLeaseResponse renewLease(@PathVariable String runnerId,
-                                          @PathVariable String runId,
-                                          @Valid @RequestBody RenewLeaseRequest request) {
+                                          @PathVariable String leaseId) {
         requireRunnerPrincipal(runnerId);
-        return runService.renewLease(runnerId, runId, request.getLeaseId());
+        return runService.renewLease(runnerId, leaseId);
     }
 
     @PostMapping("/{runnerId}/runs/{runId}/result")
@@ -252,7 +250,7 @@ public class RunnerMachineController {
                                               @Valid @RequestBody SubmitResultRequest request) {
         requireRunnerPrincipal(runnerId);
         String leaseId = request.getLeaseId() != null ? request.getLeaseId() : request.getLeaseToken();
-        runService.submitResult(runId, leaseId,
+        runService.submitResult(runnerId, runId, leaseId,
                 request.getStatus(), request.getOutput(),
                 request.getErrorMessage(), request.getErrorCode());
         return ResponseEntity.noContent().build();
@@ -265,7 +263,7 @@ public class RunnerMachineController {
                                               @Valid @RequestBody BatchEventsRequest request) {
         requireRunnerPrincipal(runnerId);
         String leaseId = request.getLeaseId() != null ? request.getLeaseId() : request.getLeaseToken();
-        runService.appendEvents(runId, leaseId, request.getEvents());
+        runService.appendEvents(runnerId, runId, leaseId, request.getEvents());
         return ResponseEntity.noContent().build();
     }
 
@@ -275,7 +273,7 @@ public class RunnerMachineController {
                                           @PathVariable String runId,
                                           @Valid @RequestBody SecretBindRequest request) {
         requireRunnerPrincipal(runnerId);
-        return runService.bindSecrets(runId, request.getAssignmentId());
+        return runService.bindSecrets(runnerId, runId, request.getAssignmentId());
     }
 
     // ============================================================

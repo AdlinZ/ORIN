@@ -26,12 +26,33 @@ class AuthError(ClientError):
     """401 or 403 — credential is invalid or revoked.  Runner must exit."""
 
 
+class LeaseTerminalError(ClientError):
+    """409/410 from renew — the current assignment can no longer execute."""
+
+    def __init__(self, status_code: int, code: str, message: str):
+        super().__init__(f"{status_code} {code}: {message}")
+        self.status_code = status_code
+        self.code = code
+
+
 def _check_auth(resp: httpx.Response) -> None:
     if resp.status_code in (401, 403):
         raise AuthError(
             f"Control Plane returned {resp.status_code}: "
             + (resp.text[:200] if resp.text else "no body")
         )
+
+
+def _check_lease_terminal(resp: httpx.Response) -> None:
+    if resp.status_code not in (409, 410):
+        return
+    try:
+        payload = resp.json()
+    except ValueError:
+        payload = {}
+    code = str(payload.get("code") or "LEASE_TERMINATED")
+    message = str(payload.get("message") or resp.text[:200] or "lease terminated")
+    raise LeaseTerminalError(resp.status_code, code, message)
 
 
 class RunnerClient:
@@ -42,7 +63,7 @@ class RunnerClient:
         self._client = httpx.Client(
             base_url=self._base,
             timeout=timeout_sec,
-            headers={"User-Agent": "ORIN-Runner/0.1.0"},
+            headers={"User-Agent": "ORIN-Runner/0.3.0-rc.1"},
         )
 
     # ------------------------------------------------------------------
@@ -144,6 +165,7 @@ class RunnerClient:
     def submit_result(
         self,
         runner_id: str,
+        credential: str,
         run_id: str,
         lease_id: str,
         status: str,
@@ -179,6 +201,7 @@ class RunnerClient:
     def submit_events(
         self,
         runner_id: str,
+        credential: str,
         run_id: str,
         lease_id: str,
         events,
@@ -200,27 +223,27 @@ class RunnerClient:
         resp.raise_for_status()
 
     def renew_lease(
-        self, runner_id: str, run_id: str, lease_id: str,
+        self, runner_id: str, credential: str, lease_id: str,
     ) -> Dict[str, Any]:
-        """POST /api/system/runners/{runnerId}/runs/{runId}/lease/renew.
+        """POST /api/system/runners/{runnerId}/lease/{leaseId}/renew.
 
         Returns ``{"action": "no_op"|"cancel"|"drain", "reason": ...,
         "leaseExpiresAt": ..., "traceId": ...}``.
         """
         resp = self._client.post(
-            f"/api/system/runners/{runner_id}/runs/{run_id}/lease/renew",
-            json={"leaseId": lease_id},
+            f"/api/system/runners/{runner_id}/lease/{lease_id}/renew",
             headers={
                 "Authorization": f"Runner {credential}",
                 TRACEPARENT_HEADER: _new_traceparent(),
             },
         )
         _check_auth(resp)
+        _check_lease_terminal(resp)
         resp.raise_for_status()
         return resp.json()
 
     def bind_secrets(
-        self, runner_id: str, run_id: str, assignment_id: str,
+        self, runner_id: str, credential: str, run_id: str, assignment_id: str,
     ) -> Dict[str, Any]:
         """POST /api/system/runners/{runnerId}/runs/{runId}/secret-bind.
 

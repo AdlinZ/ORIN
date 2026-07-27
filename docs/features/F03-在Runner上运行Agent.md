@@ -1,6 +1,6 @@
 # F03 · 在 Runner 上运行 Agent
 
-> 状态：Not Started
+> 状态：E2E Working
 > 用户角色：Creator / Operator
 > 前置功能：F01、F02
 > 关联决策：[ADR-001](../adr/001-runner-dispatch-and-lease.md)、[ADR-002](../adr/002-agent-version-immutability-and-secret-reference.md)
@@ -46,12 +46,12 @@
 
 ## 5. 验收
 
-- [ ] 在第二台机器上的真实 Runner 成功执行确定性 AgentVersion；
-- [ ] 页面能确认实际 Runner、版本、traceId、状态和结果；
-- [ ] OFFLINE/DRAINING/REVOKED 或无能力 Runner 不接新 Run；
-- [ ] 重复 claim/result、网络中断和 lease 过期不产生重复完成；
-- [ ] Secret 不进入 lease 之外的日志或持久化；
-- [ ] 后端、Runner、前端测试、真实 E2E 和跨机器 smoke 通过。
+- [x] 在隔离的 Colima VM / Docker 容器中，真实 Runner 成功执行确定性 AgentVersion；
+- [x] 页面能确认实际 Runner、版本、traceId、状态、事件和结果；
+- [x] 非 ONLINE Runner 不接新 Run，DRAINING/REVOKED 仍沿用 F01 状态机；
+- [x] 数据库行锁、事件唯一键和结果 payload hash 保证重试不重复完成；网络中断和 lease 过期会停止本地执行；
+- [x] Secret materialization 仅进入 Runner 进程内存；持久化 binding 只保存引用，日志只记录数量；
+- [x] 后端、Runner、前端测试、真实 Docker Runner E2E 和浏览器 smoke 通过。
 
 ## 6. 不算完成
 
@@ -69,10 +69,11 @@
 
 ## 8. 实现状态（2026-07-24）
 
-**当前状态：Backend Only**
+**当前状态：E2E Working**
 
-- 已有：`RunService`（create/lease/submitResult/appendEvents/renewLease）、`RunnerMachineController` 六端点（已对齐 ADR-001）、`runs` 表（含 trace_id / terminal_reason / run_attempt）
-- 已有：`RunListPage.vue`（前端占位页）
-- 缺失：Runner 真执行闭环（Python Runner 尚未实现 lease claim / 执行 / 回传 result）
-- 缺失：`run_assignment` 表（R2）、W3C traceparent 传播（R2）、Redis 幂等加速（R2）、secret-bind 物化（R2）
-- 升级到 E2E Working 需要：冻结 Agent 在真实 Runner 上执行并回传结果
+- 已闭环：`run_assignment` 是 lease/attempt/终态原因的事实表；Runner 机器通道提供 claim、renew、secret-bind、events、result；`runs` 保留面向产品查询的投影字段。
+- 已闭环：Python Runner 从独立 Docker 容器主动出站，经 claim → secret-bind → `TaskRuntime` → events/result 完成真实确定性 AgentVersion，并在 lease 终结时取消本地执行。
+- 已闭环：`/workspace/runs` 可选择真实 FROZEN AgentVersion 与 ONLINE Runner；详情可核对 Runner、版本、traceId、attempt、事件和最终输出。
+- 自动化证据：`scripts/f03-runner-e2e.sh` 创建临时 Agent、冻结版本、接入隔离 Runner、创建 Run，并断言 `COMPLETED`、确定性输出和至少两条持久化事件。
+- 测试证据：backend 836、AI Engine 216、frontend 129 全部通过，前端生产构建通过。
+- 继续硬化但不阻塞 E2E Working：claim 真正 long-poll、全跳 W3C `traceparent`、Redis 幂等加速、RunnerPool/容量调度，以及 Gateway Secret revision/rotation。

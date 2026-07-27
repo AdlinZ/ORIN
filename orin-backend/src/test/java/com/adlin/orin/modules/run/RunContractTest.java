@@ -207,4 +207,84 @@ class RunContractTest extends BaseIntegrationTest {
         assertEquals("INFO", e.getLevel());
         assertEquals("test", e.getMessage());
     }
+
+    // ============================================================
+    // F04 — events / assignments / filtering
+    // ============================================================
+
+    @Test
+    void getEvents_NotFound_Returns404() throws Exception {
+        mockMvc.perform(get("/api/v1/runs/nonexistent-run-id/events")
+                        .header("Authorization", "Bearer " + jwtCreator()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("140001")); // RUN_NOT_FOUND
+    }
+
+    @Test
+    void getAssignments_NotFound_Returns404() throws Exception {
+        mockMvc.perform(get("/api/v1/runs/nonexistent-run-id/assignments")
+                        .header("Authorization", "Bearer " + jwtCreator()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("140001")); // RUN_NOT_FOUND
+    }
+
+    @Test
+    void listRuns_WithStatusFilter_ReturnsOk() throws Exception {
+        mockMvc.perform(get("/api/v1/runs")
+                        .param("status", "COMPLETED")
+                        .header("Authorization", "Bearer " + jwtCreator())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    void listRuns_WithInvalidStatus_Returns400() throws Exception {
+        mockMvc.perform(get("/api/v1/runs")
+                        .param("status", "INVALID_STATUS")
+                        .header("Authorization", "Bearer " + jwtCreator()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void runEventResponse_Dto_HasExpectedFields() {
+        RunEventResponse resp = RunEventResponse.builder()
+                .id(1L)
+                .eventSeq(1)
+                .level("INFO")
+                .message("Run started")
+                .timestamp(1000L)
+                .runAttempt(1)
+                .leaseId("lease-1")
+                .build();
+        assertEquals(1L, resp.getId());
+        assertEquals(1, resp.getEventSeq());
+        assertEquals("INFO", resp.getLevel());
+        assertEquals("Run started", resp.getMessage());
+        assertEquals(1000L, resp.getTimestamp());
+        assertEquals(1, resp.getRunAttempt());
+        assertEquals("lease-1", resp.getLeaseId());
+    }
+
+    @Test
+    void assignmentResponse_Dto_HasExpectedFields() {
+        AssignmentResponse resp = AssignmentResponse.builder()
+                .id("asgn-1")
+                .runnerId("runner-1")
+                .leaseId("lease-1")
+                .status("COMPLETED")
+                .runAttempt(1)
+                .terminalReason(null)
+                .leaseExpiresAt(2000L)
+                .createdAt(1000L)
+                .build();
+        assertEquals("asgn-1", resp.getId());
+        assertEquals("runner-1", resp.getRunnerId());
+        assertEquals("lease-1", resp.getLeaseId());
+        assertEquals("COMPLETED", resp.getStatus());
+        assertEquals(1, resp.getRunAttempt());
+        assertNull(resp.getTerminalReason());
+        assertEquals(2000L, resp.getLeaseExpiresAt());
+        assertEquals(1000L, resp.getCreatedAt());
+    }
 }

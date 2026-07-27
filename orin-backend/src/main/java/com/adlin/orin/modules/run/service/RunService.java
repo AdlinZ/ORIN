@@ -2,6 +2,7 @@ package com.adlin.orin.modules.run.service;
 
 import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.common.exception.ErrorCode;
+import com.adlin.orin.common.snapshot.Sha256Digest;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.entity.AgentVersion;
 import com.adlin.orin.modules.agent.freeze.entity.AgentVersionSecretRef;
@@ -10,10 +11,12 @@ import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
+import com.adlin.orin.modules.run.dto.AssignmentResponse;
 import com.adlin.orin.modules.run.dto.BatchEventsRequest;
 import com.adlin.orin.modules.run.dto.CreateRunRequest;
 import com.adlin.orin.modules.run.dto.LeaseRunResponse;
 import com.adlin.orin.modules.run.dto.RenewLeaseResponse;
+import com.adlin.orin.modules.run.dto.RunEventResponse;
 import com.adlin.orin.modules.run.dto.RunResponse;
 import com.adlin.orin.modules.run.dto.SecretBindResponse;
 import com.adlin.orin.modules.run.entity.AssignmentStatus;
@@ -77,6 +80,7 @@ public class RunService {
     private final AgentVersionSecretRefRepository agentVersionSecretRefRepository;
     private final GatewaySecretRepository gatewaySecretRepository;
     private final EncryptionUtil encryptionUtil;
+    private final RunOwnershipResolver ownershipResolver;
 
     // ============================================================
     // 业务 API
@@ -106,7 +110,7 @@ public class RunService {
         Runner runner = runnerRepository.findById(request.getRunnerId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUNNER_NOT_FOUND,
                         "Runner 不存在: " + request.getRunnerId()));
-        if (runner.getStatus() != RunnerStatus.ONLINE && runner.getStatus() != RunnerStatus.DEGRADED) {
+        if (runner.getStatus() != RunnerStatus.ONLINE) {
             throw new BusinessException(ErrorCode.RUNNER_OFFLINE,
                     "Runner 不可用: " + runner.getStatus());
         }
@@ -121,6 +125,7 @@ public class RunService {
                 .input(request.getInput())
                 .createdBy(createdBy)
                 .traceId(UUID.randomUUID().toString())
+                .endpointId(request.getEndpointId())
                 .build();
 
         run = runRepository.save(run);
@@ -137,6 +142,7 @@ public class RunService {
     public RunResponse cancelRun(String runId, String operator) {
         Run run = runRepository.findById(runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
+        ownershipResolver.assertCanManage(run);
         if (!run.isCancellable()) {
             throw new BusinessException(ErrorCode.RUN_ALREADY_TERMINAL,
                     "Run 当前状态不可取消: " + run.getStatus());
@@ -168,6 +174,7 @@ public class RunService {
     public RunResponse retryRun(String runId, String operator) {
         Run original = runRepository.findById(runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
+        ownershipResolver.assertCanManage(original);
         if (!original.isRetryable()) {
             throw new BusinessException(ErrorCode.RUN_RETRY_EXHAUSTED,
                     "Run 不可重试: status=" + original.getStatus()
@@ -182,10 +189,12 @@ public class RunService {
                 .status(RunStatus.QUEUED)
                 .configSnapshot(original.getConfigSnapshot())
                 .input(original.getInput())
-                .createdBy(operator)
+                // 重试人可能是 Operator；资源归属仍属于原 Run 的创建者。
+                .createdBy(original.getCreatedBy())
                 .retryCount(original.getRetryCount() + 1)
                 .maxRetries(original.getMaxRetries())
                 .retryOfRunId(runId)
+                .traceId(UUID.randomUUID().toString())
                 .build();
 
         retry = runRepository.save(retry);
@@ -201,13 +210,74 @@ public class RunService {
     public RunResponse getRun(String runId) {
         Run run = runRepository.findById(runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
+        ownershipResolver.assertCanManage(run);
         return RunResponse.from(run);
     }
 
     @Transactional(readOnly = true)
     public Page<RunResponse> listRuns(Pageable pageable) {
+        if (!ownershipResolver.isCurrentUserPrivileged()) {
+            return runRepository.findByCreatedByOrderByCreatedAtDesc(
+                    ownershipResolver.currentOwnerId(), pageable).map(RunResponse::from);
+        }
         return runRepository.findAllByOrderByCreatedAtDesc(pageable)
                 .map(RunResponse::from);
+    }
+
+    /** F04：按条件筛选分页列表。 */
+    @Transactional(readOnly = true)
+    public Page<RunResponse> listRuns(String status, String agentId, String runnerId, Pageable pageable) {
+        RunStatus statusEnum = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                statusEnum = RunStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "无效的 Run 状态: " + status);
+            }
+        }
+        if (!ownershipResolver.isCurrentUserPrivileged()) {
+            return runRepository.findAllVisibleToOwner(
+                    ownershipResolver.currentOwnerId(), statusEnum, agentId, runnerId, pageable)
+                    .map(RunResponse::from);
+        }
+        return runRepository.findAllByFilters(statusEnum, agentId, runnerId, pageable)
+                .map(RunResponse::from);
+    }
+
+    // ============================================================
+    // F04 事件时间线 + 分配历史
+    // ============================================================
+
+    /** F04：获取 Run 的事件时间线。 */
+    @Transactional(readOnly = true)
+    public List<RunEventResponse> getEvents(String runId, Integer afterSeq) {
+        loadRunAndAssertCanManage(runId);
+        List<RunEvent> events;
+        if (afterSeq != null && afterSeq >= 0) {
+            events = runEventRepository.findByRunIdAndEventSeqGreaterThanOrderByEventSeqAsc(runId, afterSeq);
+        } else {
+            events = runEventRepository.findByRunIdOrderByEventSeqAsc(runId);
+        }
+        return events.stream()
+                .map(RunEventResponse::from)
+                .toList();
+    }
+
+    /** F04：获取 Run 的分配历史（run_assignment 行）。 */
+    @Transactional(readOnly = true)
+    public List<AssignmentResponse> getAssignments(String runId) {
+        loadRunAndAssertCanManage(runId);
+        return assignmentRepository.findByRunIdOrderByCreatedAtDesc(runId).stream()
+                .map(AssignmentResponse::from)
+                .toList();
+    }
+
+    private Run loadRunAndAssertCanManage(String runId) {
+        Run run = runRepository.findById(runId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
+        ownershipResolver.assertCanManage(run);
+        return run;
     }
 
     // ============================================================
@@ -225,7 +295,8 @@ public class RunService {
         Runner runner = runnerRepository.findById(runnerId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUNNER_NOT_FOUND));
 
-        if (runner.getStatus() != RunnerStatus.ONLINE && runner.getStatus() != RunnerStatus.DEGRADED) {
+        // ADR-001 D-1.2: DEGRADED runners keep reporting health but never claim work.
+        if (runner.getStatus() != RunnerStatus.ONLINE) {
             return LeaseRunResponse.empty();
         }
 
@@ -289,14 +360,18 @@ public class RunService {
      * leaseToken/leaseId 均可用于查找 assignment。
      */
     @Transactional
-    public void submitResult(String runId, String leaseTokenOrId, String resultStatus,
+    public void submitResult(String runnerId, String runId, String leaseTokenOrId, String resultStatus,
                              String output, String errorMessage, String errorCode) {
         // R2：通过 run_assignment 校验
-        RunAssignment assignment = resolveAssignment(runId, leaseTokenOrId);
+        RunAssignment assignment = resolveAssignment(runnerId, runId, leaseTokenOrId);
+        String payloadHash = resultPayloadHash(resultStatus, output, errorMessage, errorCode);
 
         if (assignment.isTerminal()) {
-            throw new BusinessException(ErrorCode.RUN_ALREADY_TERMINAL,
-                    "Assignment 已终结: " + assignment.getStatus());
+            if (payloadHash.equals(assignment.getResultPayloadHash())) {
+                return;
+            }
+            throw new BusinessException(ErrorCode.RUN_RESULT_CONFLICT,
+                    "终态 assignment 的 result payload 不一致: " + assignment.getStatus());
         }
 
         long now = Instant.now().toEpochMilli();
@@ -334,6 +409,7 @@ public class RunService {
             run.setStatus(RunStatus.FAILED);
             run.setErrorMessage(errorMessage);
         }
+        assignment.setResultPayloadHash(payloadHash);
         run.setCompletedAt(now);
         assignmentRepository.save(assignment);
         runRepository.save(run);
@@ -353,9 +429,9 @@ public class RunService {
      * 同时保留 run_logs 写入以兼容现有 GET /api/v1/runs/{runId}/logs。
      */
     @Transactional
-    public void appendEvents(String runId, String leaseTokenOrId,
+    public void appendEvents(String runnerId, String runId, String leaseTokenOrId,
                              List<BatchEventsRequest.EventEntry> events) {
-        RunAssignment assignment = resolveAssignment(runId, leaseTokenOrId);
+        RunAssignment assignment = resolveAssignment(runnerId, runId, leaseTokenOrId);
 
         if (!assignment.isActive()) {
             throw new BusinessException(ErrorCode.RUN_ALREADY_TERMINAL,
@@ -374,33 +450,42 @@ public class RunService {
 
         long now = Instant.now().toEpochMilli();
         for (BatchEventsRequest.EventEntry event : events) {
+            int eventSeq = event.getSeq();
+            String level = event.getLevel() != null ? event.getLevel() : "INFO";
+            long timestamp = event.getTimestamp() != null ? event.getTimestamp() : now;
+            String payloadHash = eventPayloadHash(level, event.getMessage(), timestamp);
+
+            // Pre-read makes an ordinary retry a true no-op and avoids duplicating run_logs.
+            RunEvent existing = runEventRepository
+                    .findByRunIdAndLeaseIdAndRunAttemptAndEventSeq(
+                            runId, assignment.getLeaseId(), assignment.getRunAttempt(), eventSeq)
+                    .orElse(null);
+            if (existing != null) {
+                if (payloadHash.equals(existing.getPayloadHash())) {
+                    continue;
+                }
+                throw new BusinessException(ErrorCode.RUN_RESULT_CONFLICT,
+                        "幂等键对应的事件内容不一致: run=" + runId + " seq=" + eventSeq);
+            }
+
             // 1) 写入 run_events（幂等——DB UNIQUE 约束）
             RunEvent re = RunEvent.builder()
                     .runId(runId)
                     .leaseId(assignment.getLeaseId())
                     .runAttempt(assignment.getRunAttempt())
-                    .eventSeq(event.getSeq() != null ? event.getSeq() : 0)
-                    .level(event.getLevel() != null ? event.getLevel() : "INFO")
+                    .eventSeq(eventSeq)
+                    .level(level)
                     .message(event.getMessage())
-                    .timestamp(event.getTimestamp() != null ? event.getTimestamp() : now)
+                    .timestamp(timestamp)
+                    .payloadHash(payloadHash)
                     .build();
-            try {
-                runEventRepository.save(re);
-            } catch (DataIntegrityViolationException e) {
-                // UNIQUE 冲突：同键同 payload → 200 no-op
-                // 同键不同 payload → 409（由 DB constraint violation 体现）
-                log.debug("Run event idempotent replay: run={} lease={} attempt={} seq={}",
-                        runId, assignment.getLeaseId(), assignment.getRunAttempt(),
-                        event.getSeq());
-                throw new BusinessException(ErrorCode.RUN_RESULT_CONFLICT,
-                        "幂等键冲突: run=" + runId + " seq=" + event.getSeq());
-            }
+            runEventRepository.save(re);
 
             // 2) 同时写 run_logs（向后兼容前端日志查询）
             RunLog entry = RunLog.builder()
                     .runId(runId)
-                    .sequence(event.getSeq() != null ? event.getSeq() : 0)
-                    .level(event.getLevel() != null ? event.getLevel() : "INFO")
+                    .sequence(eventSeq)
+                    .level(level)
                     .message(event.getMessage())
                     .build();
             runLogRepository.save(entry);
@@ -417,21 +502,11 @@ public class RunService {
      * 响应包含控制帧 action（no_op / cancel / drain）与最新 lease_expires_at。
      */
     @Transactional
-    public RenewLeaseResponse renewLease(String runnerId, String runId, String leaseId) {
+    public RenewLeaseResponse renewLease(String runnerId, String leaseId) {
         RunAssignment assignment = assignmentRepository.findByLeaseId(leaseId)
                 .orElse(null);
 
         if (assignment == null) {
-            // 尝试通过旧的 leaseToken 回退查找
-            Run run = runRepository.findById(runId).orElse(null);
-            if (run != null && !run.getStatus().isActive()) {
-                return RenewLeaseResponse.builder()
-                        .action("cancel")
-                        .reason("ASSIGNMENT_TERMINATED")
-                        .leaseExpiresAt(0L)
-                        .traceId(run.getTraceId())
-                        .build();
-            }
             throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
                     "Lease 不存在: " + leaseId);
         }
@@ -441,23 +516,14 @@ public class RunService {
             throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
                     "Lease 不属于该 Runner");
         }
-        if (!assignment.getRunId().equals(runId)) {
-            throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
-                    "Lease 不属于该 Run");
-        }
-
         long now = Instant.now().toEpochMilli();
-        Run run = runRepository.findById(runId)
+        Run run = runRepository.findById(assignment.getRunId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUN_NOT_FOUND));
 
         // 终态 assignment
         if (assignment.isTerminal()) {
-            return RenewLeaseResponse.builder()
-                    .action("cancel")
-                    .reason("ASSIGNMENT_TERMINATED")
-                    .leaseExpiresAt(assignment.getLeaseExpiresAt())
-                    .traceId(run.getTraceId())
-                    .build();
+            throw new BusinessException(ErrorCode.RUN_ASSIGNMENT_TERMINATED,
+                    "Assignment 已终结: " + assignment.getStatus());
         }
 
         // Lease 已过期
@@ -466,12 +532,8 @@ public class RunService {
             assignment.setTerminalReason("NETWORK_LOST");
             assignmentRepository.save(assignment);
             releaseBindings(assignment.getId());
-            return RenewLeaseResponse.builder()
-                    .action("cancel")
-                    .reason("LEASE_EXPIRED")
-                    .leaseExpiresAt(assignment.getLeaseExpiresAt())
-                    .traceId(run.getTraceId())
-                    .build();
+            throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
+                    "Lease 已过期");
         }
 
         // 检查 secret binding 是否有被撤销的
@@ -526,7 +588,7 @@ public class RunService {
      * required=true 的 secret 不可为空——缺失即拒绝。
      */
     @Transactional
-    public SecretBindResponse bindSecrets(String runId, String assignmentId) {
+    public SecretBindResponse bindSecrets(String runnerId, String runId, String assignmentId) {
         // 1) 校验 assignment
         RunAssignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RUN_ASSIGNMENT_NOT_FOUND,
@@ -534,6 +596,10 @@ public class RunService {
         if (!assignment.getRunId().equals(runId)) {
             throw new BusinessException(ErrorCode.RUN_ASSIGNMENT_NOT_FOUND,
                     "Assignment 不属于该 Run");
+        }
+        if (!assignment.getRunnerId().equals(runnerId)) {
+            throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
+                    "Assignment 不属于该 Runner");
         }
         if (!assignment.isActive()) {
             throw new BusinessException(ErrorCode.RUN_ALREADY_TERMINAL,
@@ -651,6 +717,7 @@ public class RunService {
      */
     @Transactional(readOnly = true)
     public List<RunLog> getLogs(String runId, Integer afterSeq) {
+        loadRunAndAssertCanManage(runId);
         if (afterSeq != null && afterSeq >= 0) {
             return runLogRepository.findByRunIdAndSequenceGreaterThanOrderBySequenceAsc(runId, afterSeq);
         }
@@ -709,7 +776,7 @@ public class RunService {
      * 解析 lease 标识：优先用 leaseId，其次用 leaseToken。
      * 返回 run_assignment（若找不到则抛 RUN_LEASE_EXPIRED）。
      */
-    private RunAssignment resolveAssignment(String runId, String leaseTokenOrId) {
+    private RunAssignment resolveAssignment(String runnerId, String runId, String leaseTokenOrId) {
         if (leaseTokenOrId == null || leaseTokenOrId.isBlank()) {
             throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
                     "缺少 lease 标识");
@@ -725,7 +792,29 @@ public class RunService {
             throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
                     "Lease 不属于该 Run");
         }
+        if (!assignment.getRunnerId().equals(runnerId)) {
+            throw new BusinessException(ErrorCode.RUN_LEASE_EXPIRED,
+                    "Lease 不属于该 Runner");
+        }
         return assignment;
+    }
+
+    private String eventPayloadHash(String level, String message, long timestamp) {
+        return Sha256Digest.hex(lengthPrefixed(level)
+                + lengthPrefixed(message)
+                + lengthPrefixed(Long.toString(timestamp)));
+    }
+
+    private String resultPayloadHash(String status, String output, String errorMessage, String errorCode) {
+        return Sha256Digest.hex(lengthPrefixed(status)
+                + lengthPrefixed(output)
+                + lengthPrefixed(errorMessage)
+                + lengthPrefixed(errorCode));
+    }
+
+    private String lengthPrefixed(String value) {
+        String normalized = value == null ? "" : value;
+        return normalized.length() + ":" + normalized;
     }
 
     /**

@@ -26,7 +26,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from app.engine.task_runtime import TaskRuntime
-from app.runner.client import RunnerClient
+from app.runner.client import AuthError, LeaseTerminalError, RunnerClient
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +136,10 @@ class WorkLoop:
                     resp = self._client.claim_lease(
                         self._runner_id, self._credential,
                     )
+                except AuthError as exc:
+                    logger.error("Runner credential rejected; stopping work loop: %s", exc)
+                    self._running = False
+                    return
                 except Exception as exc:
                     logger.warning("Claim lease failed: %s", exc)
                     backoff_sec = min(
@@ -175,7 +179,7 @@ class WorkLoop:
             # 2) Bind secrets ---------------------------------------------------
             try:
                 secret_resp = self._client.bind_secrets(
-                    self._runner_id, run_id, assignment_id,
+                    self._runner_id, self._credential, run_id, assignment_id,
                 )
                 secrets = secret_resp.get("materializedSecrets", {})
                 logger.info(
@@ -203,6 +207,8 @@ class WorkLoop:
             # Start renew + event flush as background tasks
             renew_stop = asyncio.Event()
             event_queue: asyncio.Queue = asyncio.Queue()
+            event_buffer: List[Dict[str, Any]] = []
+            event_flush_lock = asyncio.Lock()
 
             async def _renew_loop() -> Optional[str]:
                 """Returns cancel reason if lease was cancelled, else None."""
@@ -212,49 +218,59 @@ class WorkLoop:
                         if renew_stop.is_set():
                             break
                         renew_resp = self._client.renew_lease(
-                            self._runner_id, run_id, lease_id,
+                            self._runner_id, self._credential, lease_id,
                         )
                         action = renew_resp.get("action", "no_op")
-                        if action in ("cancel", "drain"):
+                        if action == "cancel":
                             reason = renew_resp.get("reason", action)
                             logger.warning(
                                 "Lease renew returned action=%s reason=%s run=%s",
                                 action, reason, run_id,
                             )
                             return reason
+                        if action == "drain":
+                            logger.info(
+                                "Runner drain acknowledged; current run continues: %s",
+                                run_id,
+                            )
                     except asyncio.CancelledError:
                         break
+                    except AuthError as exc:
+                        logger.error("Runner credential rejected during renew: %s", exc)
+                        self._running = False
+                        return "RUNNER_CREDENTIAL_REJECTED"
+                    except LeaseTerminalError as exc:
+                        logger.warning("Lease is no longer writable run=%s: %s", run_id, exc)
+                        return exc.code
                     except Exception as exc:
                         logger.warning(
                             "Lease renew error run=%s: %s", run_id, exc,
                         )
                 return None
 
+            async def _flush_events_once() -> None:
+                async with event_flush_lock:
+                    while not event_queue.empty():
+                        try:
+                            event_buffer.append(event_queue.get_nowait())
+                        except asyncio.QueueEmpty:
+                            break
+                    if event_buffer and lease_id:
+                        self._client.submit_events(
+                            self._runner_id, self._credential, run_id, lease_id,
+                            list(event_buffer),
+                        )
+                        event_buffer.clear()
+
             async def _event_flusher():
-                buffer: List[Dict[str, Any]] = []
-                nonlocal event_seq
                 while not renew_stop.is_set():
                     try:
                         await asyncio.sleep(self._event_flush_sec)
+                        await _flush_events_once()
                     except asyncio.CancelledError:
                         break
-                    # Drain queue
-                    while not event_queue.empty():
-                        try:
-                            item = event_queue.get_nowait()
-                            buffer.append(item)
-                        except asyncio.QueueEmpty:
-                            break
-                    if buffer and lease_id:
-                        try:
-                            self._client.submit_events(
-                                self._runner_id, run_id, lease_id, buffer,
-                            )
-                            buffer.clear()
-                        except Exception as exc:
-                            logger.warning(
-                                "Event flush failed run=%s: %s", run_id, exc,
-                            )
+                    except Exception as exc:
+                        logger.warning("Event flush failed run=%s: %s", run_id, exc)
 
             async def _enqueue_event(level: str, message: str):
                 nonlocal event_seq
@@ -270,21 +286,50 @@ class WorkLoop:
             flush_task = asyncio.create_task(_event_flusher())
 
             try:
+                # F04: richer event timeline
                 await _enqueue_event("INFO", f"Run started: {run_id}")
+                await _enqueue_event("INFO",
+                    f"Config snapshot loaded: {len(config_snapshot)} bytes")
+                await _enqueue_event("INFO",
+                    f"Secrets bound: {len(secrets)} materialized")
 
                 # 4) Execute via TaskRuntime (the SOLE execution kernel) -----
-                output = await self._task_runtime.execute_agent_task(
-                    description=input_text or "Execute agent task",
-                    expected_role="agent",
-                    context=context,
-                    materialized_secrets=secrets,
+                await _enqueue_event("INFO", "Execution started via TaskRuntime")
+                execution_task = asyncio.create_task(
+                    self._task_runtime.execute_agent_task(
+                        description=input_text or "Execute agent task",
+                        expected_role="agent",
+                        context=context,
+                        materialized_secrets=secrets,
+                    )
                 )
+                done, _ = await asyncio.wait(
+                    {execution_task, renew_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if renew_task in done:
+                    cancel_reason = renew_task.result()
+                    if cancel_reason is not None:
+                        execution_task.cancel()
+                        await asyncio.gather(execution_task, return_exceptions=True)
+                        logger.warning(
+                            "Run execution stopped by lease control: run=%s reason=%s",
+                            run_id,
+                            cancel_reason,
+                        )
+                        return
+                output = await execution_task
 
-                await _enqueue_event("INFO", f"Run completed: {run_id}")
+                await _enqueue_event("INFO", f"Execution completed: {len(output) if output else 0} chars output")
+                await _enqueue_event("INFO", f"Run finished: {run_id}")
+
+                # Events must be accepted while the assignment is still active;
+                # submitting result first would make the final buffered events invalid.
+                await _flush_events_once()
 
                 # 5) Submit result (COMPLETED) ---------------------------------
                 self._client.submit_result(
-                    self._runner_id, run_id, lease_id,
+                    self._runner_id, self._credential, run_id, lease_id,
                     status="COMPLETED",
                     output=output,
                 )
@@ -299,6 +344,10 @@ class WorkLoop:
             except Exception as exc:
                 logger.error("Run failed: %s — %s", run_id, exc)
                 await _enqueue_event("ERROR", f"Execution error: {exc}")
+                try:
+                    await _flush_events_once()
+                except Exception as flush_exc:
+                    logger.warning("Final event flush failed run=%s: %s", run_id, flush_exc)
                 await self._fail_run(
                     run_id, lease_id, "RUNNER_FAILED",
                     f"Execution error: {exc}",
@@ -326,7 +375,7 @@ class WorkLoop:
         """Best-effort failure report."""
         try:
             self._client.submit_result(
-                self._runner_id, run_id, lease_id,
+                self._runner_id, self._credential, run_id, lease_id,
                 status="FAILED",
                 error_message=message,
                 error_code=error_code,

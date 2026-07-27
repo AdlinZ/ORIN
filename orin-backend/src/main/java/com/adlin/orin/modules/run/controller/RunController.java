@@ -1,6 +1,8 @@
 package com.adlin.orin.modules.run.controller;
 
+import com.adlin.orin.modules.run.dto.AssignmentResponse;
 import com.adlin.orin.modules.run.dto.CreateRunRequest;
+import com.adlin.orin.modules.run.dto.RunEventResponse;
 import com.adlin.orin.modules.run.dto.RunResponse;
 import com.adlin.orin.modules.run.entity.RunLog;
 import com.adlin.orin.modules.run.service.RunService;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Run 业务 API（F03）。
+ * Run 业务 API（F03 + F04）。
  *
  * <p>Base: /api/v1/runs（JWT 鉴权）。
  */
@@ -43,10 +45,16 @@ public class RunController {
         return runService.createRun(request, auth.getName());
     }
 
-    /** Run 列表（分页，按创建时间倒序）。 */
+    /** Run 列表（分页，按创建时间倒序；F04：支持按状态/Agent/Runner 筛选）。 */
     @GetMapping
     public Page<RunResponse> listRuns(
-            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String agentId,
+            @RequestParam(required = false) String runnerId) {
+        if (status != null || agentId != null || runnerId != null) {
+            return runService.listRuns(status, agentId, runnerId, pageable);
+        }
         return runService.listRuns(pageable);
     }
 
@@ -74,5 +82,18 @@ public class RunController {
     public List<RunLog> getRunLogs(@PathVariable String runId,
                                     @RequestParam(required = false) Integer afterSeq) {
         return runService.getLogs(runId, afterSeq);
+    }
+
+    /** F04：获取 Run 事件时间线（增量：afterSeq 之后的新事件）。 */
+    @GetMapping("/{runId}/events")
+    public List<RunEventResponse> getRunEvents(@PathVariable String runId,
+                                                @RequestParam(required = false) Integer afterSeq) {
+        return runService.getEvents(runId, afterSeq);
+    }
+
+    /** F04：获取 Run 分配历史（run_assignment 行）。 */
+    @GetMapping("/{runId}/assignments")
+    public List<AssignmentResponse> getRunAssignments(@PathVariable String runId) {
+        return runService.getAssignments(runId);
     }
 }

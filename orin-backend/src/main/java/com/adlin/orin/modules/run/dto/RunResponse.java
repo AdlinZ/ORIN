@@ -30,6 +30,7 @@ public class RunResponse {
     private String traceId;
     private String terminalReason;
     private Integer runAttempt;
+    private String endpointId;
 
     public static RunResponse from(Run run) {
         return RunResponse.builder()
@@ -52,6 +53,7 @@ public class RunResponse {
                 .traceId(run.getTraceId())
                 .terminalReason(run.getTerminalReason())
                 .runAttempt(run.getRunAttempt())
+                .endpointId(run.getEndpointId())
                 .build();
     }
 }

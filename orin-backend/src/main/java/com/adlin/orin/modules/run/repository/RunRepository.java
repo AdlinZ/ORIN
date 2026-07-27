@@ -47,4 +47,29 @@ public interface RunRepository extends JpaRepository<Run, String> {
 
     /** 查原始 Run 的所有重试。 */
     List<Run> findByRetryOfRunIdOrderByCreatedAtAsc(String retryOfRunId);
+
+    /** F04：按条件筛选分页列表。参数均可选。 */
+    @Query("SELECT r FROM Run r WHERE "
+            + "(:status IS NULL OR r.status = :status) AND "
+            + "(:agentId IS NULL OR r.agentId = :agentId) AND "
+            + "(:runnerId IS NULL OR r.runnerId = :runnerId) "
+            + "ORDER BY r.createdAt DESC")
+    Page<Run> findAllByFilters(
+            @org.springframework.data.repository.query.Param("status") RunStatus status,
+            @org.springframework.data.repository.query.Param("agentId") String agentId,
+            @org.springframework.data.repository.query.Param("runnerId") String runnerId,
+            Pageable pageable);
+
+    /** F04：普通用户的 Run 列表必须同时按 owner 过滤。 */
+    @Query("SELECT r FROM Run r WHERE r.createdBy = :createdBy AND "
+            + "(:status IS NULL OR r.status = :status) AND "
+            + "(:agentId IS NULL OR r.agentId = :agentId) AND "
+            + "(:runnerId IS NULL OR r.runnerId = :runnerId) "
+            + "ORDER BY r.createdAt DESC")
+    Page<Run> findAllVisibleToOwner(
+            @org.springframework.data.repository.query.Param("createdBy") String createdBy,
+            @org.springframework.data.repository.query.Param("status") RunStatus status,
+            @org.springframework.data.repository.query.Param("agentId") String agentId,
+            @org.springframework.data.repository.query.Param("runnerId") String runnerId,
+            Pageable pageable);
 }

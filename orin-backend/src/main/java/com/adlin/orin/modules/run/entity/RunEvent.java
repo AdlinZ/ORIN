@@ -58,6 +58,10 @@ public class RunEvent {
     @Column
     private Long timestamp;
 
+    /** SHA-256 of the canonical event payload for replay-versus-conflict detection. */
+    @Column(name = "payload_hash", nullable = false, length = 64)
+    private String payloadHash;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Long createdAt;
 
