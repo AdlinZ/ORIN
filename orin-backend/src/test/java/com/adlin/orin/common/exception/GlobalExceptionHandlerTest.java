@@ -190,6 +190,26 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, r4.getStatusCode());
     }
 
+    @Test
+    @DisplayName("ADR-001 - Run/lease 错误保持 404/409/410/501 协议状态")
+    void testRunProtocolHttpStatuses() {
+        assertEquals(HttpStatus.NOT_FOUND,
+                handler.handleBusinessException(
+                        new BusinessException(ErrorCode.RUN_NOT_FOUND), request).getStatusCode());
+        assertEquals(HttpStatus.CONFLICT,
+                handler.handleBusinessException(
+                        new BusinessException(ErrorCode.RUN_RESULT_CONFLICT), request).getStatusCode());
+        assertEquals(HttpStatus.GONE,
+                handler.handleBusinessException(
+                        new BusinessException(ErrorCode.RUN_LEASE_EXPIRED), request).getStatusCode());
+        assertEquals(HttpStatus.CONFLICT,
+                handler.handleBusinessException(
+                        new BusinessException(ErrorCode.RUN_ASSIGNMENT_TERMINATED), request).getStatusCode());
+        assertEquals(HttpStatus.NOT_IMPLEMENTED,
+                handler.handleBusinessException(
+                        new BusinessException(ErrorCode.RUN_FEATURE_NOT_AVAILABLE), request).getStatusCode());
+    }
+
     // ==================== traceId 生成与传递 ====================
 
     @Test

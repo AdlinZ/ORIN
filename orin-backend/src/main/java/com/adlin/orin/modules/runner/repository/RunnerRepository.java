@@ -36,4 +36,7 @@ public interface RunnerRepository extends JpaRepository<Runner, String> {
     @Query("SELECT r FROM Runner r WHERE r.status = :status AND r.createdAt < :threshold")
     List<Runner> findStaleByStatus(@Param("status") RunnerStatus status,
                                    @Param("threshold") long thresholdMillis);
+
+    /** F05：找第一个指定状态的 Runner（用于 Endpoint 自动分配）。 */
+    Optional<Runner> findFirstByStatus(RunnerStatus status);
 }

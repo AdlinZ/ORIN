@@ -202,7 +202,8 @@ public class TaskService {
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
 
         if (task.getStatus() != TaskStatus.FAILED && task.getStatus() != TaskStatus.DEAD) {
-            throw new BusinessException(ErrorCode.TASK_EXECUTION_FAILED, "Only FAILED or DEAD tasks can be replayed. Current status: " + task.getStatus());
+            // Keep the public replay endpoint's invalid-state contract at 400.
+            throw new IllegalStateException("Only FAILED or DEAD tasks can be replayed. Current status: " + task.getStatus());
         }
 
         log.info("Replaying task: taskId={}, originalStatus={}", taskId, task.getStatus());
@@ -266,7 +267,10 @@ public class TaskService {
         }
 
         log.warn("Cannot cancel task in status: taskId={}, status={}", taskId, task.getStatus());
-        throw new BusinessException(ErrorCode.TASK_EXECUTION_FAILED, "Only QUEUED tasks can be cancelled. Current status: " + task.getStatus());
+        // The public task-management contract treats a terminal/non-queued task
+        // as an invalid state transition (HTTP 400 in TaskController), rather
+        // than reporting it as an internal execution failure.
+        throw new IllegalStateException("Only QUEUED tasks can be cancelled. Current status: " + task.getStatus());
     }
 
     private TaskEntity sendTaskAfterCommitOrNow(TaskEntity task, TaskMessage message) {

@@ -301,6 +301,14 @@ public class GlobalExceptionHandler {
         if (explicit != null) {
             return explicit;
         }
+        explicit = EXPLICIT_RUN_STATUS.get(code);
+        if (explicit != null) {
+            return explicit;
+        }
+        explicit = EXPLICIT_ENDPOINT_STATUS.get(code);
+        if (explicit != null) {
+            return explicit;
+        }
         if (code.startsWith("2")) {
             // 20002 RESOURCE_ALREADY_EXISTS → 409 Conflict
             // 20003 RESOURCE_CONFLICT       → 409 Conflict
@@ -317,11 +325,9 @@ public class GlobalExceptionHandler {
         if (code.startsWith("1")) {
             // 10003 UNAUTHORIZED → 401, 10004 FORBIDDEN → 403,
             // 10005 TOO_MANY_REQUESTS → 429
-            // 140011 RUN_FEATURE_NOT_AVAILABLE → 501
             if (code.equals("10003")) return HttpStatus.UNAUTHORIZED;
             if (code.equals("10004")) return HttpStatus.FORBIDDEN;
             if (code.equals("10005")) return HttpStatus.TOO_MANY_REQUESTS;
-            if (code.equals("140011")) return HttpStatus.NOT_IMPLEMENTED;
             return HttpStatus.INTERNAL_SERVER_ERROR;
         }
         if (code.startsWith("7")) {
@@ -350,6 +356,33 @@ public class GlobalExceptionHandler {
             Map.entry("30014", HttpStatus.UNPROCESSABLE_ENTITY),   // RUNNER_LOCAL_SECRET_MISSING
             Map.entry("30015", HttpStatus.BAD_REQUEST),            // MISSING_IDEMPOTENCY_KEY
             Map.entry("30016", HttpStatus.BAD_REQUEST)             // AGENT_DRAFT_INVALID
+    );
+
+    /** ADR-001 machine-channel errors must never collapse to a generic HTTP 500. */
+    private static final Map<String, HttpStatus> EXPLICIT_RUN_STATUS = Map.ofEntries(
+            Map.entry("140001", HttpStatus.NOT_FOUND),             // RUN_NOT_FOUND
+            Map.entry("140002", HttpStatus.CONFLICT),              // RUN_INVALID_STATE
+            Map.entry("140003", HttpStatus.CONFLICT),              // RUN_ALREADY_TERMINAL
+            Map.entry("140004", HttpStatus.CONFLICT),              // RUN_NO_AVAILABLE_RUNNER
+            Map.entry("140005", HttpStatus.GONE),                  // RUN_LEASE_EXPIRED
+            Map.entry("140006", HttpStatus.CONFLICT),              // RUN_RETRY_EXHAUSTED
+            Map.entry("140007", HttpStatus.CONFLICT),              // RUN_VERSION_NOT_FROZEN
+            Map.entry("140008", HttpStatus.GONE),                  // RUN_LEASE_NOT_FOUND
+            Map.entry("140009", HttpStatus.CONFLICT),              // RUN_RESULT_CONFLICT
+            Map.entry("140010", HttpStatus.NOT_FOUND),             // RUN_ASSIGNMENT_NOT_FOUND
+            Map.entry("140011", HttpStatus.NOT_IMPLEMENTED),       // RUN_FEATURE_NOT_AVAILABLE
+            Map.entry("140012", HttpStatus.CONFLICT)               // RUN_ASSIGNMENT_TERMINATED
+    );
+
+    /** F05 Endpoint error codes → HTTP 显式映射表。 */
+    private static final Map<String, HttpStatus> EXPLICIT_ENDPOINT_STATUS = Map.ofEntries(
+            Map.entry("150001", HttpStatus.NOT_FOUND),               // ENDPOINT_NOT_FOUND
+            Map.entry("150002", HttpStatus.CONFLICT),                // ENDPOINT_PATH_CONFLICT
+            Map.entry("150003", HttpStatus.UNPROCESSABLE_ENTITY),   // ENDPOINT_VERSION_NOT_FROZEN
+            Map.entry("150004", HttpStatus.FORBIDDEN),              // ENDPOINT_ACCESS_DENIED
+            Map.entry("150005", HttpStatus.SERVICE_UNAVAILABLE),    // RUNNER_UNAVAILABLE
+            Map.entry("150006", HttpStatus.SERVICE_UNAVAILABLE),    // ENDPOINT_INACTIVE
+            Map.entry("150007", HttpStatus.INTERNAL_SERVER_ERROR)   // ENDPOINT_EXECUTION_FAILED
     );
 
     /**

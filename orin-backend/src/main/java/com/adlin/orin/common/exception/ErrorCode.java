@@ -161,13 +161,18 @@ public enum ErrorCode {
     RUN_RESULT_CONFLICT("140009", "幂等键冲突：同一 key 不同 payload"),
     RUN_ASSIGNMENT_NOT_FOUND("140010", "Assignment 不存在"),
     RUN_FEATURE_NOT_AVAILABLE("140011", "功能尚未实现"),
+    RUN_ASSIGNMENT_TERMINATED("140012", "Assignment 已终结"),
 
     // ============================================
     // Agent Endpoint 发布 (15xxxx) - F05
     // ============================================
     ENDPOINT_NOT_FOUND("150001", "Endpoint 未找到"),
     ENDPOINT_PATH_CONFLICT("150002", "Endpoint 路径已被占用"),
-    ENDPOINT_VERSION_NOT_FROZEN("150003", "AgentVersion 未冻结，不可发布");
+    ENDPOINT_VERSION_NOT_FROZEN("150003", "AgentVersion 未冻结，不可发布"),
+    ENDPOINT_ACCESS_DENIED("150004", "API Key 无权访问此 Endpoint"),
+    RUNNER_UNAVAILABLE("150005", "无可用 Runner"),
+    ENDPOINT_INACTIVE("150006", "Endpoint 已下线"),
+    ENDPOINT_EXECUTION_FAILED("150007", "Endpoint 执行失败");
 
     /**
      * 错误代码
