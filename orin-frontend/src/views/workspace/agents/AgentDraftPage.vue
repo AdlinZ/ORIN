@@ -203,8 +203,7 @@ import {
     freezeAgentVersion,
     getAgentDraft,
     listActiveGatewaySecrets,
-    upsertAgentDraft,
-    deprecateAgentVersion
+    upsertAgentDraft
 } from '@/domains/agent/api'
 
 const route = useRoute()

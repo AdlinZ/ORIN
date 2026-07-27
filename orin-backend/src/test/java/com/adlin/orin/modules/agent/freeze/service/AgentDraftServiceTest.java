@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -107,6 +108,24 @@ class AgentDraftServiceTest {
         assertEquals(Integer.valueOf(3), resp.getActiveVersionNumber());
         assertEquals("abc123", resp.getActiveVersionDigest());
         assertEquals("FROZEN", resp.getActiveVersionStatus());
+    }
+
+    @Test
+    @DisplayName("listDrafts: 列表与详情使用同一 active version 投影")
+    void listDrafts_resolvesActiveVersion() {
+        when(agentMetadataRepository.findAll()).thenReturn(List.of(meta("ver_active")));
+        when(agentVersionRepository.findById("ver_active")).thenReturn(Optional.of(
+                com.adlin.orin.modules.agent.entity.AgentVersion.builder()
+                        .id("ver_active").agentId("ag_test").versionNumber(3)
+                        .contentDigest("abc123")
+                        .status(com.adlin.orin.modules.agent.entity.AgentVersion.Status.FROZEN)
+                        .build()));
+
+        List<AgentDraftResponse> responses = service.listDrafts();
+
+        assertEquals(1, responses.size());
+        assertEquals(Integer.valueOf(3), responses.get(0).getActiveVersionNumber());
+        assertEquals("FROZEN", responses.get(0).getActiveVersionStatus());
     }
 
     @Test

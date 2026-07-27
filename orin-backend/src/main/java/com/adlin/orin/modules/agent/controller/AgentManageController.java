@@ -3,6 +3,8 @@ package com.adlin.orin.modules.agent.controller;
 import com.adlin.orin.modules.agent.dto.AgentOnboardRequest;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
+import com.adlin.orin.modules.agent.freeze.dto.AgentDraftResponse;
+import com.adlin.orin.modules.agent.freeze.service.AgentDraftService;
 import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.agent.service.SiliconFlowAgentManageService;
 import com.adlin.orin.modules.agent.service.KimiAgentManageService;
@@ -29,6 +31,7 @@ public class AgentManageController {
     private final com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService;
     private final com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService;
     private final KimiAgentManageService kimiAgentManageService;
+    private final AgentDraftService agentDraftService;
 
     @Autowired
     public AgentManageController(AgentManageService agentManageService,
@@ -36,13 +39,15 @@ public class AgentManageController {
             com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
             com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService,
             com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService,
-            KimiAgentManageService kimiAgentManageService) {
+            KimiAgentManageService kimiAgentManageService,
+            AgentDraftService agentDraftService) {
         this.agentManageService = agentManageService;
         this.siliconFlowAgentManageService = siliconFlowAgentManageService;
         this.zhipuAgentManageService = zhipuAgentManageService;
         this.deepSeekAgentManageService = deepSeekAgentManageService;
         this.minimaxAgentManageService = minimaxAgentManageService;
         this.kimiAgentManageService = kimiAgentManageService;
+        this.agentDraftService = agentDraftService;
     }
 
     @Operation(summary = "接入新智能体")
@@ -166,8 +171,8 @@ public class AgentManageController {
 
     @Operation(summary = "获取所有已接入的智能体档案")
     @GetMapping
-    public List<AgentMetadata> listAgents() {
-        return agentManageService.getAllAgents();
+    public List<AgentDraftResponse> listAgents() {
+        return agentDraftService.listDrafts();
     }
 
     @Operation(summary = "获取智能体元数据详情")

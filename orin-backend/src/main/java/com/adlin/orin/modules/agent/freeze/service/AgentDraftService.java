@@ -134,6 +134,19 @@ public class AgentDraftService {
     }
 
     /**
+     * 列出 Agent 草稿摘要，并解析 active version 指针。
+     *
+     * <p>列表和详情必须使用同一投影，否则前端会把已经冻结的 Agent 误判为 DRAFT，
+     * 进而无法在 Run 创建流程中选择它。
+     */
+    @Transactional(readOnly = true)
+    public List<AgentDraftResponse> listDrafts() {
+        return agentMetadataRepository.findAll().stream()
+                .map(this::toDraftResponse)
+                .toList();
+    }
+
+    /**
      * 读取 pending_secret_refs 反序列化结果，供 freeze / detail 复用。
      * 空 / null → 空列表（合法：草稿上无 secret refs）。
      */

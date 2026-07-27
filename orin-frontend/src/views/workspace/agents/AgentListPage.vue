@@ -123,28 +123,15 @@ const loadData = async () => {
     try {
         // F02 R3：列表来自 Control Plane 真实数据；不再依赖 localStorage。
         const list = await listAgents()
-        // 后端返回 List<AgentMetadata> (agentId/ownerUserId/name/description/...);
-        // 这里只保留 UI 字段，由 getDraftAsync 并行补 active_version_id 等只读字段。
-        const out = []
-        for (const m of list || []) {
-            let activeVersion = null
-            try {
-                const draft = await listAgents()  // no-op, 走正常通道
-                void draft
-            } catch (_) { /* ignore */ }
-            out.push({
-                agentId: m.agentId || m.id,
-                name: m.name,
-                description: m.description,
-                modelName: m.modelName,
-                providerType: m.providerType,
-                // 这些字段后端 listAgents 不返回；保持占位，避免 layout 抖动
-                activeVersionNumber: null,
-                activeVersionStatus: null,
-            })
-        }
-        // 简化路径：listAgents 已经能直接看；后端可后续改成 projection
-        // 包含 active_version_number / digest 即可。这里走最少改动实现。
+        const out = (list || []).map(m => ({
+            agentId: m.agentId || m.id,
+            name: m.name,
+            description: m.description,
+            modelName: m.modelName,
+            providerType: m.providerType,
+            activeVersionNumber: m.activeVersionNumber,
+            activeVersionStatus: m.activeVersionStatus,
+        }))
         rows.value = out
         state.status = out.length === 0 ? 'empty' : 'success'
     } catch (e) {

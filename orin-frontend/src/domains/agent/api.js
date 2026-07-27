@@ -35,8 +35,21 @@ function resolveIdempotencyKey(explicit) {
 export const createAgent = (payload) =>
     request.post(AGENT_ROOT, payload || {})
 
-/** F02 R3：列出当前 Control Plane 真实 Agent 列表（来源：agent_metadata 表）。 */
-export const listAgents = () => request.get(AGENT_ROOT)
+/**
+ * F02 R3：列出当前 Control Plane 真实 Agent 列表。
+ * 后端公开契约中的版本字段使用 snake_case；在领域 API 边界统一为前端 camelCase，
+ * 避免每个页面各自猜测字段名。
+ */
+export const listAgents = async () => {
+    const list = await request.get(AGENT_ROOT)
+    return (list || []).map(agent => ({
+        ...agent,
+        activeVersionId: agent.activeVersionId ?? agent.active_version_id ?? null,
+        activeVersionNumber: agent.activeVersionNumber ?? agent.active_version_number ?? null,
+        activeVersionDigest: agent.activeVersionDigest ?? agent.active_version_digest ?? null,
+        activeVersionStatus: agent.activeVersionStatus ?? agent.active_version_status ?? null,
+    }))
+}
 
 export const getAgentDraft = (agentId) => request.get(`${AGENT_ROOT}/${agentId}/draft`)
 
@@ -48,8 +61,29 @@ export const freezeAgentVersion = (agentId, idempotencyKey) =>
         headers: { 'Idempotency-Key': resolveIdempotencyKey(idempotencyKey) }
     })
 
-export const getAgentVersions = (agentId) =>
-    request.get(`${AGENT_ROOT}/${agentId}/versions`)
+export const getAgentVersions = async (agentId) => {
+    const versions = await request.get(`${AGENT_ROOT}/${agentId}/versions`)
+    const list = Array.isArray(versions) ? versions : versions?.data ?? []
+    return list.map(version => {
+        const versionId = version.id ?? version.agentVersionId ?? version.agent_version_id ?? null
+        return {
+            ...version,
+            // Backend deliberately exposes the immutable-version list in
+            // snake_case.  Normalize it once at the domain boundary so Agent
+            // pages, Run creation and Endpoint publishing all select the same
+            // immutable identifier instead of guessing field names.
+            id: versionId,
+            agentVersionId: version.agentVersionId ?? version.agent_version_id ?? versionId,
+            versionNumber: version.versionNumber ?? version.version_number ?? null,
+            versionTag: version.versionTag ?? version.version_tag ?? null,
+            contentDigest: version.contentDigest ?? version.content_digest ?? null,
+            snapshotSchemaVersion: version.snapshotSchemaVersion ?? version.snapshot_schema_version ?? null,
+            frozenAt: version.frozenAt ?? version.frozen_at ?? null,
+            createdBy: version.createdBy ?? version.created_by ?? null,
+            isActive: version.isActive ?? version.is_active ?? false,
+        }
+    })
+}
 
 export const getAgentVersionDetail = (agentId, versionId) =>
     request.get(`${AGENT_ROOT}/${agentId}/versions/${versionId}`)
