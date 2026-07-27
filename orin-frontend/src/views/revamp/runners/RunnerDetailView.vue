@@ -2,7 +2,7 @@
   <div class="runner-detail-page" v-loading="loading">
     <!-- 返回 + 标题行 -->
     <div class="page-header">
-      <el-button link :icon="ArrowLeft" @click="$router.push('/dashboard/runtime/server')">
+      <el-button link :icon="ArrowLeft" @click="router.push(ROUTES.WORKSPACE.RUNNERS)">
         返回列表
       </el-button>
       <div v-if="runner" style="margin-left:12px">
@@ -11,13 +11,13 @@
       </div>
       <div class="header-actions" v-if="runner">
         <el-button
-          v-if="canDrain" type="warning" plain @click="handleDrain"
+          v-if="canDrain" type="warning" plain @click.stop="handleDrain"
         >Drain</el-button>
         <el-button
-          v-if="canRestore" type="success" plain @click="handleRestore"
+          v-if="canRestore" type="success" plain @click.stop="handleRestore"
         >恢复</el-button>
         <el-button
-          v-if="runner.status !== 'REVOKED'" type="danger" plain @click="handleRevoke"
+          v-if="runner.status !== 'REVOKED'" type="danger" plain @click.stop="handleRevoke"
         >Revoke</el-button>
       </div>
     </div>
@@ -135,6 +135,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowLeft } from '@element-plus/icons-vue';
 import { getRunnerDetail, drainRunner, restoreRunner, revokeRunner } from '@/api/runner';
 import OrinDataTable from '@/components/orin/OrinDataTable.vue';
+import { ROUTES } from '@/router/routes';
 
 const route = useRoute();
 const router = useRouter();
@@ -182,24 +183,38 @@ function formatTime(ts) {
   return new Date(ts).toLocaleString();
 }
 
-function fetchDetail() {
-  const id = route.params.serverId || route.params.id;
+async function fetchDetail() {
+  const id = route.params.runnerId || route.params.serverId || route.params.id;
   if (!id) return;
   loading.value = true;
-  getRunnerDetail(id)
-    .then(res => { runner.value = res?.data ?? res; })
-    .catch(() => { ElMessage.error('获取 Runner 详情失败'); })
-    .finally(() => { loading.value = false; });
+  try {
+    const res = await getRunnerDetail(id);
+    runner.value = res?.data ?? res;
+  } catch {
+    ElMessage.error('获取 Runner 详情失败');
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function handleDrain() {
   const id = runner.value.id;
   try {
-    await ElMessageBox.confirm('确认 Drain 此 Runner？', '确认', { type: 'warning' });
+    await ElMessageBox.confirm('确认 Drain 此 Runner？', '确认 Drain', {
+      type: 'warning',
+      confirmButtonText: '确认 Drain',
+      cancelButtonText: '取消',
+    });
+  } catch {
+    return;
+  }
+  try {
     await drainRunner(id);
+    await fetchDetail();
     ElMessage.success('Drain 已触发');
-    fetchDetail();
-  } catch { /* cancelled */ }
+  } catch {
+    ElMessage.error('Drain 失败');
+  }
 }
 
 async function handleRestore() {
@@ -211,7 +226,7 @@ async function handleRestore() {
         ? '已取消 Drain，等待 Runner 心跳恢复'
         : '已恢复'
     );
-    fetchDetail();
+    await fetchDetail();
   } catch { ElMessage.error('恢复失败'); }
 }
 
@@ -222,10 +237,16 @@ async function handleRevoke() {
       `确认撤销 Runner "${runner.value.name}"？此操作不可逆，凭据将永久失效。`,
       '确认 Revoke', { type: 'error', confirmButtonText: '确认撤销' }
     );
+  } catch {
+    return;
+  }
+  try {
     await revokeRunner(id);
+    await fetchDetail();
     ElMessage.success('Runner 已撤销');
-    fetchDetail();
-  } catch { /* cancelled */ }
+  } catch {
+    ElMessage.error('撤销失败');
+  }
 }
 
 onMounted(fetchDetail);

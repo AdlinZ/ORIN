@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import ANY, patch
 
 from app.runner.client import RunnerClient
-from app.runner.enrollment import enroll
+from app.runner.enrollment import RUNNER_VERSION, enroll
 
 
 class TestEnroll:
@@ -31,4 +31,4 @@ class TestEnroll:
             assert kwargs["hostname"]  # real platform.node()
             assert kwargs["os_name"]  # real platform.system()
             assert kwargs["arch"]  # real platform.machine()
-            assert kwargs["version"] == "0.1.0"
+            assert kwargs["version"] == RUNNER_VERSION

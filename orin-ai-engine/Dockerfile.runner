@@ -25,13 +25,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy only what the Runner needs (no AI Engine server/runtime dependencies)
-COPY app/runner/ ./app/runner/
-COPY app/core/w3c_trace.py ./app/core/w3c_trace.py
+# Slow or rate-limited package mirrors should not turn a transient read timeout
+# into a non-reproducible Runner image failure.
+ENV PIP_DEFAULT_TIMEOUT=300 \
+    PIP_RETRIES=8
 
-# Install only Runner dependencies. The image invokes the existing module directly,
-# so it does not pull the complete AI Engine dependency graph.
-RUN pip install --no-cache-dir httpx psutil
+# A Runner executes through TaskRuntime, so the image must carry the same execution
+# kernel and a lock-derived dependency set.  Installing the Poetry project directly
+# made container builds resolve the whole graph again and require poetry-core at
+# build time; this exported file keeps the image reproducible and avoids that second
+# resolver.
+COPY requirements.runner.txt ./
+RUN pip install --no-cache-dir -r requirements.runner.txt
+COPY app/ ./app/
 
 # The credential volume
 VOLUME /root/.orin

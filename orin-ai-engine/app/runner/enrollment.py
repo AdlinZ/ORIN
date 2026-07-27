@@ -13,7 +13,7 @@ from app.runner.collector import collect_static_info
 
 logger = logging.getLogger(__name__)
 
-RUNNER_VERSION = "0.1.0"
+RUNNER_VERSION = "0.3.0-rc.1"
 
 
 def enroll(

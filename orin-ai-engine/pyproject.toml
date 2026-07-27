@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "orin-ai-engine"
-version = "0.1.0"
+version = "0.3.0-rc.1"
 description = "Python AI Microservice for ORIN Workflow Execution + Runner agent"
 authors = ["Adlin <adlin@example.com>"]
 packages = [{ include = "app" }]
@@ -15,7 +15,7 @@ uvicorn = {extras = ["standard"], version = ">=0.31.1,<0.48.0"}
 pydantic = "^2.6.0"
 pydantic-settings = "^2.2.0"
 httpx = "^0.27.1"
-psutil = "^5.9.0"
+psutil = ">=5.9,<8"
 openai = ">=1,<3"
 RestrictedPython = "^8.0"
 aio-pika = "^9.0.0"

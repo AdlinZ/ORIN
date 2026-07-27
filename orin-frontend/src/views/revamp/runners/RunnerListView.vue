@@ -99,6 +99,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
 import { listRunners, drainRunner, restoreRunner } from '@/api/runner';
+import { ROUTES } from '@/router/routes';
 import EnrollmentWizard from './EnrollmentWizard.vue';
 import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 
@@ -155,32 +156,40 @@ function formatAge(sec) {
   return Math.floor(sec / 3600) + 'h';
 }
 
-function fetchList() {
+async function fetchList() {
   loading.value = true;
-  listRunners({ page: page.value - 1, size: size.value })
-    .then(res => {
-      const data = res?.data ?? res;
-      runners.value = data.content ?? data ?? [];
-      total.value = data.totalElements ?? runners.value.length;
-    })
-    .catch(() => ElMessage.error('获取 Runner 列表失败'))
-    .finally(() => { loading.value = false; });
+  try {
+    const res = await listRunners({ page: page.value - 1, size: size.value });
+    const data = res?.data ?? res;
+    runners.value = data.content ?? data ?? [];
+    total.value = data.totalElements ?? runners.value.length;
+  } catch {
+    ElMessage.error('获取 Runner 列表失败');
+  } finally {
+    loading.value = false;
+  }
 }
 
 function goDetail(row) {
-  router.push(`/dashboard/runtime/server/${row.id}`);
+  router.push(ROUTES.WORKSPACE.RUNNER_DETAIL.replace(':runnerId', row.id));
 }
 
 async function handleDrain(row) {
   try {
     await ElMessageBox.confirm(
       `确认将 "${row.name}" 设为 DRAINING（停止领取新 Run，等待当前 Run 结束）？`,
-      '确认 Drain', { type: 'warning' }
+      '确认 Drain', { type: 'warning', confirmButtonText: '确认 Drain', cancelButtonText: '取消' }
     );
+  } catch {
+    return;
+  }
+  try {
     await drainRunner(row.id);
+    await fetchList();
     ElMessage.success('Runner 已进入 DRAINING 状态');
-    fetchList();
-  } catch { /* cancelled */ }
+  } catch {
+    ElMessage.error('Drain 失败');
+  }
 }
 
 async function handleRestore(row) {
@@ -192,7 +201,7 @@ async function handleRestore(row) {
         ? '已取消 Drain，等待 Runner 心跳恢复'
         : 'Runner 已恢复'
     );
-    fetchList();
+    await fetchList();
   } catch { ElMessage.error('恢复失败'); }
 }
 

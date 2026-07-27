@@ -78,7 +78,7 @@ import { ElMessage } from 'element-plus';
 import { DocumentCopy } from '@element-plus/icons-vue';
 import { createEnrollmentToken } from '@/api/runner';
 
-const props = defineProps({ visible: Boolean });
+defineProps({ visible: Boolean });
 const emit = defineEmits(['update:visible', 'enrolled']);
 
 const step = ref(1);
