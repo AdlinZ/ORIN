@@ -1,6 +1,6 @@
 # F04 · 观察和控制 Run
 
-> 状态：Not Started
+> 状态：E2E Working
 > 用户角色：Creator / Operator
 > 前置功能：F03
 
@@ -30,12 +30,12 @@
 
 ## 4. 验收
 
-- [ ] 一个真实跨机器 Run 的状态、日志、Trace 和结果在同一页面可见；
-- [ ] traceId 跨 Control Plane、Runner、TaskRuntime 一致；
-- [ ] Cancel 可达 Runner，且不会被错误地重新分配；
-- [ ] Retry 创建新 Run 并保留原失败事实；
-- [ ] 敏感值不出现在日志、Trace、结果或审计；
-- [ ] 权限、失败状态、真实后端 E2E 和手工 smoke 通过。
+- [x] 一个真实跨机器 Run 的状态、日志、Trace 和结果在同一页面可见；
+- [x] traceId 跨 Control Plane、Runner、TaskRuntime 一致；
+- [x] Cancel 可达 Runner，且不会被错误地重新分配；
+- [x] Retry 创建新 Run 并保留原失败事实；
+- [x] 敏感值不出现在日志、Trace、结果或审计；
+- [x] 权限、失败状态、真实后端 E2E 和手工 smoke 通过。
 
 ## 5. 不算完成
 
@@ -51,11 +51,37 @@
 - [开发规范](../开发规范.md)
 - [角色矩阵](../角色矩阵.md)
 
-## 7. 实现状态（2026-07-24）
+## 7. 实现状态（2026-07-25）
 
-**当前状态：Backend Only**
+**当前状态：E2E Working**
 
-- 已有：`appendEvents()`（批量事件推送，已对齐 ADR-001 /events）、`getLogs()`（增量拉取）、`timeoutStaleRuns()`（超时检测 + terminal_reason）
-- 已有：`RunListPage.vue`（前端占位页，含状态列表）
-- 缺失：实时日志流（无 Runner 真执行）、Trace 查看、Cancel/Drain/Retry 完成闭环
-- 升级到 E2E Working 需要：Runner 产生真实日志 + 用户在 Workspace 实时查看
+### 已闭环
+
+- `GET /api/v1/runs/{runId}/events` — 事件时间线端点（增量拉取），H2 正向契约测试通过
+- `GET /api/v1/runs/{runId}/assignments` — 分配历史端点，H2 正向契约测试通过
+- `GET /api/v1/runs` 筛选参数（status、agentId、runnerId），H2 3 维筛选测试通过
+- Run 资源级 ACL：普通用户只可查看、取消或重试自己的 Run；`ROLE_OPERATOR` / `ROLE_ADMIN` 可跨 owner 处理；历史无主记录只向特权角色可见
+- `RunDetailPage.vue` — 独立详情页：状态流转（el-steps）、事件时间线（el-timeline，2s 自动轮询）、实时日志、Trace 跳转、终态原因中文解释、Cancel/Retry 按钮
+- `RunListPage.vue` — 列表页 + 状态/Agent 筛选 + 行点击跳转详情
+- Python Runner 6 步事件时间线（started → config → secrets → execution_started → execution_completed → finished）
+- 深层链接 `/workspace/runs/:runId` 正确加载 Run 详情
+- 详情页自动轮询（活跃 Run 时每 2-3s 刷新状态/事件/日志）
+- `statusType ||→??` bug 修复（RUNNING 状态不因 falsy fallback 显示错误颜色）
+
+### 测试证据
+
+| 层级 | 测试 | 结果 |
+|------|------|------|
+| Backend 全量回归 | `mvn test` | 853 passed（Temurin 17） |
+| Backend 定向 | `RunF04H2Test`（16）+ `RunServiceLeaseSecurityTest`（8） | BUILD SUCCESS；覆盖 owner 隔离、跨 owner 403、特权角色跨 owner 管理、Retry 保留原 owner |
+| Frontend vitest | 21 个 F04 相关测试 | 全绿 |
+| Frontend build | `npm run build` | ✅ 8.57s |
+| Playwright E2E | 2 scenarios（详情页；确认取消；提交 Retry） | 2/2 passed；用例真实点击确认框并断言对应 API 请求 |
+| Docker Runner E2E | `f03-runner-e2e.sh` with `orin-runner:f04` | logs=6 events=6 assignments=1 ✅ |
+
+### 继续硬化但不阻塞 E2E Working
+
+- W3C `traceparent` 全跳（Control Plane → Runner → TaskRuntime 跨进程）
+- Redis 幂等加速
+- RunnerPool/容量调度
+- Gateway Secret revision/rotation
