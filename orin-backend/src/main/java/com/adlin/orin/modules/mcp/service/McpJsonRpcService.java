@@ -1,15 +1,21 @@
 package com.adlin.orin.modules.mcp.service;
 
-import com.adlin.orin.modules.agent.entity.AgentMetadata;
-import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.audit.service.AuditHelper;
+import com.adlin.orin.modules.endpoint.dto.ExecuteEndpointRequest;
+import com.adlin.orin.modules.endpoint.dto.ExecuteEndpointResponse;
+import com.adlin.orin.modules.endpoint.entity.AgentEndpoint;
+import com.adlin.orin.modules.endpoint.entity.EndpointStatus;
+import com.adlin.orin.modules.endpoint.repository.AgentEndpointRepository;
+import com.adlin.orin.modules.endpoint.service.EndpointExecutionService;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
 import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
 import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
 import com.adlin.orin.modules.workflow.repository.WorkflowRepository;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,15 +31,17 @@ import java.util.Map;
 public class McpJsonRpcService {
     private static final String LEGACY_AGENT_PREFIX = "orin_agent_";
     private static final String AGENT_PREFIX = "agent.";
+    private static final String ENDPOINT_PREFIX = "endpoint.";
     private static final String WORKFLOW_PREFIX = "workflow.";
     private static final String PROTOCOL = "2025-06-18";
 
-    private final AgentMetadataRepository agentRepository;
     private final WorkflowRepository workflowRepository;
-    private final ExternalMcpAgentExecutionService executionService;
+    private final AgentEndpointRepository endpointRepository;
+    private final EndpointExecutionService endpointExecutionService;
     private final WorkflowService workflowService;
     private final OrinWorkflowDslNormalizer workflowDslNormalizer;
     private final AuditHelper auditHelper;
+    private final ObjectMapper objectMapper;
 
     public Map<String, Object> handle(Object body, GatewaySecret secret) {
         if (body instanceof List<?>) return error(null, -32600, "Invalid Request: batch is not supported");
@@ -46,7 +54,7 @@ public class McpJsonRpcService {
             case "initialize" -> ok(id, Map.of(
                     "protocolVersion", PROTOCOL,
                     "capabilities", Map.of("tools", Map.of("listChanged", false)),
-                    "serverInfo", Map.of("name", "ORIN", "version", "0.1.0")
+                    "serverInfo", Map.of("name", "ORIN", "version", "0.3.0-rc.1")
             ));
             case "tools/list" -> listTools(id, secret);
             case "tools/call" -> call(id, map(req.get("params")), secret);
@@ -55,7 +63,7 @@ public class McpJsonRpcService {
     }
 
     private Map<String, Object> listTools(Object id, GatewaySecret secret) {
-        List<Map<String, Object>> exposedTools = tools(owner(secret));
+        List<Map<String, Object>> exposedTools = tools(secret);
         audit(secret, "tools/list", null, null, null, true, null);
         return ok(id, Map.of("tools", exposedTools));
     }
@@ -64,36 +72,78 @@ public class McpJsonRpcService {
         String tool = string(params.get("name"));
         Map<String, Object> args = map(params.get("arguments"));
         if (tool != null && tool.startsWith(WORKFLOW_PREFIX)) return callWorkflow(id, tool, args, secret);
+
+        // F05: endpoint tools → EndpointExecutionService（REST / MCP 同一路径）
+        if (tool != null && tool.startsWith(ENDPOINT_PREFIX)) {
+            return callEndpoint(id, tool, args, secret);
+        }
+
+        // Legacy agent tools (backward compat — delegates to endpoint if published)
         String agentId = decodeAgentToolName(tool);
         if (agentId == null) {
             audit(secret, "tools/call", tool, null, null, false, "-32602");
             return error(id, -32602, "Invalid tool name");
         }
-        AgentMetadata agent = agentRepository.findById(agentId).orElse(null);
-        Long owner = owner(secret);
-        if (agent == null || !agent.isMcpExposed() || owner == null || !owner.equals(agent.getOwnerUserId())) {
-            audit(secret, "tools/call", tool, null, null, false, "-32003");
-            return error(id, -32003, "Forbidden");
+        // Find a published endpoint for this agent → delegate to EndpointExecutionService
+        List<AgentEndpoint> eps = endpointRepository.findByAgentId(agentId);
+        AgentEndpoint activeEp = eps.stream()
+                .filter(e -> e.getStatus() == EndpointStatus.ACTIVE)
+                .findFirst().orElse(null);
+        if (activeEp != null && isKeyAllowed(activeEp, secret)) {
+            return callEndpointById(id, activeEp, args, secret);
         }
-        String message = string(args.get("message"));
-        if (message == null || message.isBlank()) {
+        audit(secret, "tools/call", tool, null, null, false, "-32003");
+        return error(id, -32003, "Agent not published as endpoint. Use F05 publish first.");
+    }
+
+    /** F05: endpoint tool → EndpointExecutionService。 */
+    private Map<String, Object> callEndpoint(Object id, String tool, Map<String, Object> args,
+                                              GatewaySecret secret) {
+        String endpointId = decodeEndpointToolName(tool);
+        if (endpointId == null) {
             audit(secret, "tools/call", tool, null, null, false, "-32602");
-            return error(id, -32602, "message is required");
+            return error(id, -32602, "Invalid endpoint tool name");
         }
-        Integer maxTokens = args.get("max_tokens") instanceof Number n ? n.intValue() : null;
+        AgentEndpoint ep = endpointRepository.findById(endpointId).orElse(null);
+        if (ep == null) {
+            audit(secret, "tools/call", tool, null, null, false, "-32602");
+            return error(id, -32602, "Endpoint not found");
+        }
+        return callEndpointById(id, ep, args, secret);
+    }
+
+    private Map<String, Object> callEndpointById(Object id, AgentEndpoint ep,
+                                                  Map<String, Object> args, GatewaySecret secret) {
+        String input = string(args.get("input"));
+        if (input == null || input.isBlank()) {
+            // backward compat: accept "message" as alias for "input"
+            input = string(args.get("message"));
+        }
+        if (input == null || input.isBlank()) {
+            audit(secret, "tools/call", "endpoint." + encodeEndpointId(ep.getId()),
+                    null, null, false, "-32602");
+            return error(id, -32602, "input is required");
+        }
         try {
-            ExternalMcpAgentExecutionService.ExecutionResult execution = executionService.execute(
-                    agent, message, string(args.get("context")), maxTokens, secret.getUserId());
-            audit(secret, "tools/call", tool, execution.traceId(), execution.packageId(), true, null);
+            ExecuteEndpointRequest req = new ExecuteEndpointRequest();
+            req.setInput(input);
+            req.setTimeoutMs(args.get("timeoutMs") instanceof Number n ? n.longValue() : null);
+            ExecuteEndpointResponse resp = endpointExecutionService.execute(ep.getId(), req, secret);
+            String text = resp.getOutput() != null ? resp.getOutput()
+                    : "Run " + resp.getRunId() + " status=" + resp.getStatus()
+                    + " traceId=" + resp.getTraceId();
+            audit(secret, "tools/call", "endpoint." + encodeEndpointId(ep.getId()),
+                    resp.getTraceId(), resp.getRunId(), true, null);
             return ok(id, Map.of(
-                    "content", List.of(Map.of("type", "text", "text", agentText(execution))),
+                    "content", List.of(Map.of("type", "text", "text", text)),
                     "isError", false));
-        } catch (ExternalMcpAgentExecutionService.ExecutionFailedException e) {
-            audit(secret, "tools/call", tool, e.getTraceId(), e.getPackageId(), false, "TOOL_ERROR");
-            return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", safe(e.getMessage(), "Agent execution failed"))), "isError", true));
         } catch (Exception e) {
-            audit(secret, "tools/call", tool, null, null, false, "TOOL_ERROR");
-            return ok(id, Map.of("content", List.of(Map.of("type", "text", "text", safe(e.getMessage(), "Agent execution failed"))), "isError", true));
+            audit(secret, "tools/call", "endpoint." + encodeEndpointId(ep.getId()),
+                    null, null, false, "TOOL_ERROR");
+            return ok(id, Map.of(
+                    "content", List.of(Map.of("type", "text", "text",
+                            safe(e.getMessage(), "Endpoint execution failed"))),
+                    "isError", true));
         }
     }
 
@@ -127,32 +177,66 @@ public class McpJsonRpcService {
         }
     }
 
-    private String agentText(ExternalMcpAgentExecutionService.ExecutionResult execution) {
-        String text = safe(execution.text(), "");
-        String tracking = "Trace ID: %s%nPackage ID: %s".formatted(
-                safe(execution.traceId(), ""),
-                safe(execution.packageId(), ""));
-        return text.isBlank() ? tracking : text + "\n\n" + tracking;
+    // ---- F05 endpoint tool helpers ----
+
+    private String endpointToolName(String endpointId) {
+        return ENDPOINT_PREFIX + encodeEndpointId(endpointId);
     }
 
-    private List<Map<String, Object>> tools(Long owner) {
+    private String encodeEndpointId(String endpointId) {
+        return endpointId; // endpoint IDs are already safe (ep_xxx)
+    }
+
+    private String decodeEndpointToolName(String name) {
+        if (name == null || !name.startsWith(ENDPOINT_PREFIX)) return null;
+        return name.substring(ENDPOINT_PREFIX.length());
+    }
+
+    private boolean isKeyAllowed(AgentEndpoint ep, GatewaySecret secret) {
+        return isKeyAllowedByConfig(ep.getConfig(), secret);
+    }
+
+    private boolean isKeyAllowedByConfig(String configJson, GatewaySecret secret) {
+        if (configJson == null || configJson.isBlank()) return false;
+        try {
+            Map<String, Object> config = objectMapper.readValue(configJson,
+                    new TypeReference<Map<String, Object>>() {});
+            @SuppressWarnings("unchecked")
+            List<String> allowed = (List<String>) config.get("allowedApiKeyIds");
+            return allowed != null && allowed.contains(secret.getSecretId());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // ---- tools list ----
+
+    private List<Map<String, Object>> tools(GatewaySecret secret) {
+        Long owner = owner(secret);
         if (owner == null) return List.of();
         List<Map<String, Object>> tools = new ArrayList<>();
-        List<AgentMetadata> agents = agentRepository.findByOwnerUserIdAndMcpExposedTrue(owner);
-        if (agents == null) agents = List.of();
-        agents.stream()
-                .map(a -> Map.<String, Object>of(
-                        "name", agentToolName(a.getAgentId()),
-                        "title", safe(a.getName(), a.getAgentId()),
-                        "description", safe(a.getDescription(), "ORIN Agent") + " provider=" + safe(a.getProviderType(), "unknown"),
+
+        // F05: list published endpoints (replaces raw agent listing)
+        List<AgentEndpoint> allEndpoints = endpointRepository.findAll();
+        allEndpoints.stream()
+                .filter(e -> e.getStatus() == EndpointStatus.ACTIVE)
+                // A tool name is itself a capability disclosure.  Listing an endpoint
+                // merely because another key is assigned to it would let unrelated
+                // CLIENT_ACCESS keys discover and attempt to invoke that endpoint.
+                .filter(e -> isKeyAllowedByConfig(e.getConfig(), secret))
+                .map(e -> Map.<String, Object>of(
+                        "name", endpointToolName(e.getId()),
+                        "title", safe(e.getName(), e.getId()),
+                        "description", safe(e.getDescription(), "Published Agent Endpoint"),
                         "inputSchema", Map.of(
                                 "type", "object",
                                 "properties", Map.of(
-                                        "message", Map.of("type", "string"),
-                                        "context", Map.of("type", "string"),
-                                        "max_tokens", Map.of("type", "integer", "minimum", 1)
+                                        "input", Map.of("type", "string",
+                                                "description", "User input / prompt"),
+                                        "timeoutMs", Map.of("type", "integer",
+                                                "description", "Max wait time in milliseconds (0 = async)")
                                 ),
-                                "required", List.of("message")
+                                "required", List.of("input")
                         )
                 ))
                 .forEach(tools::add);
@@ -214,11 +298,6 @@ public class McpJsonRpcService {
             case "number", "integer", "boolean", "array", "object" -> type.toLowerCase();
             default -> "string";
         };
-    }
-
-    private String agentToolName(String agentId) {
-        return AGENT_PREFIX + Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(agentId.getBytes(StandardCharsets.UTF_8));
     }
 
     private String workflowToolName(Long workflowId) {

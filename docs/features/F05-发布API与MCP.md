@@ -1,6 +1,6 @@
 # F05 · 发布 API 与 MCP
 
-> 状态：Not Started
+> 状态：E2E Working
 > 用户角色：Creator / Operator / Endpoint Consumer
 > 前置功能：F03；生产验收依赖 F04
 
@@ -32,12 +32,12 @@
 
 ## 4. 验收
 
-- [ ] Workspace 可发布一个真实 AgentVersion，而不是生成占位配置；
-- [ ] curl 和至少一个 MCP 客户端调用成功；
-- [ ] 每次外部调用创建 Run、traceId 和审计；
-- [ ] API Key 明文只返回一次，禁用/轮换立即生效；
-- [ ] Runner 离线、限流、认证失败与内部错误契约稳定；
-- [ ] Endpoint 页面、Agent Page、真实 E2E 和外部 smoke 通过。
+- [x] Workspace 可发布一个真实 AgentVersion，而不是生成占位配置；
+- [x] curl 和至少一个 MCP 客户端调用成功；
+- [x] 每次外部调用创建 Run、traceId 和审计；
+- [x] API Key 明文只返回一次，禁用/轮换立即生效；
+- [x] Runner 离线、限流、认证失败与内部错误契约稳定；
+- [x] Endpoint 页面、Agent Page、真实 E2E 和外部 smoke 通过。
 
 ## 5. 不算完成
 
@@ -54,11 +54,28 @@
 - [Open Demo Checklist](../open-demo-checklist.md)
 - [角色矩阵](../角色矩阵.md)
 
-## 7. 实现状态（2026-07-24）
+## 7. 实现状态（2026-07-27）
 
-**当前状态：Backend Only**
+**当前状态：E2E Working**
 
-- 已有：`agent_endpoints` 表（V98）、Endpoint CRUD
-- 已有：`EndpointListPage.vue`（前端占位页）
-- 缺失：REST 执行 / MCP `tools/list` `tools/call`、API Key 权限、速率限制、真实外部调用
-- 升级到 E2E Working 需要：F03 Runner 闭环 → 端点绑定 AgentVersion + RunnerPool → 外部 HTTP/MCP 调用产生 Run
+- `agent_endpoints` 表（V98）+ Endpoint CRUD
+- ADR-003（Endpoint 响应契约）定稿
+- `EndpointExecutionService` — REST / MCP 共用执行逻辑
+- `POST /v1/endpoints/{endpointId}/run` — 外部 REST 执行（API Key 鉴权）
+- `GET /v1/endpoints/{endpointId}/runs/{runId}` — Run 状态查询（API Key 鉴权，endpointId 校验归属）
+- `McpJsonRpcService` — MCP `tools/list` + `tools/call` 复用同一执行路径
+- Endpoint ↔ API Key 访问控制（`assignApiKey` / `revokeApiKey`）
+- Endpoint 资源级 ACL（按 createdBy 隔离 + admin/operator 豁免）
+- publish 时自动创建 API Key 并返回明文
+- Run 绑定 endpointId（V100 migration）
+- `statusUrl` 指向 `/v1/endpoints/{epId}/runs/{runId}`（API Key 可访问）
+- `EndpointExecutionE2ETest` — 10 个集成测试
+- `McpStreamableHttpTest` — MCP endpoint 模型测试，包含未获授权 API Key 不得从 `tools/list` 发现 Endpoint 的访问边界
+- Workspace 发布后一次性展示 API Key、REST curl 和 MCP 配置；关闭窗口即从页面状态清除明文
+- `scripts/f05-external-acceptance.sh` — Docker Runner 实际验收：临时 Agent/Endpoint/Key/Runner → REST 完成 Run 与状态查询 → 无效 Key 401 → MCP `initialize` / `tools/list` / `tools/call` → 下线 503；临时 Runner 凭据与 API Key 在退出时清理
+- 设置 `ORIN_F05_REQUIRE_STDIO_BRIDGE=1` 与 `ORIN_MCP_BRIDGE_PYTHON` 后，
+  同一脚本还会经随仓库发布的 stdio MCP Bridge 完成 `initialize`、`tools/list`
+  和 `tools/call`，用于候选版外部客户端回归。
+- `tests/e2e/real-backend/endpoint-f05-real.spec.js` 于 2026-07-27 通过：真实 Workspace 从冻结 AgentVersion 选择版本、发布 Endpoint、展示一次性 API Key / REST URL / MCP 配置，并在关闭交接窗口后确认端点列表更新。
+- `scripts/f05-external-acceptance.sh` 于 2026-07-27 在真实 Control Plane + Docker Runner 下通过：REST Run 完成与状态查询、无效 Key `401`、MCP `initialize / tools/list / tools/call`、stdio Bridge 客户端以及下线 Endpoint `503`。
+- 正式 Release 仍需一个 MCP 桌面客户端（Codex、Claude Desktop、Cursor 或 Windsurf）的人工展示证据；流式 SSE、RunnerPool 选择不在当前 MVP 范围。

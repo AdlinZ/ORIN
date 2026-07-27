@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -62,5 +63,19 @@ public class EndpointController {
     @PostMapping("/{endpointId}/activate")
     public EndpointResponse activate(@PathVariable String endpointId, Authentication auth) {
         return endpointService.activate(endpointId, auth.getName());
+    }
+
+    /** F05：为 Endpoint 分配 API Key 访问权限。 */
+    @PostMapping("/{endpointId}/api-keys/{apiKeyId}")
+    public EndpointResponse assignApiKey(@PathVariable String endpointId,
+                                          @PathVariable String apiKeyId) {
+        return endpointService.assignApiKey(endpointId, apiKeyId);
+    }
+
+    /** F05：撤销 API Key 对 Endpoint 的访问权限。 */
+    @DeleteMapping("/{endpointId}/api-keys/{apiKeyId}")
+    public EndpointResponse revokeApiKey(@PathVariable String endpointId,
+                                          @PathVariable String apiKeyId) {
+        return endpointService.revokeApiKey(endpointId, apiKeyId);
     }
 }

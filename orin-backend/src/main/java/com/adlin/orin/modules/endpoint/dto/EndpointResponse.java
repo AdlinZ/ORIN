@@ -22,6 +22,11 @@ public class EndpointResponse {
     private String createdBy;
     private Long createdAt;
 
+    /** 仅在 publish 时返回一次（API Key 明文）。 */
+    private String secretKey;
+    /** 外部调用 URL。 */
+    private String externalUrl;
+
     public static EndpointResponse from(AgentEndpoint ep) {
         return EndpointResponse.builder()
                 .id(ep.getId())
@@ -34,6 +39,7 @@ public class EndpointResponse {
                 .description(ep.getDescription())
                 .createdBy(ep.getCreatedBy())
                 .createdAt(ep.getCreatedAt())
+                .externalUrl("/v1/endpoints/" + ep.getId() + "/run")
                 .build();
     }
 }

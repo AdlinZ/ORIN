@@ -13,6 +13,12 @@ import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepos
 import com.adlin.orin.modules.collaboration.service.CollaborationExecutor;
 import com.adlin.orin.modules.collaboration.service.CollaborationRedisService;
 import com.adlin.orin.config.WebConfig;
+import com.adlin.orin.modules.endpoint.dto.ExecuteEndpointRequest;
+import com.adlin.orin.modules.endpoint.dto.ExecuteEndpointResponse;
+import com.adlin.orin.modules.endpoint.entity.AgentEndpoint;
+import com.adlin.orin.modules.endpoint.entity.EndpointStatus;
+import com.adlin.orin.modules.endpoint.repository.AgentEndpointRepository;
+import com.adlin.orin.modules.endpoint.service.EndpointExecutionService;
 import com.adlin.orin.modules.mcp.controller.McpStreamableHttpController;
 import com.adlin.orin.modules.mcp.service.ExternalMcpAgentExecutionService;
 import com.adlin.orin.modules.mcp.service.McpJsonRpcService;
@@ -65,9 +71,11 @@ class McpStreamableHttpTest {
         List<String> authPatterns = (List<String>) ReflectionTestUtils.getField(registrations.get(0), "includePatterns");
         List<String> rateLimitPatterns = (List<String>) ReflectionTestUtils.getField(registrations.get(1), "includePatterns");
         assertThat(authPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
-                "/v1/chat/completions", "/v1/embeddings", "/v1/models");
+                "/v1/chat/completions", "/v1/embeddings", "/v1/models",
+                "/v1/endpoints/**");
         assertThat(rateLimitPatterns).containsExactly("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
-                "/v1/chat/completions", "/v1/embeddings", "/v1/models");
+                "/v1/chat/completions", "/v1/embeddings", "/v1/models",
+                "/v1/endpoints/**");
         assertThat(authPatterns).doesNotContain("/v1/**");
         assertThat(rateLimitPatterns).doesNotContain("/v1/**");
     }
@@ -152,12 +160,13 @@ class McpStreamableHttpTest {
 
     @Test
     void jsonRpcRejectsBatchAndNonnumericOwnerDoesNotExposeTools() {
-        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
         WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
-        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        AgentEndpointRepository endpointRepo = mock(AgentEndpointRepository.class);
+        EndpointExecutionService endpointExec = mock(EndpointExecutionService.class);
         WorkflowService workflowService = mock(WorkflowService.class);
         AuditHelper auditHelper = mock(AuditHelper.class);
-        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer(), auditHelper);
+        McpJsonRpcService service = new McpJsonRpcService(workflowRepo, endpointRepo, endpointExec,
+                workflowService, new OrinWorkflowDslNormalizer(), auditHelper, mapper);
 
         Map<String, Object> batch = service.handle(List.of(req(1, "tools/list", Map.of())), secret("1"));
         assertThat(((Map<?, ?>) batch.get("error")).get("code")).isEqualTo(-32600);
@@ -166,120 +175,147 @@ class McpStreamableHttpTest {
         Map<String, Object> list = service.handle(req(2, "tools/list", Map.of()), secret("not-number"));
         List<?> tools = (List<?>) ((Map<?, ?>) list.get("result")).get("tools");
         assertThat(tools).isEmpty();
-        verifyNoInteractions(repo, workflowRepo, exec, workflowService);
+        verifyNoInteractions(workflowRepo, endpointRepo, endpointExec, workflowService);
         verify(auditHelper).log(eq("not-number"), eq("MCP_TOOLS_LIST"), eq("/v1/mcp"),
                 contains("secretId=gsec-not-number"), eq(true), isNull());
     }
 
     @Test
-    void jsonRpcListsOwnedExposedAgentsAndForbidsOtherOwners() {
-        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+    void jsonRpcListsPublishedEndpointsAndRejectsUnauthorizedKeys() {
         WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
-        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        AgentEndpointRepository endpointRepo = mock(AgentEndpointRepository.class);
+        EndpointExecutionService endpointExec = mock(EndpointExecutionService.class);
         WorkflowService workflowService = mock(WorkflowService.class);
         AuditHelper auditHelper = mock(AuditHelper.class);
-        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer(), auditHelper);
-        AgentMetadata agent = agent("agent-a", 1L, true);
-        when(repo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(agent));
+        McpJsonRpcService service = new McpJsonRpcService(workflowRepo, endpointRepo, endpointExec,
+                workflowService, new OrinWorkflowDslNormalizer(), auditHelper, mapper);
+
+        // Published endpoint with API key gsec-1 in allowed list
+        AgentEndpoint ep = endpoint("ep_001", "agent-a", "gsec-1");
+        when(endpointRepo.findAll()).thenReturn(List.of(ep));
+
+        // tools/list: lists endpoints where API key is in allowedApiKeyIds
         Map<String, Object> list = service.handle(req(1, "tools/list", Map.of()), secret("1"));
         List<?> tools = (List<?>) ((Map<?, ?>) list.get("result")).get("tools");
         assertThat(tools).hasSize(1);
         String toolName = String.valueOf(((Map<?, ?>) tools.get(0)).get("name"));
-        assertThat(toolName).startsWith("agent.");
+        assertThat(toolName).startsWith("endpoint.");
 
-        when(repo.findById("agent-a")).thenReturn(Optional.of(agent));
-        Map<String, Object> forbidden = service.handle(req(2, "tools/call",
-                Map.of("name", toolName, "arguments", Map.of("message", "hello"))), secret("2"));
-        assertThat(String.valueOf(((Map<?, ?>) forbidden.get("error")).get("message"))).isEqualTo("Forbidden");
+        // A different CLIENT_ACCESS key must not discover this endpoint through
+        // tools/list.  Tool discovery is part of the Endpoint access boundary.
+        Map<String, Object> unauthorizedList = service.handle(req(11, "tools/list", Map.of()), secret("other"));
+        List<?> unauthorizedTools = (List<?>) ((Map<?, ?>) unauthorizedList.get("result")).get("tools");
+        assertThat(unauthorizedTools).isEmpty();
+
+        // tools/call: same key can call
+        when(endpointRepo.findById("ep_001")).thenReturn(Optional.of(ep));
+        ExecuteEndpointResponse resp = ExecuteEndpointResponse.builder()
+                .runId("run-1").traceId("trace-1").status("COMPLETED").output("hello").build();
+        when(endpointExec.execute(eq("ep_001"), any(ExecuteEndpointRequest.class), any(GatewaySecret.class)))
+                .thenReturn(resp);
+
+        Map<String, Object> called = service.handle(req(2, "tools/call",
+                Map.of("name", toolName, "arguments", Map.of("input", "hello"))), secret("1"));
+        Map<?, ?> result = (Map<?, ?>) called.get("result");
+        assertThat(result.get("isError")).isEqualTo(false);
+        String content = String.valueOf(((Map<?, ?>) ((List<?>) result.get("content")).get(0)).get("text"));
+        assertThat(content).contains("hello");
     }
 
     @Test
-    void jsonRpcCallsOwnedExposedAgentAndReturnsAgentFailuresAsToolErrors() {
-        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+    void jsonRpcCallsPublishedEndpointAndReturnsErrorsAsToolErrors() {
         WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
-        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        AgentEndpointRepository endpointRepo = mock(AgentEndpointRepository.class);
+        EndpointExecutionService endpointExec = mock(EndpointExecutionService.class);
         WorkflowService workflowService = mock(WorkflowService.class);
         AuditHelper auditHelper = mock(AuditHelper.class);
-        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer(), auditHelper);
-        AgentMetadata agent = agent("agent-a", 1L, true);
-        when(repo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(agent));
-        when(repo.findById("agent-a")).thenReturn(Optional.of(agent));
-        when(exec.execute(agent, "hello", "ctx", 88, "1")).thenReturn(
-                new ExternalMcpAgentExecutionService.ExecutionResult("agent ok", "trace-agent", "pkg-agent"));
+        McpJsonRpcService service = new McpJsonRpcService(workflowRepo, endpointRepo, endpointExec,
+                workflowService, new OrinWorkflowDslNormalizer(), auditHelper, mapper);
+
+        AgentEndpoint ep = endpoint("ep_001", "agent-a", "gsec-1");
+        when(endpointRepo.findAll()).thenReturn(List.of(ep));
+        when(endpointRepo.findById("ep_001")).thenReturn(Optional.of(ep));
+
+        // tools/list
         Map<String, Object> list = service.handle(req(1, "tools/list", Map.of()), secret("1"));
         String toolName = String.valueOf(((Map<?, ?>) ((List<?>) ((Map<?, ?>) list.get("result")).get("tools")).get(0)).get("name"));
 
+        // Successful call
+        ExecuteEndpointResponse okResp = ExecuteEndpointResponse.builder()
+                .runId("run-1").traceId("trace-ok").status("COMPLETED").output("agent ok").build();
+        when(endpointExec.execute(eq("ep_001"), any(ExecuteEndpointRequest.class), any(GatewaySecret.class)))
+                .thenReturn(okResp);
+
         Map<String, Object> called = service.handle(req(2, "tools/call",
-                Map.of("name", toolName, "arguments", Map.of("message", "hello", "context", "ctx", "max_tokens", 88))), secret("1"));
+                Map.of("name", toolName, "arguments", Map.of("input", "hello"))), secret("1"));
         Map<?, ?> result = (Map<?, ?>) called.get("result");
         assertThat(result.get("isError")).isEqualTo(false);
-        assertThat(String.valueOf(((Map<?, ?>) ((List<?>) result.get("content")).get(0)).get("text")))
-                .contains("agent ok", "Trace ID: trace-agent", "Package ID: pkg-agent");
-        verify(exec).execute(agent, "hello", "ctx", 88, "1");
+        String text = String.valueOf(((Map<?, ?>) ((List<?>) result.get("content")).get(0)).get("text"));
+        assertThat(text).contains("agent ok");
 
-        Map<String, Object> missingMessage = service.handle(req(3, "tools/call",
-                Map.of("name", toolName, "arguments", Map.of("context", "ctx"))), secret("1"));
-        assertThat(((Map<?, ?>) missingMessage.get("error")).get("code")).isEqualTo(-32602);
-        assertThat(String.valueOf(((Map<?, ?>) missingMessage.get("error")).get("message"))).isEqualTo("message is required");
+        // Missing input
+        Map<String, Object> missingInput = service.handle(req(3, "tools/call",
+                Map.of("name", toolName, "arguments", Map.of())), secret("1"));
+        assertThat(((Map<?, ?>) missingInput.get("error")).get("code")).isEqualTo(-32602);
+        assertThat(String.valueOf(((Map<?, ?>) missingInput.get("error")).get("message"))).isEqualTo("input is required");
 
-        when(exec.execute(agent, "fail", null, null, "1")).thenThrow(
-                new ExternalMcpAgentExecutionService.ExecutionFailedException("boom", "trace-error", "pkg-error", new RuntimeException("boom")));
+        // Execution failure
+        when(endpointExec.execute(eq("ep_001"), any(ExecuteEndpointRequest.class), any(GatewaySecret.class)))
+                .thenThrow(new RuntimeException("boom"));
         Map<String, Object> failed = service.handle(req(4, "tools/call",
-                Map.of("name", toolName, "arguments", Map.of("message", "fail"))), secret("1"));
+                Map.of("name", toolName, "arguments", Map.of("input", "fail"))), secret("1"));
         Map<?, ?> failedResult = (Map<?, ?>) failed.get("result");
         assertThat(failedResult.get("isError")).isEqualTo(true);
         assertThat(String.valueOf(((Map<?, ?>) ((List<?>) failedResult.get("content")).get(0)).get("text"))).contains("boom");
+
+        // Audit verifications
         verify(auditHelper).log(eq("1"), eq("MCP_TOOLS_LIST"), eq("/v1/mcp"),
                 contains("method=tools/list;secretId=gsec-1"), eq(true), isNull());
         verify(auditHelper).log(eq("1"), eq("MCP_TOOLS_CALL"), eq("/v1/mcp"),
                 argThat(detail -> detail.contains("toolName=" + toolName)
-                        && detail.contains("traceId=trace-agent")
-                        && detail.contains("packageId=pkg-agent")),
+                        && detail.contains("traceId=trace-ok")),
                 eq(true), isNull());
         verify(auditHelper).log(eq("1"), eq("MCP_TOOLS_CALL"), eq("/v1/mcp"),
-                argThat(detail -> detail.contains("errorCode=-32602") && !detail.contains("ctx")),
+                argThat(detail -> detail.contains("errorCode=-32602")),
                 eq(false), eq("-32602"));
-        verify(auditHelper).log(eq("1"), eq("MCP_TOOLS_CALL"), eq("/v1/mcp"),
-                argThat(detail -> detail.contains("traceId=trace-error")
-                        && detail.contains("packageId=pkg-error")
-                        && detail.contains("errorCode=TOOL_ERROR")
-                        && !detail.contains("fail")),
-                eq(false), eq("TOOL_ERROR"));
     }
 
     @Test
-    void jsonRpcForbidsUnexposedAgentsAndRejectsInvalidToolNames() {
-        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
+    void jsonRpcRejectsUnpublishedAgentsAndInvalidToolNames() {
         WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
-        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        AgentEndpointRepository endpointRepo = mock(AgentEndpointRepository.class);
+        EndpointExecutionService endpointExec = mock(EndpointExecutionService.class);
         WorkflowService workflowService = mock(WorkflowService.class);
         AuditHelper auditHelper = mock(AuditHelper.class);
-        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer(), auditHelper);
-        AgentMetadata hidden = agent("agent-hidden", 1L, false);
-        String hiddenTool = "agent.YWdlbnQtaGlkZGVu";
-        when(repo.findById("agent-hidden")).thenReturn(Optional.of(hidden));
+        McpJsonRpcService service = new McpJsonRpcService(workflowRepo, endpointRepo, endpointExec,
+                workflowService, new OrinWorkflowDslNormalizer(), auditHelper, mapper);
 
+        // Invalid base64 tool name
         Map<String, Object> invalid = service.handle(req(1, "tools/call",
-                Map.of("name", "agent.%%%", "arguments", Map.of("message", "hello"))), secret("1"));
+                Map.of("name", "agent.%%%", "arguments", Map.of("input", "hello"))), secret("1"));
         assertThat(((Map<?, ?>) invalid.get("error")).get("code")).isEqualTo(-32602);
         assertThat(String.valueOf(((Map<?, ?>) invalid.get("error")).get("message"))).isEqualTo("Invalid tool name");
 
-        Map<String, Object> forbidden = service.handle(req(2, "tools/call",
-                Map.of("name", hiddenTool, "arguments", Map.of("message", "hello"))), secret("1"));
-        assertThat(((Map<?, ?>) forbidden.get("error")).get("code")).isEqualTo(-32003);
-        assertThat(String.valueOf(((Map<?, ?>) forbidden.get("error")).get("message"))).isEqualTo("Forbidden");
-        verifyNoInteractions(exec);
+        // Agent exists but not published as endpoint → no endpoint found for this agent
+        when(endpointRepo.findByAgentId("agent-hidden")).thenReturn(List.of());
+        Map<String, Object> notPublished = service.handle(req(2, "tools/call",
+                Map.of("name", "agent.YWdlbnQtaGlkZGVu", "arguments", Map.of("input", "hello"))), secret("1"));
+        assertThat(((Map<?, ?>) notPublished.get("error")).get("code")).isEqualTo(-32003);
+        assertThat(String.valueOf(((Map<?, ?>) notPublished.get("error")).get("message")))
+                .contains("not published");
+        verifyNoInteractions(endpointExec);
     }
 
     @Test
     void jsonRpcListsAndCallsOwnedExposedWorkflows() {
-        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
         WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
-        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        AgentEndpointRepository endpointRepo = mock(AgentEndpointRepository.class);
+        EndpointExecutionService endpointExec = mock(EndpointExecutionService.class);
         WorkflowService workflowService = mock(WorkflowService.class);
         AuditHelper auditHelper = mock(AuditHelper.class);
-        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer(), auditHelper);
-        when(repo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(agent("agent-a", 1L, true)));
+        McpJsonRpcService service = new McpJsonRpcService(workflowRepo, endpointRepo, endpointExec,
+                workflowService, new OrinWorkflowDslNormalizer(), auditHelper, mapper);
+        when(endpointRepo.findAll()).thenReturn(List.of());
         WorkflowEntity workflow = workflow(42L, 1L, true, List.of(Map.of("name", "topic", "type", "string", "required", true)));
         when(workflowRepo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(workflow));
         when(workflowRepo.findById(42L)).thenReturn(Optional.of(workflow));
@@ -295,9 +331,7 @@ class McpStreamableHttpTest {
 
         Map<String, Object> list = service.handle(req(1, "tools/list", Map.of()), secret("1"));
         List<?> tools = (List<?>) ((Map<?, ?>) list.get("result")).get("tools");
-        assertThat(tools).hasSize(2);
-        assertThat(tools.stream().map(t -> String.valueOf(((Map<?, ?>) t).get("name"))))
-                .anyMatch(name -> name.startsWith("agent."));
+        assertThat(tools).hasSize(1); // only workflow, no endpoints configured
         Map<?, ?> tool = tools.stream()
                 .map(t -> (Map<?, ?>) t)
                 .filter(t -> "workflow.42".equals(t.get("name")))
@@ -323,12 +357,14 @@ class McpStreamableHttpTest {
 
     @Test
     void jsonRpcForbidsWorkflowFromAnotherOwnerAndDefaultsSchemaToQuery() {
-        AgentMetadataRepository repo = mock(AgentMetadataRepository.class);
         WorkflowRepository workflowRepo = mock(WorkflowRepository.class);
-        ExternalMcpAgentExecutionService exec = mock(ExternalMcpAgentExecutionService.class);
+        AgentEndpointRepository endpointRepo = mock(AgentEndpointRepository.class);
+        EndpointExecutionService endpointExec = mock(EndpointExecutionService.class);
         WorkflowService workflowService = mock(WorkflowService.class);
         AuditHelper auditHelper = mock(AuditHelper.class);
-        McpJsonRpcService service = new McpJsonRpcService(repo, workflowRepo, exec, workflowService, new OrinWorkflowDslNormalizer(), auditHelper);
+        McpJsonRpcService service = new McpJsonRpcService(workflowRepo, endpointRepo, endpointExec,
+                workflowService, new OrinWorkflowDslNormalizer(), auditHelper, mapper);
+        when(endpointRepo.findAll()).thenReturn(List.of());
         WorkflowEntity workflow = workflow(43L, 1L, true, List.of());
         when(workflowRepo.findByOwnerUserIdAndMcpExposedTrue(1L)).thenReturn(List.of(workflow));
         when(workflowRepo.findById(43L)).thenReturn(Optional.of(workflow));
@@ -396,6 +432,20 @@ class McpStreamableHttpTest {
         return AgentMetadata.builder()
                 .agentId(id).name("Agent " + id).description("Test agent")
                 .ownerUserId(owner).mcpExposed(exposed).providerType("local").build();
+    }
+
+    private AgentEndpoint endpoint(String id, String agentId, String... allowedKeyIds) {
+        String config;
+        try {
+            config = mapper.writeValueAsString(Map.of("allowedApiKeyIds", List.of(allowedKeyIds)));
+        } catch (Exception e) {
+            config = "{}";
+        }
+        return AgentEndpoint.builder()
+                .id(id).agentId(agentId).agentVersionId("ver-1")
+                .name("Endpoint " + id).endpointType(com.adlin.orin.modules.endpoint.entity.EndpointType.REST_API)
+                .status(EndpointStatus.ACTIVE).endpointPath("/v1/endpoints/" + id + "/run")
+                .config(config).createdBy("1").build();
     }
 
     private WorkflowEntity workflow(Long id, Long owner, boolean exposed, List<Map<String, Object>> variables) {

@@ -22,4 +22,7 @@ public interface AgentEndpointRepository extends JpaRepository<AgentEndpoint, St
     Optional<AgentEndpoint> findByEndpointPath(String endpointPath);
 
     long countByAgentIdAndStatus(String agentId, com.adlin.orin.modules.endpoint.entity.EndpointStatus status);
+
+    /** F05 ACL：按创建者分页查询。 */
+    Page<AgentEndpoint> findByCreatedByOrderByCreatedAtDesc(String createdBy, Pageable pageable);
 }
