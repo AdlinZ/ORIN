@@ -1,0 +1,64 @@
+name: Release Candidate Package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Build Candidate Artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: orin-frontend/package-lock.json
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: |
+            orin-ai-engine/pyproject.toml
+            orin-mcp-bridge/pyproject.toml
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Package release candidate
+        run: bash scripts/package-release-candidate.sh
+        env:
+          DOCKER_BUILDKIT: "1"
+
+      - name: Run isolated Docker quickstart smoke
+        run: bash scripts/docker-smoke-isolated.sh
+        env:
+          DOCKER_BUILDKIT: "1"
+
+      - name: Upload release candidate artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: orin-${{ github.sha }}-release-candidate
+          path: artifacts/release/
+          if-no-files-found: error
+          retention-days: 30

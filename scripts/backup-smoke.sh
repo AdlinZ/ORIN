@@ -172,7 +172,7 @@ fi
 # ---- 7) RabbitMQ 定义完整性 ----
 
 step "RabbitMQ definitions integrity"
-for f in exchanges.txt queues.txt bindings.txt; do
+for f in exchanges.txt queues.txt bindings.txt definitions.json; do
   PATH_F="${BACKUP_DIR}/rabbitmq/${f}"
   if [[ ! -f "${PATH_F}" ]]; then
     fail "RabbitMQ 定义文件缺失: rabbitmq/${f}"
@@ -183,6 +183,15 @@ for f in exchanges.txt queues.txt bindings.txt; do
     ok "rabbitmq/${f}: ${LINES} 行"
   fi
 done
+
+DEFINITIONS_JSON="${BACKUP_DIR}/rabbitmq/definitions.json"
+if [[ -f "${DEFINITIONS_JSON}" ]]; then
+  if command -v python3 >/dev/null 2>&1 && python3 -m json.tool "${DEFINITIONS_JSON}" >/dev/null 2>&1; then
+    ok "rabbitmq/definitions.json: JSON 合法"
+  else
+    fail "rabbitmq/definitions.json 不是合法 JSON"
+  fi
+fi
 
 # ---- 8) 配置完整性 ----
 

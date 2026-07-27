@@ -5,9 +5,17 @@ FROM maven:3.9.9-eclipse-temurin-17 AS builder
 WORKDIR /app
 
 COPY pom.xml .
+# Cache only production dependencies here. `dependency:go-offline` also pulls
+# test-scoped libraries and every build plugin, which makes an otherwise small
+# runtime image take an impractical amount of time on a cold Docker cache.
+# CI runs the complete test suite separately before an image is accepted.
 RUN set -eux; \
     for attempt in 1 2 3 4 5; do \
-        mvn -B -Dmaven.wagon.http.retryHandler.count=5 dependency:go-offline && break; \
+        mvn -B -ntp \
+          -Daether.connector.http.retryHandler.count=5 \
+          -Daether.connector.connectTimeout=30000 \
+          -Daether.connector.requestTimeout=30000 \
+          dependency:resolve -DincludeScope=runtime && break; \
         if [ "$attempt" = "5" ]; then exit 1; fi; \
         rm -rf /root/.m2/repository/.cache; \
         find /root/.m2/repository -name "*.lastUpdated" -delete; \
@@ -17,8 +25,20 @@ RUN set -eux; \
 COPY src src
 # Tests are run by .github/workflows/ci.yml, not at image build time.
 # See docs/路线图.md Phase 0 · 2.2 GitHub Actions CI.
-RUN mvn clean package -DskipTests -B && \
-    mkdir -p target/dependency && \
+RUN set -eux; \
+    for attempt in 1 2 3 4 5; do \
+        mvn -B -ntp \
+          -Daether.connector.http.retryHandler.count=5 \
+          -Daether.connector.connectTimeout=30000 \
+          -Daether.connector.requestTimeout=30000 \
+          -Djacoco.skip=true \
+          package -DskipTests && break; \
+        if [ "$attempt" = "5" ]; then exit 1; fi; \
+        rm -rf /root/.m2/repository/.cache; \
+        find /root/.m2/repository -name "*.lastUpdated" -delete; \
+        sleep $((attempt * 10)); \
+    done; \
+    mkdir -p target/dependency; \
     (cd target/dependency; jar -xf ../*.jar)
 
 FROM maven:3.9.9-eclipse-temurin-17 AS dev

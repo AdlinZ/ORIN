@@ -70,7 +70,7 @@
 #
 #   ORIN_BASE_URL                      默认 http://127.0.0.1:8080
 #   ORIN_ADMIN_USERNAME                默认 admin
-#   ORIN_ADMIN_PASSWORD                默认 admin123
+#   ORIN_ADMIN_PASSWORD                必填；不得使用默认弱密码
 #
 #   ORIN_GATEWAY_SMOKE_REQUIRE_LIVE    auto|0|1 ，默认 auto
 #                                       auto = 无真实 provider 时降级为 WARN
@@ -90,7 +90,7 @@ set -euo pipefail
 
 ORIN_BASE_URL="${ORIN_BASE_URL:-http://127.0.0.1:8080}"
 ORIN_ADMIN_USERNAME="${ORIN_ADMIN_USERNAME:-admin}"
-ORIN_ADMIN_PASSWORD="${ORIN_ADMIN_PASSWORD:-admin123}"
+ORIN_ADMIN_PASSWORD="${ORIN_ADMIN_PASSWORD:?set ORIN_ADMIN_PASSWORD explicitly}"
 ORIN_GATEWAY_SMOKE_REQUIRE_LIVE="${ORIN_GATEWAY_SMOKE_REQUIRE_LIVE:-auto}"
 ORIN_GATEWAY_SMOKE_MODEL="${ORIN_GATEWAY_SMOKE_MODEL:-}"
 ORIN_GATEWAY_SMOKE_TIMEOUT_SECONDS="${ORIN_GATEWAY_SMOKE_TIMEOUT_SECONDS:-30}"
@@ -119,7 +119,7 @@ cleanup() {
             && echo "CLEANUP api-key $SMOKE_API_KEY_ID deleted" \
             || echo "WARN cleanup: api-key $SMOKE_API_KEY_ID delete returned non-2xx (already removed?)"
     fi
-    rm -rf "$TMP_DIR"
+    [[ -d "$TMP_DIR" ]] && rm -r -- "$TMP_DIR"
 }
 trap cleanup EXIT
 

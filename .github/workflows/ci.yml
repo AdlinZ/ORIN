@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify release version consistency
+        run: bash scripts/check-release-version.sh
+
       - name: Check schema snapshot baseline
         run: bash scripts/check-schema-baseline.sh
 

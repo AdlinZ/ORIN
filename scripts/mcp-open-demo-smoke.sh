@@ -20,7 +20,7 @@ fi
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
-  rm -rf "$TMP_DIR"
+  [[ -d "$TMP_DIR" ]] && rm -r -- "$TMP_DIR"
 }
 trap cleanup EXIT
 

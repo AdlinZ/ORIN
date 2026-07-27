@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # 配置
-BACKEND_JAR="target/orin-backend-1.0.0.jar"
+BACKEND_JAR="target/orin-backend.jar"
 FRONTEND_DIR="/var/www/html"
 AI_ENGINE_PORT=8000
 

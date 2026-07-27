@@ -58,6 +58,8 @@ for service in mysql redis rabbitmq orin-backend orin-ai-engine orin-frontend; d
 done
 
 require_text "$COMPOSE" "./docker/mysql/init:/docker-entrypoint-initdb.d:ro" "mysql.init-mount"
+require_text "$COMPOSE" 'container_name: ${ORIN_COMPOSE_PREFIX:-orin}-mysql' "compose.prefixable-container-names"
+require_text "$COMPOSE" '- ${ORIN_ENV_FILE:-.env}' "compose.selectable-env-file"
 require_text "$COMPOSE" "      DB_HOST: mysql" "backend.DB_HOST"
 require_text "$COMPOSE" "      REDIS_HOST: redis" "backend.REDIS_HOST"
 require_text "$COMPOSE" "      RABBITMQ_HOST: rabbitmq" "backend.RABBITMQ_HOST"
@@ -82,5 +84,6 @@ require_schema_line "$SCHEMA_OUTPUT" "pending-after-snapshot: V88" "schema.pendi
 require_schema_line "$SCHEMA_OUTPUT" "status: PASS" "schema.status"
 
 echo "preflight-mode: static-only"
+echo "isolated-runtime-command: bash scripts/docker-smoke-isolated.sh"
 echo "docker-runtime-required-for-real-smoke: yes"
 echo "status: PASS"

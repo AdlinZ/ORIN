@@ -12,18 +12,39 @@
 # 保留策略：默认保留最近 7 份，按 --keep N 覆盖
 # 备份目录：./backups/orin-YYYYMMDD-HHMMSS/
 
-set -e
+set -euo pipefail
 
 # ========== 配置 ==========
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-BACKUP_BASE="${BACKUP_BASE:-$(cd "$(dirname "$0")/.." && pwd)/backups}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BACKUP_BASE="${BACKUP_BASE:-$ROOT_DIR/backups}"
 KEEP_N="${KEEP_N:-7}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BACKUP_DIR="${BACKUP_BASE}/orin-${TIMESTAMP}"
-MYSQL_CONTAINER="${MYSQL_CONTAINER:-orin-mysql}"
-REDIS_CONTAINER="${REDIS_CONTAINER:-orin-redis}"
-RABBITMQ_CONTAINER="${RABBITMQ_CONTAINER:-orin-rabbitmq}"
-ENV_FILE="${ENV_FILE:-.env}"
+ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
+[[ "$ENV_FILE" = /* ]] || ENV_FILE="$ROOT_DIR/$ENV_FILE"
+
+# Read only the values required by backup. Do not `source` .env: a configuration
+# file must never be able to execute shell code during an automated backup.
+load_env_value() {
+  local key="$1" value
+  [[ -n "${!key+x}" || ! -f "$ENV_FILE" ]] && return
+  value="$(awk -v key="$key" 'index($0, key "=") == 1 { print substr($0, length(key) + 2); exit }' "$ENV_FILE")"
+  [[ -z "$value" ]] && return
+  printf -v "$key" '%s' "$value"
+  export "$key"
+}
+
+for key in MYSQL_ROOT_PASSWORD MYSQL_DATABASE RABBITMQ_VHOST; do
+  load_env_value "$key"
+done
+
+COMPOSE_PREFIX="${ORIN_COMPOSE_PREFIX:-orin}"
+MYSQL_CONTAINER="${MYSQL_CONTAINER:-${COMPOSE_PREFIX}-mysql}"
+REDIS_CONTAINER="${REDIS_CONTAINER:-${COMPOSE_PREFIX}-redis}"
+RABBITMQ_CONTAINER="${RABBITMQ_CONTAINER:-${COMPOSE_PREFIX}-rabbitmq}"
+MYSQL_DATABASE="${MYSQL_DATABASE:-orindb}"
+RABBITMQ_VHOST="${RABBITMQ_VHOST:-/orin}"
 
 log()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
@@ -41,6 +62,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+[[ "$MYSQL_DATABASE" =~ ^[A-Za-z0-9_]+$ ]] || fail "MYSQL_DATABASE 只能包含字母、数字和下划线"
+
 log "开始备份 ORIN..."
 log "备份目录: ${BACKUP_DIR}"
 
@@ -49,11 +72,12 @@ mkdir -p "${BACKUP_DIR}/mysql" "${BACKUP_DIR}/redis" "${BACKUP_DIR}/rabbitmq" "$
 # ---- 1. MySQL ----
 log "备份 MySQL..."
 if docker ps --format '{{.Names}}' | grep -q "^${MYSQL_CONTAINER}$"; then
-  docker exec "${MYSQL_CONTAINER}" mysqldump \
-    -uroot -p"${MYSQL_ROOT_PASSWORD:-root}" --single-transaction \
+  [[ -n "${MYSQL_ROOT_PASSWORD:-}" ]] || fail "MYSQL_ROOT_PASSWORD 未设置；请通过环境变量或 ${ENV_FILE} 提供后再备份"
+  docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${MYSQL_CONTAINER}" mysqldump \
+    -uroot --single-transaction \
     --routines --events --triggers \
-    orindb 2>/dev/null | gzip > "${BACKUP_DIR}/mysql/orindb.sql.gz"
-  log "  MySQL dump 完成: mysql/orindb.sql.gz"
+    "$MYSQL_DATABASE" 2>/dev/null | gzip > "${BACKUP_DIR}/mysql/${MYSQL_DATABASE}.sql.gz"
+  log "  MySQL dump 完成: mysql/${MYSQL_DATABASE}.sql.gz"
 else
   warn "MySQL 容器未运行，跳过数据库备份"
 fi
@@ -74,15 +98,23 @@ fi
 log "备份 RabbitMQ..."
 if docker ps --format '{{.Names}}' | grep -q "^${RABBITMQ_CONTAINER}$"; then
   docker exec "${RABBITMQ_CONTAINER}" sh -c \
-    "rabbitmqctl list_exchanges -p / | grep -v '^Listing' | tail -n +2" \
+    "rabbitmqctl list_exchanges -p '$RABBITMQ_VHOST' | grep -v '^Listing' | tail -n +2" \
     > "${BACKUP_DIR}/rabbitmq/exchanges.txt" 2>/dev/null || true
   docker exec "${RABBITMQ_CONTAINER}" sh -c \
-    "rabbitmqctl list_queues -p / | grep -v '^Listing' | tail -n +2" \
+    "rabbitmqctl list_queues -p '$RABBITMQ_VHOST' | grep -v '^Listing' | tail -n +2" \
     > "${BACKUP_DIR}/rabbitmq/queues.txt" 2>/dev/null || true
   docker exec "${RABBITMQ_CONTAINER}" sh -c \
-    "rabbitmqctl list_bindings -p / | grep -v '^Listing' | tail -n +2" \
+    "rabbitmqctl list_bindings -p '$RABBITMQ_VHOST' | grep -v '^Listing' | tail -n +2" \
     > "${BACKUP_DIR}/rabbitmq/bindings.txt" 2>/dev/null || true
-  log "  RabbitMQ 定义完成: rabbitmq/"
+  if docker exec "${RABBITMQ_CONTAINER}" rabbitmqctl export_definitions /tmp/orin-backup-definitions.json \
+      >/dev/null 2>&1 \
+      && docker cp "${RABBITMQ_CONTAINER}:/tmp/orin-backup-definitions.json" "${BACKUP_DIR}/rabbitmq/definitions.json" \
+      >/dev/null 2>&1; then
+    docker exec "${RABBITMQ_CONTAINER}" rm -f /tmp/orin-backup-definitions.json >/dev/null 2>&1 || true
+    log "  RabbitMQ 定义完成: rabbitmq/definitions.json"
+  else
+    warn "RabbitMQ definitions export 失败；文本清单仍已保留"
+  fi
 else
   warn "RabbitMQ 容器未运行，跳过"
 fi
@@ -91,6 +123,7 @@ fi
 log "备份配置..."
 if [[ -f "${ENV_FILE}" ]]; then
   cp "${ENV_FILE}" "${BACKUP_DIR}/config/.env.backup"
+  chmod 600 "${BACKUP_DIR}/config/.env.backup"
   log "  配置备份: config/.env.backup"
 fi
 if [[ -f "docker-compose.override.yml" ]]; then
@@ -101,9 +134,9 @@ if [[ -f "docker-compose.yml" ]]; then
 fi
 
 # ---- 5. 已构建产物（可选）----
-if [[ -f "orin-backend/target/orin-backend-1.0.0.jar" ]]; then
-  cp "orin-backend/target/orin-backend-1.0.0.jar" "${BACKUP_DIR}/artifacts/" 2>/dev/null \
-    && log "  后端 JAR: artifacts/orin-backend-1.0.0.jar"
+if [[ -f "orin-backend/target/orin-backend.jar" ]]; then
+  cp "orin-backend/target/orin-backend.jar" "${BACKUP_DIR}/artifacts/" 2>/dev/null \
+    && log "  后端 JAR: artifacts/orin-backend.jar"
 fi
 if [[ -d "orin-frontend/dist" ]]; then
   tar -czf "${BACKUP_DIR}/artifacts/frontend-dist.tar.gz" -C orin-frontend dist 2>/dev/null \
@@ -125,9 +158,16 @@ EOF
 
 # ---- 7. SHA256 校验 ----
 log "生成校验和..."
-find "${BACKUP_DIR}" -type f -name "*.gz" -o -type f -name "*.sql" -o -type f -name "*.rdb" -o -type f -name "*.txt" -o -type f -name ".env*" | while read -r f; do
-  sha256sum "$f" >> "${BACKUP_DIR}/SHA256SUMS.txt"
-done
+checksum_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1"
+  else
+    shasum -a 256 "$1"
+  fi
+}
+while IFS= read -r -d '' f; do
+  checksum_file "$f" >> "${BACKUP_DIR}/SHA256SUMS.txt"
+done < <(find "${BACKUP_DIR}" -type f \( -name "*.gz" -o -name "*.sql" -o -name "*.rdb" -o -name "*.txt" -o -name "*.json" -o -name ".env*" \) -print0)
 log "  校验和: SHA256SUMS.txt"
 
 # ---- 8. 清理过期备份 ----

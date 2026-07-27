@@ -1,9 +1,9 @@
 services:
   mysql:
     image: mysql:8.0.40
-    container_name: orin-mysql
+    container_name: ${ORIN_COMPOSE_PREFIX:-orin}-mysql
     env_file:
-      - .env
+      - ${ORIN_ENV_FILE:-.env}
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Copy .env.example to .env and set MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:?Copy .env.example to .env and set MYSQL_DATABASE}
@@ -29,9 +29,9 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    container_name: orin-redis
+    container_name: ${ORIN_COMPOSE_PREFIX:-orin}-redis
     env_file:
-      - .env
+      - ${ORIN_ENV_FILE:-.env}
     command: >
       sh -c 'redis-server
       --appendonly yes
@@ -52,9 +52,9 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management
-    container_name: orin-rabbitmq
+    container_name: ${ORIN_COMPOSE_PREFIX:-orin}-rabbitmq
     env_file:
-      - .env
+      - ${ORIN_ENV_FILE:-.env}
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-orin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-replace_with_local_rabbitmq_password}
@@ -76,13 +76,13 @@ services:
 
   orin-ai-engine:
     image: orin-ai-engine:local
-    container_name: orin-ai-engine
+    container_name: ${ORIN_COMPOSE_PREFIX:-orin}-ai-engine
     build:
       context: ./orin-ai-engine
       dockerfile: ../docker/Dockerfile.ai-engine
       target: runtime
     env_file:
-      - .env
+      - ${ORIN_ENV_FILE:-.env}
     environment:
       ORIN_BACKEND_URL: http://orin-backend:8080
       ORIN_BACKEND_AUTHORIZATION: ${ORIN_BACKEND_AUTHORIZATION:-}
@@ -120,13 +120,13 @@ services:
 
   orin-backend:
     image: orin-backend:local
-    container_name: orin-backend
+    container_name: ${ORIN_COMPOSE_PREFIX:-orin}-backend
     build:
       context: ./orin-backend
       dockerfile: ../docker/Dockerfile.backend
       target: runtime
     env_file:
-      - .env
+      - ${ORIN_ENV_FILE:-.env}
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       SERVER_PORT: 8080
@@ -193,7 +193,7 @@ services:
   # 但 1.62 起部分镜像要显式 flag）。
   jaeger:
     image: jaegertracing/all-in-one:1.62.0
-    container_name: orin-jaeger
+    container_name: ${ORIN_COMPOSE_PREFIX:-orin}-jaeger
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
@@ -212,7 +212,7 @@ services:
 
   orin-frontend:
     image: orin-frontend:local
-    container_name: orin-frontend
+    container_name: ${ORIN_COMPOSE_PREFIX:-orin}-frontend
     build:
       context: ./orin-frontend
       dockerfile: Dockerfile
@@ -234,12 +234,12 @@ services:
 
 volumes:
   orin-mysql-data:
-    name: orin-mysql-data
+    name: ${ORIN_COMPOSE_PREFIX:-orin}-mysql-data
   orin-redis-data:
-    name: orin-redis-data
+    name: ${ORIN_COMPOSE_PREFIX:-orin}-redis-data
   orin-rabbitmq-data:
-    name: orin-rabbitmq-data
+    name: ${ORIN_COMPOSE_PREFIX:-orin}-rabbitmq-data
 
 networks:
   orin-network:
-    name: orin-network
+    name: ${ORIN_COMPOSE_PREFIX:-orin}-network

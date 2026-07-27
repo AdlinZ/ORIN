@@ -22,7 +22,7 @@ ORIN_BASE_URL="${ORIN_BASE_URL:-http://127.0.0.1:8080}"
 ORIN_AI_BASE_URL="${ORIN_AI_BASE_URL:-http://127.0.0.1:8000}"
 JAEGER_QUERY_URL="${JAEGER_QUERY_URL:-http://127.0.0.1:16686}"
 ORIN_ADMIN_USERNAME="${ORIN_ADMIN_USERNAME:-admin}"
-ORIN_ADMIN_PASSWORD="${ORIN_ADMIN_PASSWORD:-admin123}"
+ORIN_ADMIN_PASSWORD="${ORIN_ADMIN_PASSWORD:?set ORIN_ADMIN_PASSWORD explicitly}"
 
 ORIN_BASE_URL="${ORIN_BASE_URL%/}"
 ORIN_AI_BASE_URL="${ORIN_AI_BASE_URL%/}"
@@ -54,7 +54,7 @@ fi
 
 step "Login as admin"
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+trap '[[ -d "${TMP_DIR}" ]] && rm -r -- "${TMP_DIR}"' EXIT
 
 LOGIN_RESPONSE="$(curl -fsS -m "${HTTP_TIMEOUT}" \
   -H 'Content-Type: application/json' \

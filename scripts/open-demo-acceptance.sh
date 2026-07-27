@@ -7,7 +7,7 @@ set -euo pipefail
 ORIN_BASE_URL="${ORIN_BASE_URL:-http://127.0.0.1:8080}"
 ORIN_AI_BASE_URL="${ORIN_AI_BASE_URL:-http://127.0.0.1:8000}"
 ORIN_ADMIN_USERNAME="${ORIN_ADMIN_USERNAME:-admin}"
-ORIN_ADMIN_PASSWORD="${ORIN_ADMIN_PASSWORD:-admin123}"
+ORIN_ADMIN_PASSWORD="${ORIN_ADMIN_PASSWORD:?set ORIN_ADMIN_PASSWORD explicitly}"
 ORIN_OPEN_DEMO_AGENT_ID="${ORIN_OPEN_DEMO_AGENT_ID:-}"
 ORIN_OPEN_DEMO_RUN_BUSINESS_SMOKE="${ORIN_OPEN_DEMO_RUN_BUSINESS_SMOKE:-1}"
 ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK="${ORIN_OPEN_DEMO_RUN_WORKFLOW_SUBTASK:-0}"
@@ -38,7 +38,7 @@ cleanup() {
       -H "Authorization: Bearer $TOKEN" \
       -H "Accept: application/json" >/dev/null 2>&1
   fi
-  rm -rf "$TMP_DIR"
+  [[ -d "$TMP_DIR" ]] && rm -r -- "$TMP_DIR"
 }
 trap cleanup EXIT
 
