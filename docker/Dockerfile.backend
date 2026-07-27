@@ -5,17 +5,33 @@ FROM maven:3.9.9-eclipse-temurin-17 AS builder
 WORKDIR /app
 
 COPY pom.xml .
-# Cache only production dependencies here. `dependency:go-offline` also pulls
-# test-scoped libraries and every build plugin, which makes an otherwise small
-# runtime image take an impractical amount of time on a cold Docker cache.
-# CI runs the complete test suite separately before an image is accepted.
+# Preload the complete Maven build graph, including lifecycle plugins.  A
+# runtime-only resolve leaves JaCoCo un-cached; then a transient Maven outage
+# makes `package -DskipTests` fail before it can honour the skip flag.
+# CI still runs the tests separately; this only makes image packaging reliable.
 RUN set -eux; \
+    proxy_url="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-}}}}"; \
+    maven_proxy_args=""; \
+    if [ -n "$proxy_url" ]; then \
+        proxy_authority="${proxy_url#*://}"; \
+        proxy_authority="${proxy_authority%%/*}"; \
+        proxy_authority="${proxy_authority##*@}"; \
+        proxy_host="${proxy_authority%:*}"; \
+        proxy_port="${proxy_authority##*:}"; \
+        maven_proxy_args="-Dhttp.proxyHost=$proxy_host -Dhttp.proxyPort=$proxy_port -Dhttps.proxyHost=$proxy_host -Dhttps.proxyPort=$proxy_port"; \
+        mkdir -p /root/.m2; \
+        printf '%s\n' \
+          '<settings><proxies><proxy><id>build-proxy</id><active>true</active><protocol>https</protocol>' \
+          "<host>$proxy_host</host><port>$proxy_port</port>" \
+          '</proxy></proxies></settings>' > /root/.m2/settings.xml; \
+    fi; \
     for attempt in 1 2 3 4 5; do \
         mvn -B -ntp \
           -Daether.connector.http.retryHandler.count=5 \
           -Daether.connector.connectTimeout=30000 \
           -Daether.connector.requestTimeout=30000 \
-          dependency:resolve -DincludeScope=runtime && break; \
+          $maven_proxy_args \
+          dependency:go-offline && break; \
         if [ "$attempt" = "5" ]; then exit 1; fi; \
         rm -rf /root/.m2/repository/.cache; \
         find /root/.m2/repository -name "*.lastUpdated" -delete; \
@@ -26,12 +42,23 @@ COPY src src
 # Tests are run by .github/workflows/ci.yml, not at image build time.
 # See docs/路线图.md Phase 0 · 2.2 GitHub Actions CI.
 RUN set -eux; \
+    proxy_url="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-}}}}"; \
+    maven_proxy_args=""; \
+    if [ -n "$proxy_url" ]; then \
+        proxy_authority="${proxy_url#*://}"; \
+        proxy_authority="${proxy_authority%%/*}"; \
+        proxy_authority="${proxy_authority##*@}"; \
+        proxy_host="${proxy_authority%:*}"; \
+        proxy_port="${proxy_authority##*:}"; \
+        maven_proxy_args="-Dhttp.proxyHost=$proxy_host -Dhttp.proxyPort=$proxy_port -Dhttps.proxyHost=$proxy_host -Dhttps.proxyPort=$proxy_port"; \
+    fi; \
     for attempt in 1 2 3 4 5; do \
         mvn -B -ntp \
           -Daether.connector.http.retryHandler.count=5 \
           -Daether.connector.connectTimeout=30000 \
           -Daether.connector.requestTimeout=30000 \
           -Djacoco.skip=true \
+          $maven_proxy_args \
           package -DskipTests && break; \
         if [ "$attempt" = "5" ]; then exit 1; fi; \
         rm -rf /root/.m2/repository/.cache; \

@@ -178,8 +178,18 @@ for image in \
 done
 
 echo "compose.build: serial application image builds"
+BUILD_PROXY_ARGS=()
+# Docker Compose does not inherit shell proxy variables as BuildKit build args.
+# Forward only values the caller supplied; this keeps the smoke script
+# credential-free and allows isolated builds to work behind a local proxy.
+for proxy_var in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY; do
+    proxy_value="${!proxy_var:-}"
+    if [ -n "$proxy_value" ]; then
+        BUILD_PROXY_ARGS+=(--build-arg "$proxy_var=$proxy_value")
+    fi
+done
 for service in orin-backend orin-ai-engine orin-frontend; do
-    compose build "$service"
+    compose build "${BUILD_PROXY_ARGS[@]}" "$service"
 done
 
 echo "compose.up: starting prebuilt services"

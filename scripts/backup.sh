@@ -35,7 +35,7 @@ load_env_value() {
   export "$key"
 }
 
-for key in MYSQL_ROOT_PASSWORD MYSQL_DATABASE RABBITMQ_VHOST; do
+for key in MYSQL_ROOT_PASSWORD MYSQL_DATABASE REDIS_PASSWORD RABBITMQ_VHOST; do
   load_env_value "$key"
 done
 
@@ -85,7 +85,11 @@ fi
 # ---- 2. Redis ----
 log "备份 Redis..."
 if docker ps --format '{{.Names}}' | grep -q "^${REDIS_CONTAINER}$"; then
-  docker exec "${REDIS_CONTAINER}" redis-cli BGSAVE > /dev/null 2>&1 || true
+  redis_cli_args=()
+  if [[ -n "${REDIS_PASSWORD:-}" ]]; then
+    redis_cli_args=(-a "$REDIS_PASSWORD" --no-auth-warning)
+  fi
+  docker exec "${REDIS_CONTAINER}" redis-cli "${redis_cli_args[@]}" BGSAVE > /dev/null 2>&1 || true
   sleep 2
   docker cp "${REDIS_CONTAINER}:/data/dump.rdb" "${BACKUP_DIR}/redis/dump.rdb" 2>/dev/null \
     && log "  Redis RDB 完成: redis/dump.rdb" \
