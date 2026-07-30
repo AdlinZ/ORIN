@@ -29,6 +29,7 @@ public class AgentManageController {
     private final com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService;
     private final com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService;
     private final KimiAgentManageService kimiAgentManageService;
+    private final com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService;
 
     @Autowired
     public AgentManageController(AgentManageService agentManageService,
@@ -36,13 +37,15 @@ public class AgentManageController {
             com.adlin.orin.modules.agent.service.ZhipuAgentManageService zhipuAgentManageService,
             com.adlin.orin.modules.agent.service.DeepSeekAgentManageService deepSeekAgentManageService,
             com.adlin.orin.modules.agent.service.MinimaxAgentManageService minimaxAgentManageService,
-            KimiAgentManageService kimiAgentManageService) {
+            KimiAgentManageService kimiAgentManageService,
+            com.adlin.orin.modules.agent.service.AgentVersionService agentVersionService) {
         this.agentManageService = agentManageService;
         this.siliconFlowAgentManageService = siliconFlowAgentManageService;
         this.zhipuAgentManageService = zhipuAgentManageService;
         this.deepSeekAgentManageService = deepSeekAgentManageService;
         this.minimaxAgentManageService = minimaxAgentManageService;
         this.kimiAgentManageService = kimiAgentManageService;
+        this.agentVersionService = agentVersionService;
     }
 
     @Operation(summary = "接入新智能体")
@@ -224,8 +227,45 @@ public class AgentManageController {
     }
 
     // ==================== 版本管理 API ====================
-    //
-    // 路由迁出：/api/v1/agents/{agentId}/versions/** 已被 AgentFreezeController 接管
-    // (F02 R3 实现)。AgentManageController 仅保留 onboarding / chat / list 等非
-    // version 端点，避免与 AgentFreezeController 的 ambiguous mapping。
+
+    @Operation(summary = "获取智能体版本列表")
+    @GetMapping("/{agentId}/versions")
+    public List<com.adlin.orin.modules.agent.entity.AgentVersion> getVersions(@PathVariable String agentId) {
+        return agentVersionService.getVersions(agentId);
+    }
+
+    @Operation(summary = "创建新版本")
+    @PostMapping("/{agentId}/versions")
+    public com.adlin.orin.modules.agent.entity.AgentVersion createVersion(
+            @PathVariable String agentId,
+            @RequestBody java.util.Map<String, String> body) {
+        String description = body.getOrDefault("description", "Manual version creation");
+        String createdBy = body.getOrDefault("createdBy", "system");
+        return agentVersionService.createVersion(agentId, description, createdBy);
+    }
+
+    @Operation(summary = "获取指定版本详情")
+    @GetMapping("/{agentId}/versions/{versionNumber}")
+    public com.adlin.orin.modules.agent.entity.AgentVersion getVersion(
+            @PathVariable String agentId,
+            @PathVariable Integer versionNumber) {
+        return agentVersionService.getVersion(agentId, versionNumber);
+    }
+
+    @Operation(summary = "回滚到指定版本")
+    @PostMapping("/{agentId}/versions/{versionId}/rollback")
+    public AgentMetadata rollbackToVersion(
+            @PathVariable String agentId,
+            @PathVariable String versionId) {
+        return agentVersionService.rollbackToVersion(agentId, versionId);
+    }
+
+    @Operation(summary = "对比两个版本")
+    @GetMapping("/{agentId}/versions/compare")
+    public java.util.Map<String, Object> compareVersions(
+            @PathVariable String agentId,
+            @RequestParam Integer version1,
+            @RequestParam Integer version2) {
+        return agentVersionService.compareVersions(agentId, version1, version2);
+    }
 }

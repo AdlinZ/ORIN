@@ -129,7 +129,6 @@ async def delegate_node(state: CollaborationState) -> Dict[str, Any]:
     # ── HTTP 触发子任务（由 Java 侧执行+回调写入 Redis）─────────────────────
     from app.core.config import settings
     import httpx
-    from app.core.trace_httpx import httpx_client
 
     execute_url = (
         f"{settings.ORIN_BACKEND_URL or 'http://localhost:8080'}"
@@ -146,7 +145,7 @@ async def delegate_node(state: CollaborationState) -> Dict[str, Any]:
     }
 
     try:
-        async with httpx_client(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 execute_url,
                 json=trigger_payload,
@@ -218,7 +217,6 @@ async def parallel_fork_node(state: CollaborationState) -> Dict[str, Any]:
     from app.core.config import settings
     import httpx
     from app.core.collab_state import poll_branch_result
-    from app.core.trace_httpx import httpx_client
 
     backend_url = settings.ORIN_BACKEND_URL or "http://localhost:8080"
 
@@ -243,7 +241,7 @@ async def parallel_fork_node(state: CollaborationState) -> Dict[str, Any]:
         }
 
         try:
-            async with httpx_client(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
                     execute_url,
                     json=trigger_payload,
@@ -555,7 +553,6 @@ async def fallback_prepare_node(state: CollaborationState) -> Dict[str, Any]:
 
     from app.core.config import settings
     import httpx
-    from app.core.trace_httpx import httpx_client
 
     retry_url = (
         f"{settings.ORIN_BACKEND_URL or 'http://localhost:8080'}"
@@ -568,7 +565,7 @@ async def fallback_prepare_node(state: CollaborationState) -> Dict[str, Any]:
     }
 
     try:
-        async with httpx_client(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 retry_url,
                 json=payload,

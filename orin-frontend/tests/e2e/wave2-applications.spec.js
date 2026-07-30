@@ -66,7 +66,7 @@ async function authenticate(page) {
     document.cookie = `orin_roles=${encodeURIComponent(JSON.stringify(roles))}; path=/`
     document.cookie = `orin_userInfo=${encodeURIComponent(JSON.stringify({ userId: 1, username: 'admin' }))}; path=/`
   }, {
-    roles: ['ROLE_ADMIN', 'ROLE_USER'],
+    roles: ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_USER'],
     tokenValue: token
   })
 }

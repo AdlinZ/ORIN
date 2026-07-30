@@ -1,10 +1,10 @@
 package com.adlin.orin.modules.workflow.converter;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -18,10 +18,15 @@ public class DifyDslConverter {
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> convert(String yamlContent) {
-        Yaml yaml = new Yaml();
+        LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setAllowDuplicateKeys(false);
+        loaderOptions.setMaxAliasesForCollections(50);
+        loaderOptions.setNestingDepthLimit(100);
+        loaderOptions.setCodePointLimit(3_000_000);
+        Yaml yaml = new Yaml(new SafeConstructor(loaderOptions));
         Object loaded = yaml.load(yamlContent);
         if (!(loaded instanceof Map<?, ?> rawDifyData)) {
-            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Invalid Dify DSL: root object is required");
+            throw new IllegalArgumentException("Invalid Dify DSL: root object is required");
         }
         Map<String, Object> difyData = copyMap(rawDifyData);
 
@@ -79,7 +84,7 @@ public class DifyDslConverter {
         if (difyData.get("graph") instanceof Map<?, ?> || difyData.get("nodes") instanceof List<?>) {
             return difyData;
         }
-        throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Invalid Dify DSL: workflow section not found");
+        throw new IllegalArgumentException("Invalid Dify DSL: workflow section not found");
     }
 
     private Map<String, Object> extractGraph(Map<String, Object> workflow) {

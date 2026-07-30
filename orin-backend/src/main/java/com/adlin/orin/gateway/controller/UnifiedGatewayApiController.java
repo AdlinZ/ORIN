@@ -1,27 +1,20 @@
 package com.adlin.orin.gateway.controller;
 
-import com.adlin.orin.common.exception.GatewayErrorMapper;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
-import com.adlin.orin.gateway.audit.GatewayAuditContext;
-import com.adlin.orin.gateway.audit.GatewayAuditRecorder;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
 import com.adlin.orin.gateway.dto.EmbeddingRequest;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import com.adlin.orin.gateway.service.RouterService;
-import com.adlin.orin.modules.apikey.entity.GatewaySecret;
-import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskPriority;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -43,20 +36,8 @@ public class UnifiedGatewayApiController {
 
     private final ProviderRegistry providerRegistry;
     private final RouterService routerService;
-    private final GatewayAuditRecorder gatewayAuditRecorder;
-    private final GatewaySecretService gatewaySecretService;
 
     private static final String TRACE_ID_HEADER = "X-Trace-Id";
-
-    /** Gateway-1c: Maximum chat request body size in bytes (1 MiB) */
-    private static final long MAX_CHAT_REQUEST_BODY_BYTES = 1_048_576;
-
-    /** Gateway-1d: Maximum embedding request body size in bytes (1 MiB) */
-    private static final long MAX_EMBEDDING_REQUEST_BODY_BYTES = 1_048_576;
-
-    /** Gateway-1d: Embeddings endpoint toggle (default off for public demo safety) */
-    @Value("${orin.gateway.endpoints.embeddings-enabled:false}")
-    private boolean embeddingsEnabled;
 
     /**
      * 统一API入口索引
@@ -128,8 +109,7 @@ public class UnifiedGatewayApiController {
             @RequestBody ChatCompletionRequest request,
             @RequestHeader(value = "X-Provider-Id", required = false) String providerId,
             @RequestHeader(value = "X-Routing-Strategy", required = false) String routingStrategy,
-            @RequestHeader(value = "X-Trace-Id", required = false) String traceId,
-            HttpServletRequest httpRequest) {
+            @RequestHeader(value = "X-Trace-Id", required = false) String traceId) {
 
         // 生成或使用传入的 trace_id
         final String finalTraceId;
@@ -138,28 +118,6 @@ public class UnifiedGatewayApiController {
         } else {
             finalTraceId = traceId;
         }
-
-        // Gateway-1c: ApiKeyAuthInterceptor 现覆盖 /v1/chat/completions（WebConfig 注册），
-        // 在此从 request attribute 读取已验证的 GatewaySecret。
-        final GatewaySecret gs = httpRequest != null
-                ? (GatewaySecret) httpRequest.getAttribute("apiKey") : null;
-        final String userId = gs != null ? gs.getUserId() : null;
-        final String apiKeyId = gs != null ? gs.getSecretId() : null;
-        final String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : null;
-        final String userAgent = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
-
-        // Gateway-1c: Reject oversized request bodies before any processing
-        if (httpRequest != null && httpRequest.getContentLengthLong() > MAX_CHAT_REQUEST_BODY_BYTES) {
-            return Mono.just(ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                    .header(TRACE_ID_HEADER, finalTraceId)
-                    .body((Object) createError(
-                            "Request body too large. Maximum: "
-                                    + (MAX_CHAT_REQUEST_BODY_BYTES / 1024 / 1024) + " MB",
-                            "payload_too_large")));
-        }
-
-        // Gateway-1b: 入口 startTime 给所有 reactive lambda 捕获算 latency
-        final long start = System.currentTimeMillis();
 
         log.info("Chat completion request: model={}, stream={}, providerId={}, traceId={}",
                 request.getModel(), request.getStream(), providerId, finalTraceId);
@@ -185,7 +143,6 @@ public class UnifiedGatewayApiController {
                             provider.getProviderType());
 
                     if (Boolean.TRUE.equals(request.getStream())) {
-                        // Gateway-1b: 流式路径显式 no audit hook (Gateway-2a 再做)
                         Flux<ServerSentEvent<ChatCompletionResponse>> stream = provider.chatCompletionStream(request)
                                 .map(response -> ServerSentEvent.builder(response).build());
                         return Mono.just(ResponseEntity.ok()
@@ -193,82 +150,22 @@ public class UnifiedGatewayApiController {
                                 .contentType(MediaType.TEXT_EVENT_STREAM)
                                 .body((Object) stream));
                     } else {
-                        // 非流式响应 - 透传 trace_id 到下游；写 audit_logs 在 doOnSuccess
-                        final String providerName = provider.getProviderName();
-                        final String providerType = provider.getProviderType();
-                        final String alias = request.getModel();
+                        // 非流式响应 - 透传 trace_id 到下游
                         return provider.chatCompletion(request, finalTraceId)
-                                .doOnSuccess(response -> {
-                                    // Gateway-1b: 成功路径写 audit_logs
-                                    // 仅非空 response 写入；Mono.empty() 会走到 switchIfEmpty(503)
-                                    if (response == null) {
-                                        return;
-                                    }
-                                    long latency = System.currentTimeMillis() - start;
-                                    Integer pt = response.getUsage() != null
-                                            ? response.getUsage().getPromptTokens() : null;
-                                    Integer ct = response.getUsage() != null
-                                            ? response.getUsage().getCompletionTokens() : null;
-                                    Integer tt = response.getUsage() != null
-                                            ? response.getUsage().getTotalTokens() : null;
-
-                                    GatewayAuditContext ctx = GatewayAuditContext.builder()
-                                            .userId(userId).apiKeyId(apiKeyId)
-                                            .providerId(providerName).providerType(providerType)
-                                            .modelAlias(alias).providerModel(alias)   // 1b 简化: 透传
-                                            .traceId(finalTraceId).latencyMs(latency)
-                                            .promptTokens(pt).completionTokens(ct).totalTokens(tt)
-                                            .ipAddress(ipAddress).userAgent(userAgent)
-                                            .build();
-                                    gatewayAuditRecorder.recordSuccess(ctx);
-
-                                    // Gateway-1c: 累加 usedTokens 使配额消耗生效
-                                    if (apiKeyId != null && tt != null && tt > 0) {
-                                        try {
-                                            gatewaySecretService.updateTokenUsage(apiKeyId, tt.longValue());
-                                        } catch (Exception ex) {
-                                            log.warn("Failed to update token usage for apiKey={}: {}",
-                                                    apiKeyId, ex.getMessage());
-                                        }
-                                    }
-                                })
                                 .map(response -> ResponseEntity.ok()
                                         .header(TRACE_ID_HEADER, finalTraceId)
                                         .body((Object) response));
                     }
                 })
-                .switchIfEmpty(Mono.defer(() -> {
-                    // Gateway-1b: 503 路径（无 provider 可用）写 audit_logs
-                    long latency = System.currentTimeMillis() - start;
-                    String errCode = GatewayErrorMapper.fromHttpStatus(503);
-                    GatewayAuditContext ctx = GatewayAuditContext.builder()
-                            .userId(userId).apiKeyId(apiKeyId)
-                            .providerId(null).providerType(null)
-                            .modelAlias(request.getModel()).providerModel(null)
-                            .traceId(finalTraceId).latencyMs(latency)
-                            .ipAddress(ipAddress).userAgent(userAgent)
-                            .build();
-                    gatewayAuditRecorder.recordError(ctx, 503, "No available provider", errCode);
-                    return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                            .header(TRACE_ID_HEADER, finalTraceId)
-                            .body((Object) createError("No available provider", "service_unavailable")));
-                }))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .header(TRACE_ID_HEADER, finalTraceId)
+                        .body((Object) createError("No available provider", "service_unavailable"))))
                 .onErrorResume(e -> {
-                    // Gateway-1b: 500 路径（provider 抛异常）写 audit_logs
-                    long latency = System.currentTimeMillis() - start;
-                    String errCode = GatewayErrorMapper.fromThrowable(e);
-                    GatewayAuditContext ctx = GatewayAuditContext.builder()
-                            .userId(userId).apiKeyId(apiKeyId)
-                            .providerId(null).providerType(null)
-                            .modelAlias(request.getModel()).providerModel(null)
-                            .traceId(finalTraceId).latencyMs(latency)
-                            .ipAddress(ipAddress).userAgent(userAgent)
-                            .build();
-                    gatewayAuditRecorder.recordError(ctx, 500, e.getMessage(), errCode);
                     log.error("Chat completion error: {}", e.getMessage(), e);
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    ResponseEntity<Object> response = ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .header(TRACE_ID_HEADER, finalTraceId)
-                            .body((Object) createError(e.getMessage(), "internal_error")));
+                            .body((Object) createError(e.getMessage(), "internal_error"));
+                    return Mono.just(response);
                 });
     }
 
@@ -308,133 +205,28 @@ public class UnifiedGatewayApiController {
     @PostMapping("/embeddings")
     public Mono<ResponseEntity<Object>> embeddings(
             @RequestBody EmbeddingRequest request,
-            @RequestHeader(value = "X-Provider-Id", required = false) String providerId,
-            @RequestHeader(value = "X-Trace-Id", required = false) String traceId,
-            HttpServletRequest httpRequest) {
+            @RequestHeader(value = "X-Provider-Id", required = false) String providerId) {
+        log.info("Embedding request: model={}, providerId={}", request.getModel(), providerId);
 
-        // Gateway-1d: Embeddings 默认关闭，需显式配置才启用
-        if (!embeddingsEnabled) {
-            return Mono.just(ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                    .body((Object) createError("Embeddings endpoint is disabled. "
-                            + "Set orin.gateway.endpoints.embeddings-enabled=true to enable.",
-                            "not_implemented")));
-        }
-
-        // trace_id
-        final String finalTraceId;
-        if (traceId == null || traceId.isEmpty()) {
-            finalTraceId = UUID.randomUUID().toString();
-        } else {
-            finalTraceId = traceId;
-        }
-
-        // 鉴权上下文
-        final GatewaySecret gs = httpRequest != null
-                ? (GatewaySecret) httpRequest.getAttribute("apiKey") : null;
-        final String userId = gs != null ? gs.getUserId() : null;
-        final String apiKeyId = gs != null ? gs.getSecretId() : null;
-        final String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : null;
-        final String userAgent = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
-
-        // Body size check
-        if (httpRequest != null && httpRequest.getContentLengthLong() > MAX_EMBEDDING_REQUEST_BODY_BYTES) {
-            return Mono.just(ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                    .header(TRACE_ID_HEADER, finalTraceId)
-                    .body((Object) createError(
-                            "Request body too large. Maximum: "
-                                    + (MAX_EMBEDDING_REQUEST_BODY_BYTES / 1024 / 1024) + " MB",
-                            "payload_too_large")));
-        }
-
-        final long start = System.currentTimeMillis();
-
-        log.info("Embedding request: model={}, providerId={}, traceId={}",
-                request.getModel(), providerId, finalTraceId);
-
-        // Provider 选择
+        // 选择Provider（优先OpenAI类型）
         Mono<ProviderAdapter> providerMono;
         if (providerId != null && !providerId.isEmpty()) {
             providerMono = Mono.justOrEmpty(routerService.selectProviderById(providerId));
-        } else if (request.getModel() != null) {
-            providerMono = Mono.justOrEmpty(routerService.selectProviderByModel(request.getModel(), null));
         } else {
+            // 默认选择OpenAI Provider
             providerMono = Mono.justOrEmpty(
                     providerRegistry.getHealthyProvidersByType("openai").stream().findFirst());
         }
 
         return providerMono
-                .flatMap(provider -> {
-                    log.info("Selected provider for embedding: {} (type: {})",
-                            provider.getProviderName(), provider.getProviderType());
-
-                    final String providerName = provider.getProviderName();
-                    final String providerType = provider.getProviderType();
-                    final String alias = request.getModel();
-
-                    return provider.embedding(request)
-                            .doOnSuccess(response -> {
-                                if (response == null) {
-                                    return;
-                                }
-                                long latency = System.currentTimeMillis() - start;
-                                Integer pt = response.getUsage() != null
-                                        ? response.getUsage().getPromptTokens() : null;
-                                Integer tt = response.getUsage() != null
-                                        ? response.getUsage().getTotalTokens() : null;
-                                // embeddings 无 completion tokens，传 null
-                                GatewayAuditContext ctx = GatewayAuditContext.builder()
-                                        .userId(userId).apiKeyId(apiKeyId)
-                                        .providerId(providerName).providerType(providerType)
-                                        .modelAlias(alias).providerModel(alias)
-                                        .traceId(finalTraceId).latencyMs(latency)
-                                        .promptTokens(pt).totalTokens(tt)
-                                        .ipAddress(ipAddress).userAgent(userAgent)
-                                        .build();
-                                gatewayAuditRecorder.recordSuccess(ctx);
-
-                                if (apiKeyId != null && tt != null && tt > 0) {
-                                    try {
-                                        gatewaySecretService.updateTokenUsage(apiKeyId, tt.longValue());
-                                    } catch (Exception ex) {
-                                        log.warn("Failed to update token usage for apiKey={}: {}",
-                                                apiKeyId, ex.getMessage());
-                                    }
-                                }
-                            })
-                            .map(response -> ResponseEntity.ok()
-                                    .header(TRACE_ID_HEADER, finalTraceId)
-                                    .body((Object) response));
-                })
-                .switchIfEmpty(Mono.defer(() -> {
-                    long latency = System.currentTimeMillis() - start;
-                    String errCode = GatewayErrorMapper.fromHttpStatus(503);
-                    GatewayAuditContext ctx = GatewayAuditContext.builder()
-                            .userId(userId).apiKeyId(apiKeyId)
-                            .providerId(null).providerType(null)
-                            .modelAlias(request.getModel()).providerModel(null)
-                            .traceId(finalTraceId).latencyMs(latency)
-                            .ipAddress(ipAddress).userAgent(userAgent)
-                            .build();
-                    gatewayAuditRecorder.recordError(ctx, 503, "No available provider for embeddings", errCode);
-                    return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                            .header(TRACE_ID_HEADER, finalTraceId)
-                            .body((Object) createError("No available provider for embeddings", "service_unavailable")));
-                }))
+                .flatMap(provider -> provider.embedding(request).map(response -> ResponseEntity.ok((Object) response)))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body((Object) createError("No available provider for embeddings", "service_unavailable"))))
                 .onErrorResume(e -> {
-                    long latency = System.currentTimeMillis() - start;
-                    String errCode = GatewayErrorMapper.fromThrowable(e);
-                    GatewayAuditContext ctx = GatewayAuditContext.builder()
-                            .userId(userId).apiKeyId(apiKeyId)
-                            .providerId(null).providerType(null)
-                            .modelAlias(request.getModel()).providerModel(null)
-                            .traceId(finalTraceId).latencyMs(latency)
-                            .ipAddress(ipAddress).userAgent(userAgent)
-                            .build();
-                    gatewayAuditRecorder.recordError(ctx, 500, e.getMessage(), errCode);
                     log.error("Embedding error: {}", e.getMessage(), e);
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .header(TRACE_ID_HEADER, finalTraceId)
-                            .body((Object) createError(e.getMessage(), "internal_error")));
+                    ResponseEntity<Object> response = ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body((Object) createError(e.getMessage(), "internal_error"));
+                    return Mono.just(response);
                 });
     }
 
@@ -444,12 +236,8 @@ public class UnifiedGatewayApiController {
      */
     @Operation(summary = "获取模型列表", description = "获取所有可用Provider的模型列表")
     @GetMapping("/models")
-    public Mono<ResponseEntity<Map<String, Object>>> getModels(HttpServletRequest httpRequest) {
-        // Gateway-1d: 读鉴权上下文（供未来模型过滤使用；GatewaySecret 暂无 model allowlist）
-        final GatewaySecret gs = httpRequest != null
-                ? (GatewaySecret) httpRequest.getAttribute("apiKey") : null;
-        final String userId = gs != null ? gs.getUserId() : null;
-        log.info("Get models request, userId={}", userId);
+    public Mono<ResponseEntity<Map<String, Object>>> getModels() {
+        log.info("Get models request");
 
         return Flux.fromIterable(providerRegistry.getHealthyProviders())
                 .flatMap(ProviderAdapter::getModels)

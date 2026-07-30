@@ -34,11 +34,10 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                 org.springframework.beans.factory.ObjectProvider<EnrollmentTokenAuthFilter> enrollmentTokenAuthFilterProvider,
-                                                 org.springframework.beans.factory.ObjectProvider<RunnerCredentialAuthFilter> runnerCredentialAuthFilterProvider) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                // Stateless API requests authenticate with headers, while non-API browser routes retain CSRF protection.
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/v1/**"))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -58,41 +57,22 @@ public class SecurityConfig {
                                 // 服务间内部路径：仅供 AI Engine 读取启用 MCP 配置（含明文 env）。
                                 // 不是面向用户的接口，前端一律走 /api/system/mcp 的 masked 视图。
                                 "/api/system/mcp/internal/**",
-                                // Runner 机器通道：F01 PR3 由 RunnerCredentialAuthFilter / EnrollmentTokenAuthFilter
-                                // 单独鉴权（与 JWT 业务通道严格分离）。Spring Security 此处先 permitAll，
-                                // 再由 filter 在 SecurityContext 写入 Runner/EnrollmentToken principal。
-                                "/api/system/runners/**",
                                 "/api/playground/**")
                         .permitAll()
                         // 统一网关端点 (/v1/**) - 需要API密钥认证
                         // 由 WebConfig 中的 ApiKeyAuthInterceptor 进行 API 密钥校验
                         .requestMatchers("/v1/**").permitAll()
-                        // Agent / Model / Conversation / Knowledge 业务管理端点（F02 R3：全部走 JWT，
-                        // 当前 actor 必须登录；AgentFreezeController.currentActor() 进一步在无 JWT
-                        // 时抛 401，避免 F01-era permitAll 留下的 anonymous 上下文）。
-                        .requestMatchers("/api/v1/agents/**").authenticated()
-                        .requestMatchers("/api/v1/model-config/**").authenticated()
-                        .requestMatchers("/api/v1/conversation-logs/**").authenticated()
-                        .requestMatchers("/api/v1/knowledge/diagnose/**").authenticated()
-                        // 其余 /api/v1/** 同样走 JWT
+                        // Agent 管理端点
+                        .requestMatchers("/api/v1/agents/**").permitAll()
+                        .requestMatchers("/api/v1/model-config/**").permitAll()
+                        .requestMatchers("/api/v1/conversation-logs/**").permitAll()
+                        .requestMatchers("/api/v1/knowledge/diagnose/**").permitAll()
+                        // 管理端点（需要JWT认证）
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
-        // 机器通道鉴权 filter：使用 ObjectProvider 注入以便测试环境（无 RunnerFilterConfig）下不抛错。
-        // 真实生产环境 RunnerFilterConfig 必定提供这两个 filter bean。
-        EnrollmentTokenAuthFilter enrollmentTokenAuthFilter =
-                enrollmentTokenAuthFilterProvider.getIfAvailable();
-        RunnerCredentialAuthFilter runnerCredentialAuthFilter =
-                runnerCredentialAuthFilterProvider.getIfAvailable();
-        if (enrollmentTokenAuthFilter != null) {
-            http.addFilterBefore(enrollmentTokenAuthFilter, UsernamePasswordAuthenticationFilter.class);
-        }
-        if (runnerCredentialAuthFilter != null) {
-            http.addFilterBefore(runnerCredentialAuthFilter, UsernamePasswordAuthenticationFilter.class);
-        }
 
         return http.build();
     }

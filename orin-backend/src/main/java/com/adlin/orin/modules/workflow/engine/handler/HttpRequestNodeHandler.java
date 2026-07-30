@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.workflow.engine.handler;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -26,7 +24,7 @@ public class HttpRequestNodeHandler implements NodeHandler {
     public NodeExecutionResult execute(Map<String, Object> nodeData, Map<String, Object> context) {
         String url = stringValue(nodeData.get("url"));
         if (url == null || url.isBlank()) {
-            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "URL required for HTTP request node");
+            throw new IllegalArgumentException("URL required for HTTP request node");
         }
 
         HttpMethod method = HttpMethod.valueOf(

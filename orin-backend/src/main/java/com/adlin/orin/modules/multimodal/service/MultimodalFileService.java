@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.multimodal.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.repository.MultimodalFileRepository;
@@ -51,12 +49,12 @@ public class MultimodalFileService {
     @Transactional
     public MultimodalFile uploadFile(MultipartFile file, String uploadedBy) throws IOException {
         if (file.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "File is empty");
+            throw new IllegalArgumentException("File is empty");
         }
 
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Invalid filename");
+            throw new IllegalArgumentException("Invalid filename");
         }
 
         // 确定文件类型
@@ -104,7 +102,7 @@ public class MultimodalFileService {
     public MultimodalFile uploadFile(byte[] data, String originalFilename, String mimeType, String uploadedBy)
             throws IOException {
         if (data == null || data.length == 0) {
-            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "File content is empty");
+            throw new IllegalArgumentException("File content is empty");
         }
 
         String fileType = determineFileType(mimeType);
@@ -281,7 +279,7 @@ public class MultimodalFileService {
     public InputStream openThumbnailStream(MultimodalFile file) throws IOException {
         String locator = resolveThumbnailLocator(file);
         if (!StringUtils.hasText(locator)) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Thumbnail not available");
+            throw new RuntimeException("Thumbnail not available");
         }
         return fileStorageService.openStream(locator);
     }

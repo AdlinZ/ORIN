@@ -76,14 +76,6 @@ mvnw.cmd
 *.bak
 *.cache
 artifacts/thesis-screenshots/
-# 用户自留临时目录：artifacts/ 顶层与 outputs/ 留作论文 / 演示 / 临时产物，
-# 不入库（避免误传个人草稿）
-artifacts/
-outputs/
-# pytest-coverage 中间产物（CI 跑测试时重新生成，不入库）
-.coverage
-coverage.xml
-.coverage.*
 
 # ============================================
 # Database
@@ -105,7 +97,6 @@ secrets/
 # ============================================
 # Application Specific
 # ============================================
-backups/
 application-local.properties
 application-*.local.properties
 .orin.pids

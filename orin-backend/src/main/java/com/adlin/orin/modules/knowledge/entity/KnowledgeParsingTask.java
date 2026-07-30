@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Table(name = "kb_parsing_tasks", indexes = {
         @Index(name = "idx_document_id", columnList = "document_id"),
         @Index(name = "idx_knowledge_base_id", columnList = "knowledge_base_id"),
-        @Index(name = "idx_kb_parsing_tasks_status", columnList = "status")
+        @Index(name = "idx_status", columnList = "status")
 })
 @Data
 @Builder

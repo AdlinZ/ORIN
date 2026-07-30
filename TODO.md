@@ -13,9 +13,9 @@
   - `P1` 重要增强，核心闭环后完成
   - `P2` 体验和治理优化
 
-## 当前推进口径（2026-06-04 文档同步）
+## 当前推进口径（2026-05-21）
 
-当前 TODO 不再表示“从零补骨架”。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立；本轮仅同步文档入口和命令口径，最近一次核心 smoke 记录仍按 2026-05-21。后续开发按以下顺序推进：
+当前 TODO 不再表示“从零补骨架”。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立，后续开发按以下顺序推进：
 
 1. `P0` Phase 1 收口：真实后端联调下的浏览器 E2E、协作人工干预验收、真实 provider-backed Agent 对话与 MCP `tools/call`、FALLBACK 真重派闭环与 Codex Workflow tool 客户端验收已具备入口；外部客户端展示资产继续后续。
 2. `P1` Phase 1.5：首版角色矩阵、权限同源、角色默认页、高风险管理接口收口与 API Key 自助边界已落地；后续补角色专属视图与资源级权限。
@@ -34,8 +34,7 @@
 - [x] `P1` 用户、部门、角色管理接口移出匿名放行，并补 JWT / 角色边界测试
 - [x] `P1` 新增 Playwright 角色导航 smoke，覆盖运维菜单过滤和普通用户管理台重定向
 - [x] `P1` API Key 自助治理边界：普通用户 / 运维可以管理自己的访问密钥，管理员保留全局治理能力
-- [~] `P1` 角色专属视图：普通用户门户、运维工作台、管理员总览拆分出更清晰的信息密度
-  本轮已新增开发者工作台与管理员平台总览入口，并补充管理员 / 开发者 / 用户手册；普通用户门户与资源级视图仍需继续收敛。
+- [ ] `P1` 角色专属视图：普通用户门户、运维工作台、管理员总览拆分出更清晰的信息密度
 - [ ] `P2` 资源级 ACL：按知识库、智能体、工作流归属收敛细粒度访问控制
 
 ---
@@ -400,7 +399,7 @@
 - [x] `P1` Phase 1C：补齐任务状态一致性、失败恢复与前端调用历史
   Workflow task wire status 固定为 `QUEUED/RUNNING/RETRYING/COMPLETED/FAILED/DEAD/CANCELLED`；取消仅允许 `QUEUED` 并写入 `CANCELLED` 终态，重放仅允许 `FAILED/DEAD` 并创建新 `QUEUED` 任务；前端任务中心与 Workflow 执行页补调用历史、状态徽标、失败重放/排队取消入口。
 - [~] `P1` Phase 1D：失败恢复入口与 Trace 聚合
-  新增 `GET /api/v1/traces/{traceId}/summary` 脱敏聚合 workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 与 Langfuse link 状态；TraceViewer 可跳转任务/Workflow/协作包；任务中心和 Workflow 执行页补恢复确认、新任务高亮；Workflow 创建请求支持 `retryPolicy.maxRetries` 任务级重试覆盖；协作 Dashboard 补 runtime/diagnostics/events/subtasks 与包级、子任务级人工干预入口；`business-smoke.sh` 已覆盖失败 Workflow replay，并对 Workflow / Collaboration / 可选 Agent Chat 增加 trace summary 端到端断言。本轮补充真实后端 Playwright 配置与协作人工干预 E2E 样本，仍需在三端常驻环境下纳入固定验收。
+  新增 `GET /api/v1/traces/{traceId}/summary` 脱敏聚合 workflow instance、workflow tasks、collaboration packages、audit logs、trace steps 与 Langfuse link 状态；TraceViewer 可跳转任务/Workflow/协作包；任务中心和 Workflow 执行页补恢复确认、新任务高亮；Workflow 创建请求支持 `retryPolicy.maxRetries` 任务级重试覆盖；协作 Dashboard 补 runtime/diagnostics/events/subtasks 与包级、子任务级人工干预入口；`business-smoke.sh` 已覆盖失败 Workflow replay，并对 Workflow / Collaboration / 可选 Agent Chat 增加 trace summary 端到端断言。
 - [~] `P1` Phase 1E：API Key 生命周期与权限治理基线
   平台访问密钥固定 `CLIENT_ACCESS / sk-orin-*` 口径；API Key 创建、禁用、启用、删除、配额重置、轮换写入脱敏审计；前端 API Key 管理页支持状态展示、轮换确认、一次性密钥展示与 MCP 配置复制；`business-smoke.sh` 覆盖临时 key 创建、`/v1/mcp` 成功、禁用后 401 与清理，并已纳入 Docker runtime smoke 验证。后续补角色自助权限、长期配额趋势与限流命中明细。
 - [~] `P1` Phase 1F：API Key 调用历史与敏感回显收敛
@@ -416,7 +415,7 @@
 - [x] `P0` 为任务重试/死信逻辑补测试
 - [x] `P0` 为同步接口补测试
 - [~] `P1` 为前端协作页、任务页、Trace 聚合视图补更完整交互测试
-  已补充协作包暂停交互、协作人工干预 API、任务恢复/取消、Trace 聚合加载和前端错误 traceId 提示测试；协作看板已新增 Playwright mock 后端浏览器 E2E。本轮新增真实后端 Playwright E2E 配置、协作人工干预样本与真实 Agent / MCP 子任务 opt-in 样本，仍需在稳定本机三端环境中固定运行口径。
+  已补充协作包暂停交互、协作人工干预 API、任务恢复/取消、Trace 聚合加载和前端错误 traceId 提示测试；协作看板已新增 Playwright mock 后端浏览器 E2E，真实后端联调 E2E 仍待补。
 
 ### 开源演示版安全与 MCP 基线
 
@@ -449,20 +448,17 @@
 ### 里程碑 M2
 
 - [~] 完成 Phase 1.5 角色化体验
-- [~] 角色矩阵、权限同源、多角色默认页、专属手册和越权 E2E 完成
-  本轮已补管理员 / 开发者 / 用户手册与管理员、开发者工作台入口；越权 E2E 和普通用户专属视图仍待补。
+- [ ] 角色矩阵、权限同源、多角色默认页、专属手册和越权 E2E 完成
 
 ### 里程碑 M3
 
 - [~] 完成 Phase 2 质量与可观测
-- [~] 错误码 / traceparent / JSON 日志 / OTel / Jaeger / 覆盖率红线完成
-  本轮已补后端 traceparent 响应与出站传播、JSON 日志配置和 OTLP exporter 开关；Jaeger 运行态联调与覆盖率红线仍待补。
+- [ ] 错误码 / traceparent / JSON 日志 / OTel / Jaeger / 覆盖率红线完成
 
 ### 里程碑 M4
 
 - [~] 完成 Phase 3/4 安全运维与社区化
-- [~] 备份恢复、生产 SOP、v0.1.0 release、README 展示资产完成
-  本轮已新增 `scripts/backup.sh` / `scripts/restore.sh` 与部署文档入口；生产 SOP、定期演练、release 和 README 展示资产仍待补。
+- [ ] 备份恢复、生产 SOP、v0.1.0 release、README 展示资产完成
 
 ---
 
@@ -503,168 +499,6 @@
 
 ---
 
-## 代码审核修复记录（2026-06-11）
-
-以下问题由 Kiro 代码审核发现并已修复，提交至 main：
-
-### 已修复 P0
-
-- [x] `P0` **JWT 角色验证漏洞**：`JwtAuthenticationFilter` 移除 `ROLE_USER` fallback，token 缺少 `roles` claim 时直接拒绝认证，不再以低权限身份放行
-  - 文件：`orin-backend/.../security/JwtAuthenticationFilter.java`
-- [x] `P0` **ASR 空桩改为异常**：`AsrService` 阿里云、腾讯云、讯飞三个未实现方法从返回错误字符串改为抛 `UnsupportedOperationException`，调用方可明确区分未实现与运行时错误
-  - 文件：`orin-backend/.../multimodal/service/AsrService.java`
-- [x] `P0` **`.env` 未被 git 追踪**（验证，无需操作）：确认 `.env` 已在 `.gitignore` 中且未被追踪，内容为占位符模板
-
-### 已修复 P1
-
-- [x] `P1` **KnowledgeWorkflowEngine AGENT 步骤真实化**：注入 `RouterService`，`executeAgentStep` 从 mock 字符串改为通过网关调用真实 LLM Provider；provider 不可用时返回含 `error` 键的 Map
-  - 文件：`orin-backend/.../knowledge/component/KnowledgeWorkflowEngine.java`
-- [x] `P1` **MilvusVectorService 日志级别修正**：三处 `log.warn("DEBUG: ...")` 改为 `log.debug`，不再污染生产告警日志
-  - 文件：`orin-backend/.../knowledge/service/MilvusVectorService.java`
-- [x] `P1` **前端路由双轨制**（验证，无需操作）：确认旧路径均为 redirect 规则，守卫逻辑统一走 `topMenuConfig.js` 角色集合，无双轨制冲突
-
-### 本轮提交记录（2026-06-11 OCR 收尾）
-
-- [x] `P0` **OCR 空桩**：与 5a3656fa 的 ASR 改造同构，`OcrService.ocrWithAliCloud / ocrWithTencentCloud / ocrWithBaidu` 由返回 `"[OCR Error] ..."` 魔法字符串改为 `throw new UnsupportedOperationException(...)`；新增 `OcrServiceTest` 3 用例钉契约
-  - 文件：`orin-backend/.../multimodal/service/OcrService.java`、`OcrServiceTest.java`
-  - 提交：`880ceb6b refactor(ocr): throw UnsupportedOperationException for unimplemented OCR methods`
-- [x] `P0` **编译回归修复**：`KnowledgeWorkflowEngine.executeAgentStep` 中 `new Message("user", prompt)` 2 参构造器在 `5a3656fa` 合并时未通过 `mvn compile` 验证，阻塞本轮 OCR 测试执行；按 `ChatCompletionRequest.Message` `@AllArgsConstructor` 4 参签名 `(role, content, thinking, name)` 补 `null`
-  - 文件：`orin-backend/.../knowledge/component/KnowledgeWorkflowEngine.java`
-  - 提交：`84c11197 fix(knowledge): use 4-arg Message constructor in executeAgentStep`
-- 验证：`mvn -DskipTests compile` exit=0；`mvn test -Dtest=OcrServiceTest` 3/3 绿
-
----
-
-## 后续开发计划（2026-06-11）
-
-### 执行顺序
-
-```
-OCR 空桩修复（~1h）
-    ↓
-协同页面真实 E2E 联调（2–3d）
-    ↓
-MCP tools/call 验收 + 录屏（1d）
-    ↓
-资源级 ACL（3–4d）
-    ↓
-统一错误码（2d）
-    ↓
-TraceID MQ 传播（2d）
-    ↓
-结构化日志 + 测试补齐（3–4d）
-```
-
----
-
-### Phase 1 收尾（当前 Sprint）
-
-- [x] `P0` **OCR 空桩**：`OcrService` 阿里云、腾讯云、百度三个方法与 ASR 同步改为抛 `UnsupportedOperationException`（`880ceb6b`）；新增 `OcrServiceTest` 钉契约，3 用例绿
-  - 文件：`orin-backend/.../multimodal/service/OcrService.java`、`OcrServiceTest.java`
-  - 顺手修复：`KnowledgeWorkflowEngine.executeAgentStep` 2 参 `Message` 构造器调用在 `mvn compile` 失败（`5a3656fa` 遗留），已改为 4 参（`84c11197`）
-- [~] `P0` **协同人工干预真实联调**：协同页面 pause/resume/terminate 接口对接真实后端，替换现有 mock；Playwright E2E 已覆盖 mock，需补真实后端 E2E 场景
-- [~] `P0` **工作流子任务烟雾测试**：补齐 RabbitMQ + AI Engine worker + 后端 listener 完整链路端到端验收
-- [ ] `P0` **MCP `tools/call` 验收录屏**：在 Claude Desktop / Cursor 下执行 `tools/call`，录制截图/GIF 作为功能凭证；补充工具隔离和资源清理异常路径测试
-
----
-
-### Phase 1.5：权限完善（Phase 1 收尾后）
-
-- [~] `P1` **资源级 ACL**：`AgentManageService`、`KnowledgeManageService`、`WorkflowService` 补充数据行级归属校验，当前仅路由级角色判断
-  - KB 第 1 刀已完成（`7a5818f4`）：V92 migration + `KnowledgeBase.ownerUserId` + `KnowledgeOwnershipResolver` + 5 个 CRUD 方法 owner 校验 + `KnowledgeManageServiceAclTest` 7 用例全绿
-  - Agent 第 2 刀已完成（`1c2318e4`）：`AgentOwnershipResolver` 加 `isCurrentUserPrivileged` + `assertCanManage(AgentMetadata)`；`AgentManageServiceImpl` 改 5 处（getAllAgents / updateAgent / updateAgentConfig / deleteAgent / chatWithConversation）；`AgentManageServiceAclTest` 8 用例全绿
-  - Workflow 第 3 刀已完成（`af909e11`）：新建 `WorkflowOwnershipResolver`（workflow 模块内，镜像 Agent 模板）+ `WorkflowService` 改 10 处（5 写 + 4 读 + archive + instance 跟随 workflow）；`WorkflowServiceAclTest` 9 用例全绿
-  - 资源级 ACL 3 刀全部完成。下一刀可考虑：抽 common `OwnershipResolver` 基类（KB / Agent / Workflow 三份 Resolver 模板统一）/ batch & versions & async & refresh 多 agentId 语义 / NULL owner KB 数据回填
-  - 现有 NULL owner KB 视为系统级（admin/operator 可见，普通用户不可见），暂不做数据回填
-- [ ] `P1` **API Key 端点限流**：`/v1/mcp/**` 绑定独立限流策略，当前限流拦截器未覆盖 MCP 路径
-- [ ] `P1` **角色视图收敛**：`ROLE_OPERATOR` 确认隐藏系统设置与组织权限顶级菜单；`ROLE_USER` 门户页补充 API Key 自助入口可见性控制
-
----
-
-### Phase 2：可观测性与工程质量
-
-- [~] `P1` **统一错误码**：后端公共异常处理层定义错误码枚举（格式：`ORIN-XXXX`），覆盖认证、授权、限流、模型调用失败；Python 侧 `task_runtime.py` 对齐同一结构
-  - 小刀 1（`a83790d9`）：扩 ErrorCode 3 个新分类（10 限流 / 11 任务 / 12 协作），共 16 个新码；ErrorCodeTest 62/62 绿
-  - 小刀 2（`bf944d04`）：GraphExecutor 15 处裸抛改用 `BusinessException(WORKFLOW_INVALID_CONFIG, msg)`；7/7 绿
-  - 小刀 3（`1cd6ea81`）：AgentManageServiceImpl 7 处裸抛（Provider 连接 / 批量导入导出）；修 ACL 1c2318e4 遗留 AgentSmokeTest 2 处盲点；13/13 绿
-  - 小刀 4（`ad52752d`）：CollaborationOrchestrator 15 处 + KnowledgeManageService 9 处 = 24 处；54/54 绿
-  - 小刀 5（`537b1fa7`）：SetupInitializeService 8 处参数校验裸抛（不含 3 处字符串错误码）；4/4 绿
-  - 小刀 6（`17efa516`）：SiliconFlowEmbeddingAdapter 6 处；6/6 绿
-  - 小刀 7（`6c036f53`）：VisualAnalysisService 6 处（VLM 视觉分析）；无新测试
-  - 小刀 8（`d83a7d25`）：StructuredServiceImpl 6 处（CSV/SQL 知识库结构化）；无新测试
-  - **大目标**（本次会话，按用户指示"不要小刀，要完整大目标"）：一次性收尾所有剩余裸抛
-    - system 9 处（SystemConfigService 5 / DepartmentService 4 / MailTemplateService 3 / LogConfigController 3 / DynamicLoggerService 2 / RoleService 2 / UserRoleService 1）
-    - skill 14 处（SkillServiceImplEnhanced 10 / McpServiceServiceImpl 5 含 orElseThrow / McpManageController 1）
-    - workflow 14 处（WorkflowService 8 / WorkflowEngine 4 / DifyDslConverter 2 / OrinWorkflowDslValidator 1 / WorkflowGenerationService 1 / SkillNodeHandler 1 / KnowledgeNodeHandler 1 / HttpRequestNodeHandler 1）
-    - knowledge 22 处（DocumentManageService 4 / GraphExtractionService 3 / KnowledgeManageController 3 / KnowledgeWorkflowEngine 3 / UnstructuredServiceImpl 2 / ParsingPipelineService 2 / KnowledgeGraphService 2 / SideClientSyncService 1 / ProceduralServiceImpl 1 / MetaKnowledgeService 1 / MilvusVectorStoreProvider 1 / MilvusVectorService 1 / KnowledgeTaskListener 1）
-    - gateway/adapter 12 处（SiliconFlowTranscriptionAdapter 4 / OpenAIProviderAdapter 2 / OllamaProviderAdapter 2 / DifyProviderAdapter 1 / UnifiedGatewayPolicyService 3 / UnifiedGatewayServiceManagementService 2 / UnifiedGatewayAclService 1 / UnifiedGatewayRouteService 1）
-    - multimodal/playground/runtime 12 处（MultimodalFileService 4 / MultimodalController 4 / PlaygroundRuntimeClient 6 / PlaygroundController 1 / RuntimeManageServiceImpl 1 / WebhookSecurityValidator 5）
-    - collaboration/integration/agent/task 19 处（CollaborationRedisService 3 / CollaborationService 2 / CollaborationMemoryService 2 / CollaborationSessionService 2 / GatewaySecretService 2 / AgentExecutor 2 / AgentVersionService 4 / TaskService 2 / TaskQueueService 2 / DifySyncConnector 2 / CollaborationOrchestratorController 1 / N8nWorkflowAdapter 1 / ZhipuIntegrationService 1 / DeepSeekIntegrationService 1 / SyncDiffService 1 / AgentChatService 2 / AgentChatController 1 / AuditLogService 1 / SystemHealthCheckTask 1 / DeadLetterHandler 1 / MonitorServiceImpl 3 / PrometheusService 3 / SiliconFlowIntegrationService 3 / IntegrationService 1 / LocalFileStorageServiceImpl 2 / EncryptionUtil 1 / JwtService 3）
-    - security/common/config 3 处（WebConfig 1 / SecurityPropertiesValidator 1 / LocalFileStorageServiceImpl 2）
-  - **修 WorkflowServiceTest 资源级 ACL 遗留 mock 缺失**：补 `WorkflowOwnershipResolver` mock + assertCanManage default stub
-  - **统一所有 targeted 单测**：将 `assertThrows(IllegalArgumentException/IllegalStateException.class, ...)` / `assertThatThrownBy...isInstanceOf(IllegalArgumentException/IllegalStateException.class)` 改为 BusinessException；7 个测试文件改 import + 断言
-  - 累计 5+8+大目标 = 全部裸抛已收尾。`mvn compile` exit=0；`mvn test` 636/636 全绿
-  - **保留 3 处字符串错误码**（独立调查, 8.2.1 自主决定）: SetupInitializeService L64 `SETUP_DISABLED` / L67 `SETUP_ALREADY_COMPLETED` / L177 `ENCRYPTION_KEY_REQUIRED` — `SetupController.initialize` L72-83 `switch (e.getMessage())` 主动 case 匹配, 部署指南 L26 文档化, 字符串是 SetupController API 内部契约, 改 ErrorCode 超出本小刀范围
-  - 现状: 后端裸抛 192 → 0 处 (不含 Setup 3 处字符串契约)
-  - 暂不做: 格式统一为 `ORIN-XXXX` 前缀（会全局重命名 40+ 错误码）；Python 端 `task_runtime.py` 结构化错误码
-- [x] `P1` **TraceID 跨 MQ 传播**：RabbitMQ 发布时写入 `traceparent` 头，worker 消费时提取绑定 span，目标是 HTTP → AI Engine 调用链在 Jaeger 中完整可见
-  本轮补齐后端 RabbitMQ 边界：collab/task 共 5 个 send site 通过 MessagePostProcessor 注入 `traceparent` + `X-Trace-Id`；3 个 `@RabbitListener` 从 message property 抽取 `traceparent` 灌 MDC 并在 finally 清。`common/trace/TraceContext` 工具集中放 W3C 编解码。新增 5 个测试 / 扩展 2 个。`mvn test` 664/664 全绿。AI Engine Python inbound 解析由 Phase 2 小刀 2 接通（`app/core/w3c_trace.py` + `trace_context.py` + `logging_filter.py` + `trace_middleware.py` + mq_worker 抽 `message.headers`）。AI Engine 出站 httpx 注入 `traceparent` 待小刀 3，OTel SDK 跨进程 span 串联待小刀 4。
-- [ ] `P2` **结构化 JSON 日志**：后端接入 `logstash-logback-encoder`，日志包含 `traceId`、`userId`、`agentId` 字段，为后续 ELK / Grafana Loki 接入做准备
-- [ ] `P2` **测试覆盖补齐**：
-  - 后端：`JwtAuthenticationFilter`（roles 缺失拒绝逻辑）、`KnowledgeWorkflowEngine`（AGENT/SKILL/LOGIC 三类步骤）单元测试
-  - AI Engine：`TaskRuntime` cancellation 路径异步测试
-  - 集成测试：`WorkflowProxyControllerTest` 加 `@Tag("integration")`，CI 默认跳过
-
-### 横切治理 · ProviderAdapter 多模态扩展（2026-06-11，第 1 刀）
-
-OCR/ASR 按模型路由的前置条件：扩展 `ProviderAdapter` 支持多模态 content 与转写通道。本刀只动 gateway 内部，未改 OCR/ASR service，下一刀再迁移。
-
-- [x] `P1` `ChatCompletionRequest.Message` 新增 `List<ContentPart> parts` 多模态字段（OpenAI 兼容：text / image_url + image_url:{url,detail}），同时保留 2 参位置构造器避免 `KnowledgeWorkflowEngine` 失配
-- [x] `P1` 新增 `TranscriptionRequest` / `TranscriptionResponse` DTO（model + audioUrl[http 或 base64 data URI] + mimeType/language/providerParams）
-- [x] `P1` `ProviderAdapter` 新增 `default Mono<TranscriptionResponse> transcribe(TranscriptionRequest)`，未覆盖 provider 返回 `Mono.error(UnsupportedOperationException)`
-- [x] `P1` `OpenAIProviderAdapter.buildOpenAIRequest` 在 `parts` 非空时按多模态序列化（`content` 字段输出 parts 数组，image_url 走 snake_case），`parts` 为空回退 `content` 字符串
-- [x] `P1` 新增 targeted 单测：`OpenAIProviderAdapterContentPartsTest`（4 例：textOnly / multimodal / parts 优先 / 空回退）、`ProviderAdapterTranscribeDefaultTest`（default 抛 UnsupportedOperationException）
-- [x] `P1` `mvn compile` 干净通过；`mvn test -Dtest=OpenAIProviderAdapterContentPartsTest,ProviderAdapterTranscribeDefaultTest,RouterServiceTest` 9/9 绿
-- [ ] `P1` **下一刀**：OCR/ASR service 改用 `RouterService` + 新多模态通道；删除三家云厂商 stub（OcrService.ocrWithAliCloud/TencentCloud/Baidu，AsrService.transcribeWithAliCloud/TencentCloud/XunFei）
-
-### OCR/ASR 迁移到 ProviderAdapter 路由（2026-06-11，第 2 刀）
-
-承接第 1 刀的多模态能力，把 OCR 真正切到 `RouterService + provider.chatCompletion`，ASR 走「whisper → 本地 CLI / 其它 → SiliconFlow HTTP」模型路由；删除三家云厂商 stub。
-
-- [x] `P0` `OcrService.recognize(imageUrl, model)`：内部构造多模态 `ChatCompletionRequest`（system prompt + 文本指令 + image_url 部件），经 `RouterService.selectProviderByModel` 选 provider，调用 `provider.chatCompletion(req).block()` 提取文本；缺 provider / provider 抛错 / 响应空都返回 `[OCR Error] ...`，保留与历史契约一致
-- [x] `P0` 删除 `OcrService.ocrWithSiliconFlowVlm(imageUrl)` 无参 overload + `OcrService.ocrWithAliCloud/TencentCloud/Baidu` 三个 stub
-- [x] `P0` `AsrService.transcribe(audioPath, model)`：model 包含 `whisper`（大小写不敏感）→ 本地 Whisper CLI；其它 → SiliconFlow ASR HTTP（保留原有 RestTemplate 实现，未在本刀抽到 `ProviderAdapter.transcribe` 通道）
-- [x] `P0` 删除 `AsrService.transcribeWithSiliconFlowAsr(audioPath)` 无参 overload + `AsrService.transcribeWithAliCloud/TencentCloud/XunFei` 三个 stub
-- [x] `P0` `ImageParser.parseWithCloud` / `AudioParser.parseWithCloud` 改为新方法名（`recognize` / `transcribe`）
-- [x] `P0` 新增 targeted 单测：`OcrServiceTest` 8 例（null/blank 参数、no provider、文本提取、NO_TEXT_DETECTED → 空串、provider 抛错、多模态 parts 构造）、`AsrServiceTest` 6 例（参数校验、SiliconFlow 无 key、whisper CLI 不可用、音频文件不存在）
-- [x] `P0` `mvn compile` 干净通过；`mvn test -Dtest=OcrServiceTest,AsrServiceTest,OpenAIProviderAdapterContentPartsTest,ProviderAdapterTranscribeDefaultTest,RouterServiceTest` 23/23 绿
-- [ ] `P1` **下一刀**：实装 `SiliconFlowTranscriptionAdapter implements ProviderAdapter`（override `transcribe` 走 SiliconFlow `/audio/transcriptions`），在 `GatewayProviderRefreshService` 注册为 `siliconflow-asr`，让 `AsrService.transcribe` 真正走 `RouterService.selectProviderByModel + provider.transcribe()`，删掉 AsrService 内部 RestTemplate 硬码
-
-### ASR 转写通道实装（2026-06-11，第 3 刀）
-
-承接第 1 刀的 `ProviderAdapter.transcribe` 通道与第 2 刀的 AsrService stub 删除，把 ASR 转写真正切到「按 provider type 路由 + provider.transcribe」，删 AsrService 内部 RestTemplate / `@Value` 硬码。
-
-- [x] `P1` 新增 `SiliconFlowTranscriptionAdapter implements ProviderAdapter`：`getProviderType="siliconflow-asr"`，override `transcribe` POST `{baseUrl}/audio/transcriptions` 携带 Bearer 头和 `{model, audio_url[, language]}`；`chatCompletion/chatCompletionStream/embedding` 按 ASR-only 语义抛 `UnsupportedOperationException`；`estimateCost` 暂为 0
-- [x] `P1` `GatewayProviderRefreshService.registerSiliconFlowAsr`：与 chat adapter 共享 siliconflow 凭据，但 provider id / type 独立为 `siliconflow-asr`（避免抢同一注册键）；`refreshFromConfig` 增加对应 unregister + register 调用
-- [x] `P1` `AsrService` 注入 `RouterService` + `ObjectMapper`，删除 `siliconflowApiKey / siliconFlowBaseUrl` 两个 `@Value`、删除 `RestTemplate restTemplate = new RestTemplate()` 硬码、删除 `transcribeWithSiliconFlowAsr` 方法；`transcribeViaProvider` 走 `routerService.selectProviderByType("siliconflow-asr", dummyReq)` + `provider.transcribe(req).block()`；`isWhisperModel` 仍走本地 Whisper CLI
-- [x] `P1` 重写 `AsrServiceTest`（基于 RouterService mock 重新设计，10 例：参数校验、whisper CLI 路径、no provider / provider 抛错 / null 响应 / 文本提取 / 空文本），新增 `SiliconFlowTranscriptionAdapterTest`（16 例：providerType 名称、endpoint + body + Bearer 头校验、language 透传、缺 text → 空串、非 2xx 抛错、空 apiKey / blank audioUrl / null request / blank model 抛错、chat/embedding 仍 UnsupportedOperation、estimateCost=0、getModels stub、healthCheck 成功 + 失败两个路径）
-- [x] `P1` `mvn compile` 干净通过；`mvn test -Dtest=AsrServiceTest,SiliconFlowTranscriptionAdapterTest,OcrServiceTest,OpenAIProviderAdapterContentPartsTest,ProviderAdapterTranscribeDefaultTest,RouterServiceTest` 43/43 绿
-- [x] `P1` slice 1 / 2 五个测试类回归 18/18 绿（4+1+4+8+1），确认转写通道实装未污染既有 chat / parts / routing 路径
-- [ ] `P2` **未来可选**：将 ASR 路由也做成「按模型前缀」（如 `whisper-` / `funaudiollm-`）走 `RouterService.selectProviderByModel`，目前先按 provider type 直选；本刀范围内不引入额外 RouterService 变更
-
----
-
-### 暂缓事项
-
-以下功能在核心链路稳定前不启动：
-
-- `[ ]` AutoGen / CrewAI 集成（当前占位符，等 Phase 1 协同链路稳定后评估）
-- `[ ]` Langfuse / Prometheus / Jaeger 三方监控 UI 统一（等结构化日志落地后再整合）
-- `[ ]` 云端 ASR/OCR 实现（阿里云、腾讯云等，空桩已改为异常，按需实现）
-- `[ ]` Nacos/Consul 配置中心接入（`RouterService` 当前优先级路由够用）
-
----
-
 ## 已完成历史事项
 
 - [x] 集成 Milvus 向量引擎，支持知识库的增删改查及向量检索
@@ -678,4 +512,4 @@ OCR/ASR 按模型路由的前置条件：扩展 `ProviderAdapter` 支持多模�
 
 ---
 
-*最后更新: 2026-06-04（角色工作台、trace/JSON/OTel、真实后端 E2E 入口与备份恢复脚本同步；本轮 smoke 见提交后记录）*
+*最后更新: 2026-05-21*

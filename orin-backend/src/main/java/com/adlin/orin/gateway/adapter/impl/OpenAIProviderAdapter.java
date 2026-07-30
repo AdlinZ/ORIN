@@ -1,7 +1,5 @@
 package com.adlin.orin.gateway.adapter.impl;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
@@ -13,7 +11,6 @@ import org.springframework.web.client.RestTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.*;
 
 /**
@@ -46,9 +43,6 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
                 .baseUrl(this.baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .defaultHeader("Content-Type", "application/json")
-                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(
-                        reactor.netty.http.client.HttpClient.create()
-                                .responseTimeout(Duration.ofSeconds(120))))
                 .build();
     }
 
@@ -109,7 +103,7 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
                             Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "OpenAI API call failed");
+                throw new RuntimeException("OpenAI API call failed");
             }
 
             // 转换响应并添加provider信息
@@ -201,7 +195,7 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
                             Map.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "OpenAI embedding API call failed");
+                throw new RuntimeException("OpenAI embedding API call failed");
             }
 
             return convertToEmbeddingResponse(response.getBody());
@@ -270,21 +264,16 @@ public class OpenAIProviderAdapter implements ProviderAdapter {
     /**
      * 构建OpenAI请求
      */
-    Map<String, Object> buildOpenAIRequest(ChatCompletionRequest request) {
+    private Map<String, Object> buildOpenAIRequest(ChatCompletionRequest request) {
         Map<String, Object> body = new HashMap<>();
         body.put("model", request.getModel());
 
         // 转换消息格式
-        List<Map<String, Object>> messages = new ArrayList<>();
+        List<Map<String, String>> messages = new ArrayList<>();
         for (ChatCompletionRequest.Message msg : request.getMessages()) {
-            Map<String, Object> message = new HashMap<>();
+            Map<String, String> message = new HashMap<>();
             message.put("role", msg.getRole());
-            // 多模态：parts 非空时按 parts 序列化（OpenAI 兼容多模态）
-            if (msg.getParts() != null && !msg.getParts().isEmpty()) {
-                message.put("content", msg.getParts());
-            } else {
-                message.put("content", msg.getContent());
-            }
+            message.put("content", msg.getContent());
             if (msg.getName() != null) {
                 message.put("name", msg.getName());
             }

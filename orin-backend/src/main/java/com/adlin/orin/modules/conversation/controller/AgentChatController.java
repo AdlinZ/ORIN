@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.conversation.controller;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.conversation.dto.*;
 import com.adlin.orin.modules.conversation.service.AgentChatService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,7 +78,7 @@ public class AgentChatController {
                                 .name(eventType)
                                 .data(objectMapper.writeValueAsString(payload), MediaType.APPLICATION_JSON));
                     } catch (Exception e) {
-                        throw new BusinessException(ErrorCode.OPERATION_FAILED, "SSE send failed: " + e.getMessage(), e);
+                        throw new RuntimeException(e);
                     }
                 });
                 emitter.complete();

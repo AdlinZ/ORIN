@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.system.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.logging.LogLevel;
@@ -64,7 +62,7 @@ public class DynamicLoggerService {
         var config = loggingSystem.getLoggerConfiguration(loggerName);
 
         if (config == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Logger not found: " + loggerName);
+            throw new IllegalArgumentException("Logger not found: " + loggerName);
         }
 
         Map<String, Object> result = new HashMap<>();
@@ -85,7 +83,7 @@ public class DynamicLoggerService {
         try {
             logLevel = level.equalsIgnoreCase("NULL") ? null : LogLevel.valueOf(level.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Invalid log level: " + level +
+            throw new IllegalArgumentException("Invalid log level: " + level +
                     ". Valid values are: TRACE, DEBUG, INFO, WARN, ERROR, OFF, NULL");
         }
 

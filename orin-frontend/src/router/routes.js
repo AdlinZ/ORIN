@@ -17,10 +17,8 @@ const agentRoutes = {
     CONSOLE: '/dashboard/applications/agents/console/:id',
     CHAT_LOGS: '/dashboard/applications/conversations',
     WORKSPACE: '/dashboard/applications/workspace',
-    DEVELOPER: '/dashboard/applications/developer',
-    SKILLS: '/dashboard/applications/extensions?tab=skills',
+    SKILLS: '/dashboard/applications/skills',
     MCP: '/dashboard/applications/extensions?tab=mcp',
-    MODEL_TOOLS: '/dashboard/applications/extensions?tab=bindings',
     EXTENSIONS: '/dashboard/applications/extensions',
     COLLABORATION_WORKFLOWS: '/dashboard/applications/collaboration/workflows',
     WORKFLOWS: '/dashboard/applications/workflows',
@@ -39,12 +37,6 @@ const agentRoutes = {
     PLAYGROUND_RUN: '/dashboard/applications/playground/run',
     VERSION_MANAGE: '/dashboard/applications/workflows/execution',
     TEST_DEBUG: '/dashboard/applications/workflows/execution',
-    // F02 创建并冻结 Agent (Workspace vNext 入口 — 默认入口)
-    WORKSPACE_LIST: '/workspace/agents',
-    WORKSPACE_DRAFT: '/workspace/agents/:agentId',
-    WORKSPACE_VERSIONS: '/workspace/agents/:agentId/versions',
-    WORKSPACE_VERSION_DETAIL: '/workspace/agents/:agentId/versions/:versionId',
-    WORKSPACE_VERSION_DEPRECATE: '/workspace/agents/:agentId/versions/:versionId/deprecate',
 }
 
 const knowledgeRoutes = {
@@ -92,7 +84,6 @@ const monitorRoutes = {
 
 const systemRoutes = {
     ROOT: '/dashboard/control',
-    ADMIN_DASHBOARD: '/dashboard/control/admin-overview',
     USERS: '/dashboard/control/users',
     DEPARTMENTS: '/dashboard/control/departments',
     ROLES: '/dashboard/control/roles',
@@ -539,7 +530,7 @@ export function generateBreadcrumbs(path) {
     // 查找匹配的菜单项
     for (const menu of SIDEBAR_MENU_CONFIG) {
         // 检查是否是该一级菜单的子路径
-        const isInMenu = path.startsWith(menu.path.replace('/dashboard/', '/dashboard/')) ||
+        const isInMenu = path.startsWith(menu.path) ||
             menu.children?.some(child => {
                 // 二级菜单（直接子节点）
                 if (child.path && path.startsWith(child.path)) return true

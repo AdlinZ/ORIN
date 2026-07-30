@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.apikey.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
 import com.adlin.orin.security.EncryptionUtil;
@@ -129,6 +127,7 @@ public class GatewaySecretService {
 
         secret.setName(name != null && !name.isBlank() ? name : (normalizedProvider + " credential"));
         if (secretValue != null && !secretValue.isBlank()) {
+            requireEncryptionForProviderCredential();
             secret.setEncryptedSecret(encryptionUtil.encrypt(secretValue));
             secret.setLast4(secretValue.substring(Math.max(0, secretValue.length() - 4)));
             secret.setRotationAt(LocalDateTime.now());
@@ -148,10 +147,10 @@ public class GatewaySecretService {
     @Transactional
     public GatewaySecret createMcpEnvSecret(String name, String secretValue, String description, String operator) {
         if (secretValue == null || secretValue.isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "MCP 密钥值不能为空");
+            throw new IllegalArgumentException("MCP 密钥值不能为空");
         }
         if (!encryptionUtil.isEncryptionEnabled()) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "未配置 ENCRYPTION_KEY，拒绝以明文存储 MCP 密钥");
+            throw new IllegalStateException("未配置 ENCRYPTION_KEY，拒绝以明文存储 MCP 密钥");
         }
         GatewaySecret secret = GatewaySecret.builder()
                 .secretId("gsec_mcp_" + UUID.randomUUID().toString().replace("-", ""))
@@ -246,6 +245,10 @@ public class GatewaySecretService {
         }
 
         GatewaySecret secret = secretOpt.get();
+        if (!secret.isProviderCredential()) {
+            return Optional.empty();
+        }
+        requireEncryptionForProviderCredential();
         secret.setEncryptedSecret(encryptionUtil.encrypt(newPlainSecret));
         secret.setLast4(newPlainSecret.substring(Math.max(0, newPlainSecret.length() - 4)));
         secret.setRotationAt(LocalDateTime.now());
@@ -323,6 +326,12 @@ public class GatewaySecretService {
 
     private String normalizeProvider(String provider) {
         return provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void requireEncryptionForProviderCredential() {
+        if (!encryptionUtil.isEncryptionEnabled()) {
+            throw new IllegalStateException("未配置 ENCRYPTION_KEY，拒绝保存 Provider Key");
+        }
     }
 
     @Data

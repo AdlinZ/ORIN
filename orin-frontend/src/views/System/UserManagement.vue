@@ -370,6 +370,9 @@ const formData = reactive({
 })
 
 const roleOptions = [
+  { label: '超级管理员', value: 'ROLE_SUPER_ADMIN' },
+  { label: '平台管理员', value: 'ROLE_PLATFORM_ADMIN' },
+  { label: '业务运营', value: 'ROLE_OPERATOR' },
   { label: '管理员', value: 'ROLE_ADMIN' },
   { label: '普通用户', value: 'ROLE_USER' }
 ]
@@ -429,6 +432,9 @@ const openUserDetail = (row) => {
 
 const getRoleName = (role) => {
   const roleMap = {
+    ROLE_SUPER_ADMIN: '超级管理员',
+    ROLE_PLATFORM_ADMIN: '平台管理员',
+    ROLE_OPERATOR: '业务运营',
     ROLE_ADMIN: '管理员',
     ROLE_USER: '普通用户'
   }
@@ -436,7 +442,7 @@ const getRoleName = (role) => {
 }
 
 const isAdminRole = (role) => {
-  return ['ROLE_ADMIN'].includes(role)
+  return ['ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ROLE_ADMIN'].includes(role)
 }
 
 const getUserInitial = (user) => {

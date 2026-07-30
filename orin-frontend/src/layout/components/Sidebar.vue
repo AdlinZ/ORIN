@@ -158,7 +158,7 @@ let removeRefreshDoneListener = null
 const { userInfo, checkLoginStatus, handleLogout } = useUser()
 const { isDarkMode, toggleTheme } = useTheme()
 
-const activeMenu = computed(() => route.fullPath)
+const activeMenu = computed(() => route.path)
 
 // 可见菜单（根据权限过滤）
 const visibleMenus = computed(() => getVisibleMenus(userStore.roles || []))
@@ -170,21 +170,15 @@ const getSubMenuIndex = (level, item, parentId = '') => {
 
 /**
  * 将平铺的菜单项数组按 section 分组，供 el-menu-item-group 使用
+ * topMenuConfig 已无 section/divider，直接返回单组平铺结构
  */
 const groupMenuItems = (children) => {
   const groups = []
-  let current = { title: null, items: [] }
-
+  const current = { title: null, items: [] }
   for (const child of children) {
-    if (child.type === 'section' || child.divider) {
-      if (current.items.length > 0) groups.push(current)
-      current = { title: child.title || null, items: [] }
-      continue
-    }
-
+    if (child.type === 'section' || child.divider) continue
     current.items.push(child)
   }
-
   if (current.items.length > 0) groups.push(current)
   return groups
 }

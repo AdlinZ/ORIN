@@ -12,8 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -101,7 +99,7 @@ public class WorkflowGenerationService {
             Map<String, Object> respMap = (Map<String, Object>) response.get();
             List<Map<String, Object>> choices = (List<Map<String, Object>>) respMap.get("choices");
             if (choices == null || choices.isEmpty()) {
-                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "AI 返回结果格式错误: missing choices");
+                throw new RuntimeException("AI 返回结果格式错误: missing choices");
             }
             String content = (String) ((Map<String, Object>) choices.get(0).get("message")).get("content");
 
@@ -119,14 +117,23 @@ public class WorkflowGenerationService {
 
     }
 
-    private String extractJson(String content) {
-        if (content == null)
+    static String extractJson(String content) {
+        if (content == null) {
             return "{}";
-        Pattern pattern = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)\\s*```");
-        Matcher matcher = pattern.matcher(content);
-        if (matcher.find()) {
-            return matcher.group(1).trim();
         }
+
+        int fenceStart = content.indexOf("```");
+        if (fenceStart >= 0) {
+            int headerEnd = content.indexOf('\n', fenceStart + 3);
+            if (headerEnd >= 0) {
+                String language = content.substring(fenceStart + 3, headerEnd).trim();
+                int fenceEnd = content.indexOf("```", headerEnd + 1);
+                if (fenceEnd >= 0 && (language.isEmpty() || "json".equalsIgnoreCase(language))) {
+                    return content.substring(headerEnd + 1, fenceEnd).trim();
+                }
+            }
+        }
+
         return content.trim();
     }
 }

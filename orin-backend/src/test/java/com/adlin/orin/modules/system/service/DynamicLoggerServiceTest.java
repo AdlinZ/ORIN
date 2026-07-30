@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.system.service;
 
-import com.adlin.orin.common.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,7 +47,7 @@ class DynamicLoggerServiceTest {
         String invalidLevel = "INVALID";
 
         // When & Then
-        assertThrows(BusinessException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
             dynamicLoggerService.setLogLevel(loggerName, invalidLevel);
         });
     }

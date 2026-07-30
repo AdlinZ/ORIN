@@ -3,8 +3,8 @@
     <div class="tab-wrapper-card">
       <OrinPageShell
         v-if="!embedded"
-        :title="selfService ? 'API 中转站' : 'API 密钥'"
-        :description="selfService ? 'API Key 自助：创建和管理你的平台访问密钥，用于调用 ORIN MCP 与开放网关能力' : '管理平台访问密钥、供应商凭据、调用额度与限流策略'"
+        :title="selfService ? 'API Key 自助' : 'API 密钥'"
+        :description="selfService ? '创建和管理你自己的平台访问密钥，用于调用 ORIN MCP 与开放网关能力' : '管理平台访问密钥、供应商凭据、调用额度与限流策略'"
         :domain="selfService ? '个人访问' : '系统控制'"
         icon="Key"
       >
@@ -31,8 +31,8 @@
       <div v-else class="embedded-access-toolbar">
         <div>
           <span class="command-eyebrow">访问凭据</span>
-          <h3>{{ selfService ? 'API 中转站' : 'API Key 与供应商凭据' }}</h3>
-          <p>{{ selfService ? 'API Key 自助：管理你的个人平台访问密钥和调用历史。' : '管理调用方访问密钥、上游供应商凭据和配额状态。' }}</p>
+          <h3>{{ selfService ? 'API Key 自助' : 'API Key 与供应商凭据' }}</h3>
+          <p>{{ selfService ? '管理你的个人平台访问密钥和调用历史。' : '管理调用方访问密钥、上游供应商凭据和配额状态。' }}</p>
         </div>
         <div class="embedded-access-actions">
           <el-button

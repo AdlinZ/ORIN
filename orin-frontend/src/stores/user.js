@@ -17,7 +17,7 @@ const getStoredToken = () => {
  * 管理用户信息、Token和角色权限
  */
 export const useUserStore = defineStore('user', () => {
-    const adminRoles = ['ROLE_ADMIN', 'ADMIN']
+    const adminRoles = ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_PLATFORM_ADMIN', 'ADMIN']
 
     // 状态
     const token = ref(getStoredToken())

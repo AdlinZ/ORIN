@@ -1,15 +1,11 @@
 package com.adlin.orin.modules.task.consumer;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
-import com.adlin.orin.common.trace.TraceContext;
 import com.adlin.orin.modules.task.dto.TaskMessage;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
 import com.adlin.orin.modules.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -72,7 +68,7 @@ public class DeadLetterHandler {
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
 
         if (task.getStatus() != TaskStatus.DEAD) {
-            throw new BusinessException(ErrorCode.TASK_DEAD_LETTER, "Task is not in dead letter status: " + taskId);
+            throw new IllegalStateException("Task is not in dead letter status: " + taskId);
         }
 
         log.info("Replaying task from dead letter: taskId={}", taskId);
@@ -101,15 +97,8 @@ public class DeadLetterHandler {
         task.setNextRetryAt(null);
         taskRepository.save(task);
 
-        // 发送回队列，注入 W3C traceparent（replay 通常在 admin 上下文，
-        // MDC 可能为空，由 TraceContext.buildFromMdc() 自动兜底生成）
-        MessagePostProcessor messagePostProcessor = msg -> {
-            String traceparent = TraceContext.buildFromMdc();
-            msg.getMessageProperties().setHeader(TraceContext.TRACEPARENT_HEADER, traceparent);
-            msg.getMessageProperties().setHeader(TraceContext.TRACE_ID_HEADER, traceparent.substring(3, 35));
-            return msg;
-        };
-        rabbitTemplate.convertAndSend(dlxName, routingKey + ".dlq", taskMessage, messagePostProcessor);
+        // 发送回队列
+        rabbitTemplate.convertAndSend(dlxName, routingKey + ".dlq", taskMessage);
     }
 
     /**

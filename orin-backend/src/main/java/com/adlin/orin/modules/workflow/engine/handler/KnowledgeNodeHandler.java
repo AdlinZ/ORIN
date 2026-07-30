@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.workflow.engine.handler;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.service.KnowledgeManageService;
 import com.adlin.orin.modules.knowledge.service.RetrievalService;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +43,7 @@ public class KnowledgeNodeHandler implements NodeHandler {
         }
 
         if (query == null || query.isBlank() || kbId.isEmpty()) {
-            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Knowledge node requires 'query' and 'dataset_ids'");
+            throw new IllegalArgumentException("Knowledge node requires 'query' and 'dataset_ids'");
         }
 
         log.info("KnowledgeNode executing: query='{}', kbId={}", query, kbId);

@@ -3,11 +3,13 @@ package com.adlin.orin.modules.workflow.dsl;
 import com.adlin.orin.modules.workflow.converter.DifyDslConverter;
 import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.error.YAMLException;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OrinWorkflowDslNormalizerTest {
 
@@ -72,6 +74,14 @@ class OrinWorkflowDslNormalizerTest {
         assertThat(compatibility.get("level")).isEqualTo("PARTIAL");
         assertThat(compatibility.get("publishability")).isEqualTo("BLOCKED");
         assertThat(validator.validateForPublish(normalized)).contains("Workflow has unsupported compatibility nodes");
+    }
+
+    @Test
+    void rejectsUnsafeYamlTypeTags() {
+        String yaml = "!!java.net.URL [\"https://example.com\"]";
+
+        assertThatThrownBy(() -> difyDslConverter.convert(yaml))
+                .isInstanceOf(YAMLException.class);
     }
 
     @Test

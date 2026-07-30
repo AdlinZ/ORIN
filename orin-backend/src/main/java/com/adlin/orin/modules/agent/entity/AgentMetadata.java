@@ -52,21 +52,6 @@ public class AgentMetadata {
      */
     private String viewType;
 
-    /**
-     * F02 R3: 当前激活的 AgentVersion id（FK → agent_versions.id）。
-     * 单一指针替代旧 is_active 标记；NULL 表示尚未冻结过任何版本。
-     */
-    @Column(name = "active_version_id", length = 40)
-    private String activeVersionId;
-
-    /**
-     * F02 R3: 草稿态 SecretReference 持久化列（V95 新增）。
-     * 反序列化为 {@code List<FreezeSecretRefItem>}；freeze 入口读取它并落 agent_version_secret_refs。
-     * NULL / 空数组 = 草稿上无 secret refs（可能合法）。MVP 仅允许 CONTROL_PLANE。
-     */
-    @Column(name = "pending_secret_refs", columnDefinition = "JSON")
-    private String pendingSecretRefs;
-
     private Double temperature;
     private Double topP;
     private Integer maxTokens;
@@ -236,22 +221,6 @@ public class AgentMetadata {
         this.syncTime = syncTime;
     }
 
-    public String getActiveVersionId() {
-        return activeVersionId;
-    }
-
-    public void setActiveVersionId(String activeVersionId) {
-        this.activeVersionId = activeVersionId;
-    }
-
-    public String getPendingSecretRefs() {
-        return pendingSecretRefs;
-    }
-
-    public void setPendingSecretRefs(String pendingSecretRefs) {
-        this.pendingSecretRefs = pendingSecretRefs;
-    }
-
     public static AgentMetadataBuilder builder() {
         return new AgentMetadataBuilder();
     }
@@ -265,8 +234,6 @@ public class AgentMetadata {
         private String modelName;
         private String providerType;
         private String viewType;
-        private String activeVersionId;
-        private String pendingSecretRefs;
         private Long ownerUserId;
         private boolean mcpExposed;
         private Double temperature;
@@ -314,16 +281,6 @@ public class AgentMetadata {
 
         public AgentMetadataBuilder viewType(String viewType) {
             this.viewType = viewType;
-            return this;
-        }
-
-        public AgentMetadataBuilder activeVersionId(String activeVersionId) {
-            this.activeVersionId = activeVersionId;
-            return this;
-        }
-
-        public AgentMetadataBuilder pendingSecretRefs(String pendingSecretRefs) {
-            this.pendingSecretRefs = pendingSecretRefs;
             return this;
         }
 
@@ -384,8 +341,6 @@ public class AgentMetadata {
             metadata.setSystemPrompt(systemPrompt);
             metadata.setParameters(parameters);
             metadata.setToolCallingOverride(toolCallingOverride);
-            metadata.setActiveVersionId(activeVersionId);
-            metadata.setPendingSecretRefs(pendingSecretRefs);
             return metadata;
         }
     }

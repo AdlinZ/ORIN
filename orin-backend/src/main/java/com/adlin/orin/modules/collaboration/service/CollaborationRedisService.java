@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.collaboration.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,7 +64,7 @@ public class CollaborationRedisService {
             log.debug("Saved context for package: {}", packageId);
         } catch (JsonProcessingException e) {
             log.error("Failed to save context for package: {}", packageId, e);
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to save context", e);
+            throw new RuntimeException("Failed to save context", e);
         }
     }
 
@@ -200,7 +198,7 @@ public class CollaborationRedisService {
         try {
             resultJson = objectMapper.writeValueAsString(result);
         } catch (JsonProcessingException e) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to serialize branch result", e);
+            throw new RuntimeException("Failed to serialize branch result", e);
         }
 
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
@@ -269,7 +267,7 @@ public class CollaborationRedisService {
             log.debug("Saved checkpoint: packageId={}, checkpointId={}", packageId, checkpointId);
         } catch (JsonProcessingException e) {
             log.error("Failed to save checkpoint: {}", checkpointId, e);
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to save checkpoint", e);
+            throw new RuntimeException("Failed to save checkpoint", e);
         }
     }
 

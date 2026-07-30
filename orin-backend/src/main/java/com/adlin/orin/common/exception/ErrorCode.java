@@ -37,20 +37,6 @@ public enum ErrorCode {
     AGENT_ONBOARD_FAILED("30004", "智能体接入失败"),
     AGENT_PROVIDER_UNSUPPORTED("30005", "不支持的智能体提供商"),
 
-    // ===== F02 创建并冻结 Agent (ADR-002 v4.1) =====
-    // 30006..30016 占用；HTTP status 由 GlobalExceptionHandler#determineHttpStatus 维护。
-    AGENT_VERSION_FROZEN("30006", "AgentVersion 已冻结,不可变更"),
-    AGENT_VERSION_DELETE_FORBIDDEN("30007", "AgentVersion 不可删除,使用 deprecate"),
-    AGENT_VERSION_NOT_FOUND("30008", "AgentVersion 未找到"),
-    RUN_VERSION_RETIRED("30009", "目标 AgentVersion 已退役"),
-    IDEMPOTENCY_KEY_CONFLICT("30010", "Idempotency-Key 与历史请求不一致"),
-    SNAPSHOT_SCHEMA_INCOMPATIBLE("30011", "快照 schema 与实现不兼容"),
-    SNAPSHOT_CANONICALIZE_FAILED("30012", "快照规范化失败"),
-    SECRET_REFERENCE_NOT_FOUND("30013", "引用的 Secret 不存在或不可用"),
-    RUNNER_LOCAL_SECRET_MISSING("30014", "MVP 不支持 RUNNER_LOCAL 引用"),
-    MISSING_IDEMPOTENCY_KEY("30015", "freeze 请求必须带 Idempotency-Key"),
-    AGENT_DRAFT_INVALID("30016", "草稿校验失败"),
-
     // ============================================
     // Knowledge相关错误 (4xxxx)
     // ============================================
@@ -85,17 +71,6 @@ public enum ErrorCode {
     AUTH_API_KEY_INVALID("70005", "API密钥无效"),
 
     // ============================================
-    // Runner 鉴权 / 接入 (F01 接入并监控服务器)
-    // ============================================
-    // 错误码语义遵循 ADR-001 §D-1.7：401 与 403 必须区分"凭据无效"和"凭据有效但 Runner 已被撤销"。
-    RUNNER_CREDENTIAL_INVALID("70006", "Runner Credential 无效"),
-    RUNNER_REVOKED("70007", "Runner 凭据已被撤销"),
-    RUNNER_OFFLINE("70008", "Runner 当前不接收新请求"),
-    RUNNER_NOT_ENROLLED("70009", "Runner 未完成接入"),
-    ENROLLMENT_TOKEN_INVALID("70010", "Enrollment Token 无效或已使用"),
-    ENROLLMENT_TOKEN_EXPIRED("70011", "Enrollment Token 已过期"),
-
-    // ============================================
     // External Service错误 (8xxxx)
     // ============================================
     DIFY_API_ERROR("80001", "Dify API调用失败"),
@@ -110,41 +85,7 @@ public enum ErrorCode {
     VALIDATION_ERROR("90001", "数据验证失败"),
     VALIDATION_REQUIRED_FIELD("90002", "必填字段缺失"),
     VALIDATION_INVALID_FORMAT("90003", "格式不正确"),
-    VALIDATION_OUT_OF_RANGE("90004", "数值超出范围"),
-
-    // ============================================
-    // 限流 / 配额 (10xxxx)
-    // ============================================
-    // 区别于 10005 TOO_MANY_REQUESTS (通用入口限流), 这里是细分的限流语义
-    RATE_LIMIT_EXCEEDED("100001", "请求频率超限"),
-    API_KEY_QUOTA_EXCEEDED("100002", "API Key 配额超限"),
-    API_KEY_RATE_LIMITED("100003", "API Key 调用频率超限"),
-    CONCURRENCY_LIMIT_EXCEEDED("100004", "并发数超限"),
-
-    // ============================================
-    // 任务 / 队列 (11xxxx)
-    // ============================================
-    TASK_NOT_FOUND("110001", "任务未找到"),
-    TASK_EXECUTION_FAILED("110002", "任务执行失败"),
-    TASK_TIMEOUT("110003", "任务执行超时"),
-    TASK_DEAD_LETTER("110004", "任务进入死信队列"),
-    TASK_CANCELLED("110005", "任务已取消"),
-    TASK_RETRY_EXHAUSTED("110006", "任务重试次数耗尽"),
-
-    // ============================================
-    // 协作 / 子任务 (12xxxx)
-    // ============================================
-    COLLABORATION_NOT_FOUND("120001", "协作包未找到"),
-    COLLABORATION_PACKAGE_DECOMPOSE_FAILED("120002", "协作包分解失败"),
-    COLLABORATION_PACKAGE_INVALID_STATE("120003", "协作包状态非法"),
-    SUBTASK_NOT_FOUND("120004", "子任务未找到"),
-    SUBTASK_EXECUTION_FAILED("120005", "子任务执行失败"),
-    SUBTASK_INVALID_TRANSITION("120006", "子任务状态流转非法"),
-
-    // ============================================
-    // 服务可用性 (13xxxx) - Gateway MVP 专用
-    // ============================================
-    SERVICE_UNAVAILABLE("130001", "服务暂不可用");
+    VALIDATION_OUT_OF_RANGE("90004", "数值超出范围");
 
     /**
      * 错误代码

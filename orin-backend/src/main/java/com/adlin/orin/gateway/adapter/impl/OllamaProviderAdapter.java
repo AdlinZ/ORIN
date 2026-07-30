@@ -1,7 +1,5 @@
 package com.adlin.orin.gateway.adapter.impl;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
@@ -104,7 +102,7 @@ public class OllamaProviderAdapter implements ProviderAdapter {
                     ChatCompletionResponse.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "Ollama API call failed: " + response.getStatusCode());
+                throw new RuntimeException("Ollama API call failed: " + response.getStatusCode());
             }
 
             ChatCompletionResponse res = response.getBody();
@@ -148,7 +146,7 @@ public class OllamaProviderAdapter implements ProviderAdapter {
                     EmbeddingResponse.class);
 
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "Ollama embedding call failed: " + response.getStatusCode());
+                throw new RuntimeException("Ollama embedding call failed: " + response.getStatusCode());
             }
 
             return response.getBody();
