@@ -76,9 +76,10 @@ export function createEdge(source, target) {
 }
 
 export function normalizeWorkflowDsl(definition = {}) {
-  const graph = definition.graph || {
-    nodes: definition.nodes || [],
-    edges: definition.edges || []
+  const sourceDefinition = definition.workflow || definition
+  const graph = sourceDefinition.graph || {
+    nodes: sourceDefinition.nodes || [],
+    edges: sourceDefinition.edges || []
   }
   const nodes = Array.isArray(graph.nodes) ? graph.nodes.map((node, index) => ({
     id: String(node.id || `${node.type || 'node'}-${index + 1}`),
@@ -106,13 +107,13 @@ export function normalizeWorkflowDsl(definition = {}) {
     version: ORIN_WORKFLOW_VERSION,
     kind: 'workflow',
     metadata: {
-      ...(definition.metadata || {}),
-      source: definition.metadata?.source || 'ORIN'
+      ...(sourceDefinition.metadata || {}),
+      source: sourceDefinition.metadata?.source || definition.metadata?.source || 'ORIN'
     },
     graph: { nodes, edges },
-    inputs: Array.isArray(definition.inputs) ? definition.inputs : [],
-    outputs: Array.isArray(definition.outputs) ? definition.outputs : [],
-    variables: Array.isArray(definition.variables) ? definition.variables : []
+    inputs: Array.isArray(sourceDefinition.inputs) ? sourceDefinition.inputs : [],
+    outputs: Array.isArray(sourceDefinition.outputs) ? sourceDefinition.outputs : [],
+    variables: Array.isArray(sourceDefinition.variables) ? sourceDefinition.variables : []
   }
   normalized.metadata.compatibility = buildCompatibilityReport(normalized)
   return normalized

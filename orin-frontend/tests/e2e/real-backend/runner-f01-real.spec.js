@@ -15,6 +15,12 @@ function docker(...args) {
 }
 
 async function waitForRunnerStatus(page, runnerName, expectedStatus, timeoutMs) {
+  const visibleStatus = {
+    ONLINE: '可运行',
+    OFFLINE: '离线',
+    DRAINING: '暂停接单',
+    REVOKED: '已撤销',
+  }[expectedStatus] || expectedStatus
   await expect.poll(async () => {
     await page.goto('/workspace/runners')
     const row = page.getByRole('row').filter({ hasText: runnerName }).first()
@@ -25,7 +31,7 @@ async function waitForRunnerStatus(page, runnerName, expectedStatus, timeoutMs) 
       .then(() => true)
       .catch(() => false)
     if (!rowVisible) return 'MISSING'
-    return (await row.innerText()).includes(expectedStatus) ? expectedStatus : 'OTHER'
+    return (await row.innerText()).includes(visibleStatus) ? expectedStatus : 'OTHER'
   }, { timeout: timeoutMs, intervals: [1_000, 2_000, 3_000] }).toBe(expectedStatus)
 }
 
@@ -112,8 +118,8 @@ test.describe('F01 real browser + Docker Runner E2E', () => {
       }
 
       await page.goto('/workspace/runners')
-      await page.getByRole('button', { name: '接入服务器' }).click()
-      await page.getByPlaceholder('如 prod-web-1').fill(runnerName)
+      await page.getByRole('button', { name: '接入 Runner' }).click()
+      await page.getByPlaceholder('例如：本地开发机').fill(runnerName)
       await page.getByRole('button', { name: '生成接入命令' }).click()
       const command = await page.locator('.command-text').innerText()
       expect(command).toContain('orin-runner enroll')
@@ -134,24 +140,27 @@ test.describe('F01 real browser + Docker Runner E2E', () => {
         'enroll', '--name', runnerName, '--url', RUNNER_BASE_URL,
       )
 
-      await page.getByRole('button', { name: '完成，刷新列表' }).click()
+      await page.getByRole('button', { name: '已启动，检查连接' }).click()
+      await expect(page.getByRole('dialog').getByText('Runner 已上线'))
+        .toBeVisible({ timeout: ONLINE_TIMEOUT_MS })
+      await page.getByRole('button', { name: '留在此页' }).click()
       await waitForRunnerStatus(page, runnerName, 'ONLINE', ONLINE_TIMEOUT_MS)
 
       const runnerRow = page.getByRole('row').filter({ hasText: runnerName }).first()
       await runnerRow.click()
       await page.waitForURL(/\/workspace\/runners\/run_/)
       const runnerDetail = page.locator('.runner-detail-page')
-      await expect(runnerDetail.getByText('ONLINE', { exact: true })).toBeVisible()
-      await runnerDetail.getByRole('button', { name: 'Drain' }).click()
+      await expect(runnerDetail.getByText('可运行', { exact: true })).toBeVisible()
+      await runnerDetail.getByRole('button', { name: '暂停接收新任务' }).click()
       let drainResponse
       try {
-        const drainDialog = page.getByRole('dialog', { name: '确认 Drain' })
+        const drainDialog = page.getByRole('dialog', { name: '暂停接收新任务' })
         await expect(drainDialog).toBeVisible()
         ;[drainResponse] = await Promise.all([
           page.waitForResponse((response) =>
             response.url().includes('/drain') && response.request().method() === 'POST',
           { timeout: 15_000 }),
-          drainDialog.getByRole('button', { name: '确认 Drain' }).click(),
+          drainDialog.getByRole('button', { name: '确认暂停' }).click(),
         ])
       } catch {
         throw new Error(
@@ -163,19 +172,19 @@ test.describe('F01 real browser + Docker Runner E2E', () => {
         const payload = await drainResponse.json().catch(() => ({}))
         throw new Error(`Drain failed: HTTP ${drainResponse.status()} code=${payload.code || 'unknown'}`)
       }
-      await expect(runnerDetail.getByText('DRAINING', { exact: true })).toBeVisible()
+      await expect(runnerDetail.getByText('暂停接单', { exact: true })).toBeVisible()
 
       const [restoreResponse] = await Promise.all([
         page.waitForResponse((response) =>
           response.url().includes('/restore') && response.request().method() === 'POST'
         ),
-        runnerDetail.getByRole('button', { name: '恢复' }).click(),
+        runnerDetail.getByRole('button', { name: '恢复接单' }).click(),
       ])
       if (!restoreResponse.ok()) {
         const payload = await restoreResponse.json().catch(() => ({}))
         throw new Error(`Restore failed: HTTP ${restoreResponse.status()} code=${payload.code || 'unknown'}`)
       }
-      await expect(runnerDetail.getByText('ONLINE', { exact: true })).toBeVisible()
+      await expect(runnerDetail.getByText('可运行', { exact: true })).toBeVisible()
 
       docker('rm', '-f', containerName)
       await waitForRunnerStatus(page, runnerName, 'OFFLINE', OFFLINE_TIMEOUT_MS)
@@ -187,7 +196,7 @@ test.describe('F01 real browser + Docker Runner E2E', () => {
       await resumedRow.click()
       await page.waitForURL(/\/workspace\/runners\/run_/)
       const resumedDetail = page.locator('.runner-detail-page')
-      await resumedDetail.getByRole('button', { name: 'Revoke' }).click()
+      await resumedDetail.getByRole('button', { name: '永久撤销接入' }).click()
       const [revokeResponse] = await Promise.all([
         page.waitForResponse((response) =>
           response.url().includes('/revoke') && response.request().method() === 'POST'
@@ -198,7 +207,7 @@ test.describe('F01 real browser + Docker Runner E2E', () => {
         const payload = await revokeResponse.json().catch(() => ({}))
         throw new Error(`Revoke failed: HTTP ${revokeResponse.status()} code=${payload.code || 'unknown'}`)
       }
-      await expect(page.getByText('REVOKED', { exact: true })).toBeVisible()
+      await expect(page.getByText('已撤销', { exact: true })).toBeVisible()
 
       await expect.poll(() => {
         try {

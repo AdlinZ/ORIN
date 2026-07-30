@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from "vue"
 import {
   Activity,
   ArrowRight,
-  BrainCircuit,
   ChevronRight,
   GitBranch,
   Settings2,

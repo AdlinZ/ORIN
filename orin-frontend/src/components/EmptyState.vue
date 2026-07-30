@@ -20,8 +20,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-
 interface Props {
   icon?: any;
   title?: string;
@@ -30,7 +28,7 @@ interface Props {
   circle?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   icon: 'FolderOpened',
   iconSize: 64,
   circle: false

@@ -167,7 +167,7 @@
 <script setup>
 import { ref, computed, onUnmounted, watch } from 'vue';
 import {
-  VideoCamera, Loading, Download, Share, MagicStick,
+  VideoCamera, Download, Share, MagicStick,
   Plus, Close, Refresh, Operation
 } from '@element-plus/icons-vue';
 import { useAgentInteraction } from '../composables/useAgentInteraction';
@@ -187,7 +187,7 @@ const referenceFileId = ref('');
 const statusTip = ref('正在链接服务器...');
 const tipTimer = ref(null);
 
-const { isProcessing, result, dataType, error, interact } = useAgentInteraction(props.agentId);
+const { isProcessing, result, error, interact } = useAgentInteraction(props.agentId);
 
 // 视频自动保存状态
 const isSavingVideo = ref(false);

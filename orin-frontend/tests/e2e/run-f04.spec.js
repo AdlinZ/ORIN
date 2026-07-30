@@ -54,7 +54,7 @@ const RUN_FAILED = {
   output: null
 }
 
-test('F04 用户旅程：Run 列表筛选 → 详情(状态步骤条+事件时间线+日志+Cancel/Retry+Trace链接)', async ({ page }) => {
+test('F04 用户旅程：运行列表 → 结果优先详情 → 按需展开诊断 → 取消运行', async ({ page }) => {
   let cancelCalled = false
   const CANCELLED_RUN = {
     ...RUN_RUNNING,
@@ -114,6 +114,9 @@ test('F04 用户旅程：Run 列表筛选 → 详情(状态步骤条+事件时�
         leaseExpiresAt: Date.now() + 30000, createdAt: Date.now() - 60000
       }]))
     }
+    if (path.includes('/events') || path.includes('/assignments')) {
+      return route.fulfill(json([]))
+    }
 
     // ---- Logs ----
     if (path.includes('/logs')) {
@@ -126,44 +129,54 @@ test('F04 用户旅程：Run 列表筛选 → 详情(状态步骤条+事件时�
       return route.fulfill(json({ ...RUN_RUNNING, status: 'CANCELLED', terminalReason: 'USER_CANCELLED' }))
     }
 
-    return route.continue()
+    return route.fulfill(json({}))
   })
 
   // ---- List page ----
-  await page.goto('/workspace/runs')
-  await page.waitForSelector('text=Runs', { timeout: 10000 })
+  await page.goto('/workspace/runs', { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('text=运行中心', { timeout: 10000 })
 
-  // verify list renders with status tags
-  await expect(page.locator('text=COMPLETED').first()).toBeVisible()
-  await expect(page.locator('text=RUNNING').first()).toBeVisible()
-  await expect(page.locator('text=FAILED').first()).toBeVisible()
+  // The entry page groups raw runtime states by the user's next action.
+  await expect(page.getByRole('button', { name: /当前记录/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /进行中/ })).toContainText('1')
+  await expect(page.getByRole('button', { name: /已产出结果/ })).toContainText('1')
+  await expect(page.getByRole('button', { name: /需要处理/ })).toContainText('1')
+  await expect(page.getByText('已完成', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('运行中', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('失败', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '执行节点' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Agent / 版本' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Agent', exact: true })).toBeVisible()
+  await expect(page.getByText('run_f04_abc', { exact: true })).toHaveCount(0)
+
+  await page.getByRole('button', { name: /需要处理/ }).click()
+  await expect(page.getByRole('row').filter({ hasText: 'hello f04 e2e' })).toHaveCount(1)
+  await expect(page.getByRole('row').filter({ hasText: 'Execution error: boom' })).toContainText('处理失败')
 
   // ---- Detail page (COMPLETED run) — navigate directly ----
   await page.goto('/workspace/runs/run_f04_abc')
   // wait for the page to render run data
-  await page.waitForSelector('text=run_f04_abc', { timeout: 10000 })
+  await page.waitForSelector('text=运行结果', { timeout: 10000 })
 
-  // verify status stepper shows COMPLETED
+  // result is primary; diagnostics stay collapsed until requested
+  await expect(page.getByText('task output', { exact: true })).toBeVisible()
+  await expect(page.getByText('Run finished: run_f04_abc')).toBeHidden()
+
+  await page.getByRole('button', { name: /执行过程/ }).click()
   await expect(page.locator('.el-steps').first()).toBeVisible({ timeout: 5000 })
-  await expect(page.locator('text=COMPLETED').first()).toBeVisible()
-
-  // verify basic info
-  await expect(page.locator('text=trace-f04-e2e-aaa')).toBeVisible()
-
-  // verify event timeline has 6 events
   await expect(page.locator('text=Run finished: run_f04_abc')).toBeVisible({ timeout: 5000 })
   await expect(page.locator('text=Config snapshot loaded')).toBeVisible({ timeout: 5000 })
 
-  // verify Trace link exists (href may be hash-based)
+  await page.getByRole('button', { name: /技术信息/ }).click()
   await expect(page.locator('text=trace-f04-e2e-aaa')).toBeVisible({ timeout: 5000 })
 
   // ---- Detail page (RUNNING run) → Cancel ----
   await page.goto('/workspace/runs/run_f04_running')
-  await page.waitForSelector('text=run_f04_running', { timeout: 10000 })
-  await page.getByRole('button', { name: '取消 Run' }).click()
-  await page.getByRole('button', { name: '确定' }).click()
+  await page.waitForSelector('text=运行结果', { timeout: 10000 })
+  await page.getByRole('button', { name: '取消运行' }).click()
+  await page.getByRole('dialog', { name: '确认取消' }).getByRole('button', { name: '取消运行' }).click()
   await expect.poll(() => cancelCalled).toBe(true)
-  await expect(page.getByText('CANCELLED', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('已取消', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('用户主动取消')).toBeVisible()
 })
 
@@ -210,16 +223,106 @@ test('F04 Retry 会从详情页提交创建新 Run 的请求', async ({ page }) 
       return route.fulfill(json(RETRIED_RUN))
     }
 
-    return route.continue()
+    return route.fulfill(json({}))
   })
 
   // Navigate to FAILED run detail
   await page.goto('/workspace/runs/run_f04_failed')
-  await page.waitForSelector('text=run_f04_failed', { timeout: 10000 })
+  await page.waitForSelector('text=运行结果', { timeout: 10000 })
 
-  await page.getByRole('button', { name: '重试 Run' }).click()
+  await expect(page.getByText('执行过程中出错')).toBeVisible()
+  await page.getByRole('button', { name: '重新运行' }).click()
   await expect.poll(() => retryCalled).toBe(true)
+  await page.waitForURL('**/workspace/runs/run_f04_retried')
+  await expect(page.getByText('排队中', { exact: true }).first()).toBeVisible()
+})
 
-  // Verify terminal reason shows Chinese explanation
-  await expect(page.locator('text=执行过程中出错')).toBeVisible()
+test('从版本历史开始运行时保留指定版本、默认在线 Runner，并进入结果页', async ({ page }) => {
+  let createPayload = null
+
+  await authenticate(page)
+  await page.route('**/api/v1/**', async (route) => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    const method = request.method()
+
+    if (path === '/api/v1/setup/status') {
+      return route.fulfill(json({ completed: true, canInitialize: false }))
+    }
+    if (path === '/api/v1/agents' && method === 'GET') {
+      return route.fulfill(json([{
+        agentId: 'agent-task',
+        name: '任务助手',
+        description: '把输入整理成可执行结论',
+        activeVersionStatus: 'FROZEN',
+        activeVersionId: 'version-2',
+        activeVersionNumber: 2,
+      }]))
+    }
+    if (path === '/api/v1/agents/agent-task/versions' && method === 'GET') {
+      return route.fulfill(json([
+        { id: 'version-1', versionNumber: 1, status: 'FROZEN', changeDescription: '初始版本' },
+        { id: 'version-2', versionNumber: 2, status: 'FROZEN', changeDescription: '当前稳定版本' },
+      ]))
+    }
+    if (path === '/api/v1/runners' && method === 'GET') {
+      return route.fulfill(json({
+        content: [{
+          id: 'runner-online',
+          name: '本地执行节点',
+          hostname: 'runner.local',
+          status: 'ONLINE',
+        }],
+      }))
+    }
+    if (path === '/api/v1/runs' && method === 'GET') {
+      return route.fulfill(json({ content: [], totalElements: 0 }))
+    }
+    if (path === '/api/v1/runs' && method === 'POST') {
+      createPayload = request.postDataJSON()
+      return route.fulfill(json({
+        id: 'run-created',
+        status: 'QUEUED',
+        ...createPayload,
+      }))
+    }
+    if (path === '/api/v1/runs/run-created') {
+      return route.fulfill(json({
+        id: 'run-created',
+        status: 'QUEUED',
+        input: createPayload?.input,
+        retryCount: 0,
+        maxRetries: 3,
+        ...createPayload,
+      }))
+    }
+    if (path.includes('/events') || path.includes('/logs') || path.includes('/assignments')) {
+      return route.fulfill(json([]))
+    }
+    return route.fulfill(json({}))
+  })
+
+  await page.goto(
+    '/workspace/runs?create=1&agentId=agent-task&versionId=version-1',
+    { waitUntil: 'domcontentloaded' }
+  )
+
+  const dialog = page.getByRole('dialog', { name: '开始运行' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('.selection-summary strong')).toHaveText('任务助手')
+  await expect(dialog.getByText('运行环境已就绪', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('系统已自动选择，按需调整', { exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '开始运行' })).toBeDisabled()
+  await dialog.getByPlaceholder('例如：总结这段材料，并列出三个需要继续确认的问题')
+    .fill('整理本周风险，并给出下一步')
+  await dialog.getByRole('button', { name: '开始运行' }).click()
+
+  await expect.poll(() => createPayload).toMatchObject({
+    agentId: 'agent-task',
+    agentVersionId: 'version-1',
+    runnerId: 'runner-online',
+    input: '整理本周风险，并给出下一步',
+  })
+  await page.waitForURL('**/workspace/runs/run-created')
+  await expect(page.getByText('整理本周风险，并给出下一步', { exact: true })).toBeVisible()
 })

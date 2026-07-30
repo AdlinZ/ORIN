@@ -123,3 +123,18 @@ e6b3c98980e0678d9d61813a5967ccbcf8ac0870:orin-backend/src/test/java/com/adlin/or
 c1553bd51e60960ff85227b1e3400d23f848c6f0:orin-backend/src/test/java/com/adlin/orin/modules/agent/freeze/AgentFreezePermissionIntegrationTest.java:generic-api-key:125
 e9d6ea4a90b998628f43d8a0e540f5394a78d812:orin-backend/src/test/java/com/adlin/orin/modules/runner/service/RunnerServiceTest.java:generic-api-key:38
 e777b8dc2d350f60d8265ab550af6bf38985d189:orin-backend/src/test/java/com/adlin/orin/modules/runner/service/RunnerServiceTest.java:generic-api-key:42
+
+# === Historical documentation and fixture false positives (reviewed 2026-07-27) ===
+# These entries are placeholders, curl header examples, or deterministic test
+# identifiers. They are not deployable credentials; the associated commits
+# were reviewed with gitleaks redaction enabled before allowlisting.
+7a194d8e96032ffa52f2edf05a32da4ca7d63bcb:orin-backend/src/test/java/com/adlin/orin/modules/agent/freeze/AgentFreezePermissionIntegrationTest.java:generic-api-key:125
+7a194d8e96032ffa52f2edf05a32da4ca7d63bcb:orin-backend/src/test/java/com/adlin/orin/modules/runner/service/RunnerServiceTest.java:generic-api-key:42
+66b59cc97b8c4cc187e6f28b3d61f3936756e469:docs/API文档.md:generic-api-key:100
+1b56efcfbaae95e962df67fdef3daba2114ff24e:docs/部署指南.md:curl-auth-header:566
+1b56efcfbaae95e962df67fdef3daba2114ff24e:docs/部署指南.md:curl-auth-header:571
+1b56efcfbaae95e962df67fdef3daba2114ff24e:orin-frontend/src/views/System/UnifiedGateway.vue:curl-auth-header:607
+b2526b13b115614566c9014d55270a9a961eba19:scripts/gateway-smoke.sh:generic-api-key:40
+e14a2b22f78566e33cbc2c5709bbb71540ac7087:docs/手册-用户.md:curl-auth-header:117
+e14a2b22f78566e33cbc2c5709bbb71540ac7087:docs/手册-开发者.md:curl-auth-header:169
+e63571d4b0461a9ac5e1165212c5bd37488563d9:orin-backend/src/test/java/com/adlin/orin/modules/setup/service/SetupStatusServiceTest.java:generic-api-key:32

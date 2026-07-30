@@ -75,9 +75,8 @@ related:
 | --- | --- | --- | --- |
 | [ADR-001](./001-runner-dispatch-and-lease.md) | Runner dispatch、lease 与现有 RabbitMQ/mq_worker 的关系 | Accepted | 2026-07-19 |
 | [ADR-002](./002-agent-version-immutability-and-secret-reference.md) | AgentVersion 不可变规则与 SecretReference | Accepted | 2026-07-19 |
+| [ADR-003](./003-endpoint-response-contract.md) | Endpoint 同步 / 流式 / 异步响应契约 | Accepted | 2026-07-25 |
 
 ## 队列中的 ADR
 
-下列 ADR 在 [TODO.md](../../TODO.md) P0 中挂名；ADR-001 / ADR-002 已 Accepted，ADR-003 可独立领取：
-
-- ADR-003 · Endpoint 同步 / 流式 / 异步响应契约
+下列 ADR 在 [TODO.md](../../TODO.md) P0 中挂名；ADR-001 / ADR-002 / ADR-003 已 Accepted。

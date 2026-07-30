@@ -16,7 +16,6 @@ import com.adlin.orin.modules.endpoint.entity.AgentEndpoint;
 import com.adlin.orin.modules.endpoint.entity.EndpointStatus;
 import com.adlin.orin.modules.endpoint.entity.EndpointType;
 import com.adlin.orin.modules.endpoint.repository.AgentEndpointRepository;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -249,8 +248,7 @@ public class EndpointService {
             return new LinkedHashMap<>();
         }
         try {
-            return objectMapper.readValue(configJson,
-                    new TypeReference<LinkedHashMap<String, Object>>() {});
+            return EndpointConfigParser.parse(objectMapper, configJson);
         } catch (Exception e) {
             return new LinkedHashMap<>();
         }

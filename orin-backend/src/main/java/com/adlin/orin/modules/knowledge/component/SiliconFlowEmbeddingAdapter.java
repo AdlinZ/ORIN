@@ -36,7 +36,7 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
     private final GatewaySecretService gatewaySecretService;
     private final ModelConfigService modelConfigService;
 
-    @Value("${siliconflow.api.key:sk-placeholder}")
+    @Value("${siliconflow.api.key:}")
     private String configApiKey;
 
     @Value("${siliconflow.api.base-url:https://api.siliconflow.cn/v1}")
@@ -165,9 +165,9 @@ public class SiliconFlowEmbeddingAdapter implements EmbeddingService {
         // 4. Fallback 到配置文件
         if (effectiveApiKey == null || effectiveApiKey.isEmpty() || "sk-placeholder".equals(effectiveApiKey)) {
             effectiveApiKey = configApiKey;
-            log.warn(
-                    "SiliconFlowEmbeddingAdapter: no DB key found, using application.properties key. effectiveKey starts with: {}",
-                    effectiveApiKey.substring(0, Math.min(10, effectiveApiKey.length())));
+            // Never log an API key or a derived prefix.  Prefixes are still
+            // credential material and can be correlated with other logs.
+            log.warn("SiliconFlowEmbeddingAdapter: no DB key found; using configured credential fallback");
         }
 
         log.info("SiliconFlowEmbeddingAdapter initialized: model={}, baseUrl={}", modelName, baseUrl);

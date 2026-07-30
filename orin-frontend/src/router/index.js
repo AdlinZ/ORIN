@@ -253,8 +253,14 @@ const routes = [
                     {
                         path: 'models',
                         name: 'ApplicationModels',
+                        component: () => import('@/views/workspace/models/ModelCatalogPage.vue'),
+                        meta: { title: '模型', icon: 'Cpu', roles: ADMIN_ROUTE_ROLES }
+                    },
+                    {
+                        path: 'models/advanced',
+                        name: 'ApplicationModelsAdvanced',
                         component: () => import('@/views/ModelConfig/ModelList.vue'),
-                        meta: { title: '模型管理', icon: 'Cpu', roles: ADMIN_ROUTE_ROLES }
+                        meta: { title: '模型高级管理', hidden: true, roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'models/add',
@@ -281,6 +287,12 @@ const routes = [
                         name: 'ApplicationMcp',
                         redirect: ROUTES.MCP.SERVERS,
                         meta: { title: 'MCP 管理', icon: 'Connection', hidden: true }
+                    },
+                    {
+                        path: 'mcp-tools',
+                        name: 'ApplicationMcpTools',
+                        component: () => import('@/views/workspace/mcp/McpToolCatalogPage.vue'),
+                        meta: { title: 'MCP 工具', icon: 'SetUp', roles: ADMIN_ROUTE_ROLES }
                     },
                     {
                         path: 'extensions',
@@ -322,8 +334,14 @@ const routes = [
                     {
                         path: 'workflows',
                         name: 'ApplicationWorkflows',
+                        component: () => import('@/views/workspace/workflows/WorkflowCatalogPage.vue'),
+                        meta: { title: '工作流', icon: 'Connection' }
+                    },
+                    {
+                        path: 'workflows/advanced',
+                        name: 'ApplicationWorkflowsAdvanced',
                         component: () => import('@/views/Workflow/WorkflowList.vue'),
-                        meta: { title: '工作流中心', icon: 'Connection' }
+                        meta: { title: '工作流高级管理', hidden: true }
                     },
                     {
                         path: 'workflows/:id',
@@ -505,8 +523,8 @@ const routes = [
                     {
                         path: 'center',
                         name: 'ResourcesKnowledgeCenter',
-                        redirect: '/dashboard/resources/retrieval',
-                        meta: { title: '知识检索', icon: 'Reading' }
+                        component: () => import('@/views/workspace/knowledge/KnowledgeLibraryPage.vue'),
+                        meta: { title: '知识库', icon: 'Reading' }
                     },
                     {
                         path: 'assets',
@@ -637,7 +655,15 @@ const routes = [
                         path: 'audit-logs',
                         name: 'ControlAuditLogs',
                         component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
-                        meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
+                        props: { mode: 'logs', showHeaderActions: true },
+                        meta: { title: '审计记录', icon: 'List', roles: ADMIN_ROUTE_ROLES }
+                    },
+                    {
+                        path: 'audit-settings',
+                        name: 'ControlAuditSettings',
+                        component: () => import('@/views/revamp/system/AuditCenterV2.vue'),
+                        props: { mode: 'all', initialTab: 'config' },
+                        meta: { title: '高级审计设置', icon: 'Tools', roles: ADMIN_ROUTE_ROLES }
                     },
 
                     // API 密钥管理
@@ -772,12 +798,20 @@ const routes = [
         ]
     },
 
-    // ==================== F02 Workspace vNext 入口（Agents / Runners / Runs / Endpoints 四一级） ====================
+    // ==================== 核心产品工作区（构建 / 运行 / 发布） ====================
     {
         path: '/workspace',
         component: MainLayout,
-        redirect: () => ROUTES.WORKSPACE.AGENTS,
+        redirect: () => ROUTES.WORKSPACE.OVERVIEW,
+        meta: { roles: DASHBOARD_ROUTE_ROLES },
         children: [
+            {
+                path: 'overview',
+                name: 'WorkspaceOverview',
+                component: () => import('@/views/workspace/overview/ProductOverviewPage.vue'),
+                meta: { title: '产品概览', icon: 'HomeFilled' }
+            },
+
             // ---- Agents (F02) ----
             {
                 path: 'agents',
@@ -836,7 +870,7 @@ const routes = [
             {
                 path: 'runs/:runId',
                 name: 'WorkspaceRunDetail',
-                component: () => import('@/views/workspace/runs/RunListPage.vue'),
+                component: () => import('@/views/workspace/runs/RunDetailPage.vue'),
                 meta: { title: 'Run 详情', hidden: true }
             },
 
@@ -917,7 +951,10 @@ Object.entries(LEGACY_ROUTE_REDIRECTS).forEach(([oldPath, newPath]) => {
 // ==================== 创建路由实例 ====================
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
-    routes
+    routes,
+    scrollBehavior(_to, _from, savedPosition) {
+        return savedPosition || { top: 0, left: 0 }
+    }
 })
 
 // ==================== 路由守卫 ====================
@@ -950,7 +987,10 @@ router.beforeEach(async (to, from, next) => {
 
     if (authRequired && !token) {
         ElMessage.warning('请先登录')
-        return next('/login')
+        return next({
+            path: ROUTES.LOGIN,
+            query: { redirect: to.fullPath || to.path }
+        })
     }
 
     const userStore = useUserStore()

@@ -536,7 +536,7 @@ const buildChartScale = (series, { preferZeroBaseline = false } = {}) => {
 
   const rawRange = rawMax - rawMin
   let min = rawMin - rawRange * 0.12
-  let max = rawMax + rawRange * 0.18
+  const max = rawMax + rawRange * 0.18
 
   if (preferZeroBaseline && rawMin >= 0 && rawMin / rawMax < 0.35) {
     min = 0
@@ -623,11 +623,6 @@ const preferredBusinessNodeId = computed(() => {
   return null
 })
 const totalNodesCount = computed(() => (Array.isArray(serverNodes.value) ? serverNodes.value.length : 0))
-const activeNodesCount = computed(() => {
-  if (!Array.isArray(serverNodes.value) || !serverNodes.value.length) return 0
-  return serverNodes.value.filter((node) => normalizeNodeStatus(node).statusClass === 'ok').length
-})
-const offlineNodesCount = computed(() => Math.max(totalNodesCount.value - activeNodesCount.value, 0))
 const normalizeEpochToMs = (value) => {
   const n = Number(value)
   if (!Number.isFinite(n) || n <= 0) return 0

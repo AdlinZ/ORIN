@@ -4,24 +4,75 @@ import {
   toKnowledgeAssetListViewModel,
   toKnowledgeDocumentListViewModel,
   toKnowledgeSummaryViewModel,
+  mcpServiceReadiness,
+  toMcpServiceListViewModel,
   toRetrievalResultViewModel,
   workflowStatusLabel,
   toWorkflowDslValidationViewModel,
   toWorkflowInstanceViewModel,
   toWorkflowListViewModel,
   toWorkflowTaskViewModel,
-  toWorkflowStatsViewModel
+  toWorkflowStatsViewModel,
+  workflowDeliveryState
 } from '@/viewmodels'
 
 describe('revamp viewmodel adapters', () => {
+  it('normalizes MCP services and derives Agent readiness', () => {
+    const rows = toMcpServiceListViewModel([
+      {
+        serviceId: 1,
+        serviceName: 'Git',
+        type: 'stdio',
+        command: 'git-mcp',
+        enabled: true,
+        status: 'connected',
+        healthScore: '100',
+      },
+      {
+        id: 2,
+        name: 'Time',
+        enabled: true,
+        status: 'ERROR',
+        last_error: 'timeout',
+      },
+      {
+        id: 3,
+        name: 'Filesystem',
+        enabled: false,
+        status: 'CONNECTED',
+      },
+    ])
+
+    expect(rows[0]).toMatchObject({
+      id: 1,
+      name: 'Git',
+      type: 'STDIO',
+      endpoint: 'git-mcp',
+      healthScore: 100,
+    })
+    expect(rows[1].lastError).toBe('timeout')
+    expect(rows.map(mcpServiceReadiness)).toEqual(['READY', 'ERROR', 'DISABLED'])
+  })
+
   it('normalizes knowledge payload', () => {
     const rows = toKnowledgeListViewModel([
       { id: 1, name: 'KB-A', type: 'DOCUMENT', docCount: 2 },
-      { id: 2, name: 'KB-B', type: 'STRUCTURED', stats: { tableCount: 3 } }
+      {
+        kbId: 'kb-2',
+        name: 'KB-B',
+        type: 'STRUCTURED',
+        documentCount: 4,
+        enabled: false,
+        stats: { tableCount: 3 },
+      }
     ])
     expect(rows[0].type).toBe('UNSTRUCTURED')
     expect(rows[0].stats.documentCount).toBe(2)
+    expect(rows[1].id).toBe('kb-2')
+    expect(rows[1].stats.documentCount).toBe(4)
     expect(rows[1].stats.tableCount).toBe(3)
+    expect(rows[1].enabled).toBe(false)
+    expect(rows[1].status).toBe('DISABLED')
   })
 
   it('builds knowledge summary by type', () => {
@@ -75,6 +126,13 @@ describe('revamp viewmodel adapters', () => {
     expect(stats.total).toBe(2)
     expect(stats.published).toBe(1)
     expect(stats.draft).toBe(1)
+  })
+
+  it('derives workflow delivery state from publication and DSL validation', () => {
+    expect(workflowDeliveryState({ status: 'ACTIVE' }, 0)).toBe('READY')
+    expect(workflowDeliveryState({ status: 'DRAFT' }, 0)).toBe('READY_TO_PUBLISH')
+    expect(workflowDeliveryState({ status: 'ACTIVE' }, 1)).toBe('BLOCKED')
+    expect(workflowDeliveryState({ status: 'ARCHIVED' }, 3)).toBe('ARCHIVED')
   })
 
   it('treats backend ACTIVE workflows as published', () => {

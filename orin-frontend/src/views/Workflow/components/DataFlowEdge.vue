@@ -108,13 +108,6 @@ const isSimple = computed(() => {
 })
 
 const path = computed(() => {
-  const sx = props.sourceX
-  const sy = props.sourceY
-  const tx = props.targetX
-  const ty = props.targetY
-  
-  // Bezier curve for smooth flow
-  const dx = Math.abs(tx - sx) / 2
   return `M5,20 Q50,5 95,20`
 })
 

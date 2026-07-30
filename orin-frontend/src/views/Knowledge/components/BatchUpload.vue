@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload, Document } from '@element-plus/icons-vue'
 import { uploadDocument, triggerVectorization } from '@/api/knowledge'
@@ -110,11 +110,6 @@ const uploadQueue = ref([])
 const isUploading = ref(false)
 
 const acceptedTypes = '.pdf,.doc,.docx,.md,.markdown,.txt'
-
-// Computed
-const hasFilesToUpload = computed(() => {
-  return uploadQueue.value.some(u => u.status === 'queued')
-})
 
 // Methods
 const triggerFileInput = () => {

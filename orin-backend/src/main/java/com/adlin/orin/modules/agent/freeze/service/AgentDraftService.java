@@ -12,6 +12,7 @@ import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
 import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,11 +90,11 @@ public class AgentDraftService {
      */
     @Transactional
     public AgentDraftResponse upsertDraft(String agentId, AgentDraftUpsertRequest req,
-                                          String pendingSecretRefsJson,
+                                          List<FreezeSecretRefItem> pendingSecretRefs,
                                           String actor) {
         AgentMetadata meta = loadAgentOrThrow(agentId);
         ownershipResolver.assertCanManage(meta);
-        String previousSecretRefs = meta.getPendingSecretRefs();
+        JsonNode previousSecretRefs = meta.getPendingSecretRefs();
 
         meta.setName(req.getName());
         meta.setDescription(req.getDescription());
@@ -111,14 +112,16 @@ public class AgentDraftService {
         if (req.getMcpExposed() != null) meta.setMcpExposed(Boolean.TRUE.equals(req.getMcpExposed()));
         meta.setSyncTime(LocalDateTime.now());
 
-        // pendingSecretRefsJson 已由 controller 在 Bean Validation 后序列化为标准 JSON 字符串；
-        // 不在这里 serialize 后再 deserialize，避免反复 jackson 抖动。
-        meta.setPendingSecretRefs(pendingSecretRefsJson);
+        // 按真正的 JSON 数组交给 Hibernate，避免 H2 把 Java String 再编码成 JSON 字符串（"[]"）。
+        JsonNode pendingSecretRefsNode = pendingSecretRefs == null
+                ? null
+                : objectMapper.valueToTree(pendingSecretRefs);
+        meta.setPendingSecretRefs(pendingSecretRefsNode);
 
         agentMetadataRepository.save(meta);
-        if (!Objects.equals(previousSecretRefs, pendingSecretRefsJson)) {
+        if (!Objects.equals(previousSecretRefs, pendingSecretRefsNode)) {
             auditWriter.logDraftSecretRefChanged(actor, agentId,
-                    countSecretRefs(previousSecretRefs), countSecretRefs(pendingSecretRefsJson));
+                    countSecretRefs(previousSecretRefs), countSecretRefs(pendingSecretRefsNode));
         }
         auditWriter.logDraftUpdated(actor, agentId, req.getChangeDescription());
         log.info("F02 draft updated agent={} actor={}", agentId, actor);
@@ -154,13 +157,13 @@ public class AgentDraftService {
     public List<FreezeSecretRefItem> readPendingSecretRefs(String agentId) {
         AgentMetadata meta = loadAgentOrThrow(agentId);
         ownershipResolver.assertCanManage(meta);
-        String json = meta.getPendingSecretRefs();
-        if (json == null || json.isBlank()) {
+        JsonNode node = meta.getPendingSecretRefs();
+        if (node == null || node.isNull()) {
             return List.of();
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<List<FreezeSecretRefItem>>() {
-            });
+            return objectMapper.convertValue(normalizePendingSecretRefs(node),
+                    new TypeReference<List<FreezeSecretRefItem>>() {});
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SNAPSHOT_CANONICALIZE_FAILED,
                     "pendingSecretRefs 反序列化失败：" + e.getMessage(), e);
@@ -173,14 +176,40 @@ public class AgentDraftService {
                         "Agent 未找到：" + agentId));
     }
 
-    private int countSecretRefs(String json) {
-        if (json == null || json.isBlank()) {
+    private int countSecretRefs(JsonNode node) {
+        if (node == null || node.isNull()) {
             return 0;
         }
         try {
-            return objectMapper.readTree(json).size();
+            return normalizePendingSecretRefs(node).size();
         } catch (Exception e) {
             return 0;
+        }
+    }
+
+    /**
+     * 兼容旧版 String → JSON 列产生的文本节点（例如 {@code "[]"}），并统一为数组节点。
+     */
+    private JsonNode normalizePendingSecretRefs(JsonNode node) throws Exception {
+        JsonNode normalized = node;
+        if (normalized.isTextual()) {
+            normalized = objectMapper.readTree(normalized.textValue());
+        }
+        if (normalized == null || !normalized.isArray()) {
+            throw new IllegalArgumentException("pendingSecretRefs 必须是 JSON 数组");
+        }
+        return normalized;
+    }
+
+    private String canonicalPendingSecretRefs(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(normalizePendingSecretRefs(node));
+        } catch (Exception e) {
+            log.warn("F02 invalid pendingSecretRefs agent draft response suppressed: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -203,7 +232,7 @@ public class AgentDraftService {
                 .systemPrompt(meta.getSystemPrompt())
                 .parameters(meta.getParameters())
                 .activeVersionId(meta.getActiveVersionId())
-                .pendingSecretRefs(meta.getPendingSecretRefs())
+                .pendingSecretRefs(canonicalPendingSecretRefs(meta.getPendingSecretRefs()))
                 .syncTime(meta.getSyncTime());
 
         if (meta.getActiveVersionId() != null) {

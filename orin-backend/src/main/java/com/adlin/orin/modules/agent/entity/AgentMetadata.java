@@ -1,9 +1,13 @@
 package com.adlin.orin.modules.agent.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Column;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 
 /**
@@ -64,8 +68,9 @@ public class AgentMetadata {
      * 反序列化为 {@code List<FreezeSecretRefItem>}；freeze 入口读取它并落 agent_version_secret_refs。
      * NULL / 空数组 = 草稿上无 secret refs（可能合法）。MVP 仅允许 CONTROL_PLANE。
      */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "pending_secret_refs", columnDefinition = "JSON")
-    private String pendingSecretRefs;
+    private JsonNode pendingSecretRefs;
 
     private Double temperature;
     private Double topP;
@@ -244,11 +249,11 @@ public class AgentMetadata {
         this.activeVersionId = activeVersionId;
     }
 
-    public String getPendingSecretRefs() {
+    public JsonNode getPendingSecretRefs() {
         return pendingSecretRefs;
     }
 
-    public void setPendingSecretRefs(String pendingSecretRefs) {
+    public void setPendingSecretRefs(JsonNode pendingSecretRefs) {
         this.pendingSecretRefs = pendingSecretRefs;
     }
 
@@ -266,7 +271,7 @@ public class AgentMetadata {
         private String providerType;
         private String viewType;
         private String activeVersionId;
-        private String pendingSecretRefs;
+        private JsonNode pendingSecretRefs;
         private Long ownerUserId;
         private boolean mcpExposed;
         private Double temperature;
@@ -322,7 +327,7 @@ public class AgentMetadata {
             return this;
         }
 
-        public AgentMetadataBuilder pendingSecretRefs(String pendingSecretRefs) {
+        public AgentMetadataBuilder pendingSecretRefs(JsonNode pendingSecretRefs) {
             this.pendingSecretRefs = pendingSecretRefs;
             return this;
         }

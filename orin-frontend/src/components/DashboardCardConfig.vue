@@ -186,10 +186,6 @@ const isCardEnabled = (cardId) => {
   return detailedConfig.value[cardId]?.enabled;
 };
 
-const getCardSize = (cardId) => {
-  return detailedConfig.value[cardId]?.size;
-};
-
 const toggleCard = (cardId) => {
   if (detailedConfig.value[cardId]) {
     detailedConfig.value[cardId].enabled = !detailedConfig.value[cardId].enabled;

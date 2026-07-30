@@ -71,11 +71,12 @@
 - `statusUrl` 指向 `/v1/endpoints/{epId}/runs/{runId}`（API Key 可访问）
 - `EndpointExecutionE2ETest` — 10 个集成测试
 - `McpStreamableHttpTest` — MCP endpoint 模型测试，包含未获授权 API Key 不得从 `tools/list` 发现 Endpoint 的访问边界
-- Workspace 发布后一次性展示 API Key、REST curl 和 MCP 配置；关闭窗口即从页面状态清除明文
+- Workspace 发布后一次性展示 API Key，并只展示本次选择协议对应的 REST curl 或 MCP 配置；关闭窗口即从页面状态清除明文
+- 发布中心按“可调用 / 已下线”表达交付状态，历史服务可重新打开协议对应的调用说明；统一网关与密钥治理保留为高级下钻，不占用主菜单
 - `scripts/f05-external-acceptance.sh` — Docker Runner 实际验收：临时 Agent/Endpoint/Key/Runner → REST 完成 Run 与状态查询 → 无效 Key 401 → MCP `initialize` / `tools/list` / `tools/call` → 下线 503；临时 Runner 凭据与 API Key 在退出时清理
 - 设置 `ORIN_F05_REQUIRE_STDIO_BRIDGE=1` 与 `ORIN_MCP_BRIDGE_PYTHON` 后，
   同一脚本还会经随仓库发布的 stdio MCP Bridge 完成 `initialize`、`tools/list`
   和 `tools/call`，用于候选版外部客户端回归。
-- `tests/e2e/real-backend/endpoint-f05-real.spec.js` 于 2026-07-27 通过：真实 Workspace 从冻结 AgentVersion 选择版本、发布 Endpoint、展示一次性 API Key / REST URL / MCP 配置，并在关闭交接窗口后确认端点列表更新。
+- `tests/e2e/real-backend/endpoint-f05-real.spec.js` 于 2026-07-27 通过：真实 Workspace 从冻结 AgentVersion 选择版本、发布 Endpoint、展示一次性 API Key 与所选 REST 协议的调用方式，并在关闭交接窗口后确认端点列表更新。
 - `scripts/f05-external-acceptance.sh` 于 2026-07-27 在真实 Control Plane + Docker Runner 下通过：REST Run 完成与状态查询、无效 Key `401`、MCP `initialize / tools/list / tools/call`、stdio Bridge 客户端以及下线 Endpoint `503`。
 - 正式 Release 仍需一个 MCP 桌面客户端（Codex、Claude Desktop、Cursor 或 Windsurf）的人工展示证据；流式 SSE、RunnerPool 选择不在当前 MVP 范围。

@@ -81,21 +81,23 @@ class BridgeUnitTest(unittest.IsolatedAsyncioTestCase):
             load_config({})
         cfg = load_config({"ORIN_BASE_URL": "http://localhost:8080/", "ORIN_API_KEY": "k"})
         self.assertEqual(cfg.base_url, "http://localhost:8080")
-        self.assertEqual(cfg.origin, "http://localhost:8080")
+        self.assertIsNone(cfg.origin)
         override = load_config({"ORIN_BASE_URL": "http://localhost:8080", "ORIN_API_KEY": "k", "ORIN_MCP_ORIGIN": "http://localhost:5173"})
         self.assertEqual(override.origin, "http://localhost:5173")
 
-    def test_headers_include_api_key_and_origin(self):
-        headers = build_headers(BridgeConfig("http://localhost:8080", "secret", "http://localhost:8080"))
+    def test_headers_include_api_key_and_only_explicit_origin(self):
+        headers = build_headers(BridgeConfig("http://localhost:8080", "secret", None))
         self.assertEqual(headers["Authorization"], "Bearer secret")
-        self.assertEqual(headers["Origin"], "http://localhost:8080")
+        self.assertNotIn("Origin", headers)
+        explicit = build_headers(BridgeConfig("http://localhost:8080", "secret", "http://localhost:5173"))
+        self.assertEqual(explicit["Origin"], "http://localhost:5173")
 
     async def test_tools_list_proxies_remote_schema(self):
         with FakeOrin() as fake:
-            tools = await list_remote_tools(BridgeConfig(fake.base_url, "secret", fake.base_url))
+            tools = await list_remote_tools(BridgeConfig(fake.base_url, "secret", None))
         self.assertEqual(tools[0].name, "orin_agent_demo")
         self.assertEqual(fake.requests[-1]["headers"]["Authorization"], "Bearer secret")
-        self.assertEqual(fake.requests[-1]["headers"]["Origin"], fake.base_url)
+        self.assertNotIn("Origin", fake.requests[-1]["headers"])
 
     async def test_tools_call_preserves_remote_error_result(self):
         with FakeOrin(call_error=True) as fake:

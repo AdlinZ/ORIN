@@ -118,7 +118,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['status-change', 'view-chunks', 'test-retrieve'])
+defineEmits(['status-change', 'view-chunks', 'test-retrieve'])
 
 const formatTime = (time) => {
     if (!time) return '-'

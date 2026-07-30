@@ -28,7 +28,7 @@ export function useAgentInteraction(agentId) {
         }
     };
 
-    const interact = async (content, fileId, options = {}) => {
+    const interact = async (content, fileId) => {
         isProcessing.value = true;
         result.value = null;
         error.value = null;

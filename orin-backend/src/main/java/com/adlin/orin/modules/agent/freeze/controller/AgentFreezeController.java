@@ -14,7 +14,6 @@ import com.adlin.orin.modules.agent.freeze.dto.SwitchActiveVersionRequest;
 import com.adlin.orin.modules.agent.freeze.service.AgentDraftService;
 import com.adlin.orin.modules.agent.freeze.service.AgentFreezeService;
 import com.adlin.orin.modules.agent.freeze.service.AgentVersionLifecycleService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -77,16 +76,13 @@ public class AgentFreezeController {
     private final AgentDraftService draftService;
     private final AgentFreezeService freezeService;
     private final AgentVersionLifecycleService lifecycleService;
-    private final ObjectMapper objectMapper;
 
     public AgentFreezeController(AgentDraftService draftService,
                                  AgentFreezeService freezeService,
-                                 AgentVersionLifecycleService lifecycleService,
-                                 ObjectMapper objectMapper) {
+                                 AgentVersionLifecycleService lifecycleService) {
         this.draftService = draftService;
         this.freezeService = freezeService;
         this.lifecycleService = lifecycleService;
-        this.objectMapper = objectMapper;
     }
 
     @PostMapping
@@ -109,16 +105,7 @@ public class AgentFreezeController {
     @Operation(summary = "更新既有 Agent 草稿（可携带 pendingSecretRefs）")
     public AgentDraftResponse upsertDraft(@PathVariable String agentId,
                                           @Valid @RequestBody AgentDraftUpsertRequest request) {
-        String pendingRefsJson;
-        try {
-            pendingRefsJson = (request.getPendingSecretRefs() == null)
-                    ? null
-                    : objectMapper.writeValueAsString(request.getPendingSecretRefs());
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.SNAPSHOT_CANONICALIZE_FAILED,
-                    "pendingSecretRefs 序列化失败", e);
-        }
-        return draftService.upsertDraft(agentId, request, pendingRefsJson, currentActor());
+        return draftService.upsertDraft(agentId, request, request.getPendingSecretRefs(), currentActor());
     }
 
     @PostMapping("/{agentId}/versions")

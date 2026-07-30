@@ -28,10 +28,10 @@ describe('route cleanup contracts', () => {
       ROUTES.MCP.SERVERS
     )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/applications/mcp']).toBe(
-      '/dashboard/applications/extensions?tab=mcp'
+      '/dashboard/applications/mcp-tools'
     )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/mcp/servers']).toBe(
-      '/dashboard/applications/extensions?tab=mcp'
+      '/dashboard/applications/mcp-tools'
     )
     expect(LEGACY_ROUTE_REDIRECTS['/dashboard/runtime/alert-rules']).toBe(
       ROUTES.MONITOR.ALERTS

@@ -11,8 +11,10 @@ Auth-semantic helpers:
 
 from __future__ import annotations
 
+import ipaddress
 import uuid
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -55,6 +57,17 @@ def _check_lease_terminal(resp: httpx.Response) -> None:
     raise LeaseTerminalError(resp.status_code, code, message)
 
 
+def _should_trust_env(control_plane_url: str) -> bool:
+    """Use environment proxies for remote Control Planes, never loopback ones."""
+    hostname = (urlsplit(control_plane_url).hostname or "").lower()
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        return False
+    try:
+        return not ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return True
+
+
 class RunnerClient:
     """Thin wrapper around ``httpx.Client`` with Runner-specific helpers."""
 
@@ -64,6 +77,9 @@ class RunnerClient:
             base_url=self._base,
             timeout=timeout_sec,
             headers={"User-Agent": "ORIN-Runner/0.3.0-rc.1"},
+            # macOS / corporate proxy settings can otherwise intercept
+            # localhost Control Plane traffic and return a misleading 502.
+            trust_env=_should_trust_env(self._base),
         )
 
     # ------------------------------------------------------------------

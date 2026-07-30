@@ -545,6 +545,7 @@
 
 <script setup>
 import { computed, ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
@@ -569,6 +570,7 @@ defineProps({
   }
 })
 
+const route = useRoute()
 const activeTab = ref('list')
 const loading = ref(false)
 const mcpServices = ref([])
@@ -1068,10 +1070,23 @@ const confirmCreateSecret = async () => {
   })
 }
 
-onMounted(() => {
-  loadMcpServices()
-  loadAvailableTools()
-  loadMcpSecrets()
+onMounted(async () => {
+  await Promise.all([
+    loadMcpServices(),
+    loadAvailableTools(),
+    loadMcpSecrets()
+  ])
+
+  if (route.query.view === 'market') {
+    activeTab.value = 'market'
+  }
+  if (route.query.action === 'add') {
+    openAddDialog()
+  }
+  if (route.query.action === 'edit' && route.query.serviceId) {
+    const service = mcpServices.value.find((item) => String(item.id) === String(route.query.serviceId))
+    if (service) editService(service)
+  }
 })
 </script>
 

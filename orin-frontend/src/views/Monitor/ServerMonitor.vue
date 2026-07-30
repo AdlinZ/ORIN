@@ -923,7 +923,6 @@ import { useRouter } from 'vue-router'
 import {
   ArrowLeft,
   ArrowRight,
-  CircleClose,
   Clock,
   Coin,
   Connection,
@@ -931,7 +930,6 @@ import {
   DataLine,
   Folder,
   List,
-  Loading,
   Menu,
   Monitor,
   More,

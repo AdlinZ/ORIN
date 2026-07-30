@@ -18,7 +18,17 @@
       >
         <!-- 动态渲染一级模块 -->
         <template v-for="menu in visibleMenus" :key="menu.id">
-          <el-sub-menu :index="getSubMenuIndex('menu', menu)" :class="`menu-${menu.id}`">
+          <el-menu-item
+            v-if="menu.children.length === 0"
+            :index="menu.path"
+            :class="`menu-${menu.id}`"
+          >
+            <el-icon :style="{ color: menu.color }">
+              <component :is="getIconComponent(menu.icon)" />
+            </el-icon>
+            <span>{{ menu.title }}</span>
+          </el-menu-item>
+          <el-sub-menu v-else :index="getSubMenuIndex('menu', menu)" :class="`menu-${menu.id}`">
             <template #title>
               <el-icon :style="{ color: menu.color }">
                 <component :is="getIconComponent(menu.icon)" />
@@ -64,9 +74,11 @@
         <div class="user-wrapper">
           <el-avatar
             :size="appStore.isCollapse ? 36 : 40"
-            :src="userInfo.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'"
+            :src="userInfo.avatar || undefined"
             class="user-avatar"
-          />
+          >
+            {{ userInitial }}
+          </el-avatar>
           <div v-if="!appStore.isCollapse" class="user-info">
             <span class="user-name">{{ userInfo.name || '游客' }}</span>
             <span v-if="userInfo.role" class="user-role">{{ userInfo.role }}</span>
@@ -159,6 +171,7 @@ const { userInfo, checkLoginStatus, handleLogout } = useUser()
 const { isDarkMode, toggleTheme } = useTheme()
 
 const activeMenu = computed(() => route.fullPath)
+const userInitial = computed(() => String(userInfo.name || 'ORIN').trim().charAt(0).toUpperCase())
 
 // 可见菜单（根据权限过滤）
 const visibleMenus = computed(() => getVisibleMenus(userStore.roles || []))

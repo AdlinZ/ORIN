@@ -42,7 +42,7 @@ defineProps({
 
 .orin-data-table :deep(.el-card__header) {
   padding: 14px 16px;
-  background: #ffffff;
+  background: var(--el-bg-color, #ffffff);
   border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
 }
 
@@ -86,16 +86,16 @@ defineProps({
   gap: 16px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
-  background: #ffffff;
+  background: var(--el-bg-color, #ffffff);
 }
 
 .data-table-titlebar strong {
-  color: var(--neutral-gray-900, #101828);
+  color: var(--el-text-color-primary, #101828);
   font-size: 14px;
 }
 
 .data-table-titlebar span {
-  color: var(--neutral-gray-500, #667085);
+  color: var(--el-text-color-secondary, #667085);
   font-size: 13px;
 }
 
@@ -106,6 +106,6 @@ defineProps({
   gap: 12px;
   padding: 12px 16px;
   border-top: 1px solid var(--orin-border-strong, #d8e0e8);
-  background: #ffffff;
+  background: var(--el-bg-color, #ffffff);
 }
 </style>

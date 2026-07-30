@@ -6,6 +6,7 @@ import com.adlin.orin.modules.agent.entity.AgentMetadata;
 import com.adlin.orin.modules.agent.freeze.audit.AgentVersionAuditWriter;
 import com.adlin.orin.modules.agent.freeze.dto.AgentDraftResponse;
 import com.adlin.orin.modules.agent.freeze.dto.AgentDraftUpsertRequest;
+import com.adlin.orin.modules.agent.freeze.dto.FreezeSecretRefItem;
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
 import com.adlin.orin.modules.agent.repository.AgentVersionRepository;
 import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
@@ -135,5 +136,46 @@ class AgentDraftServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.getDraft("ag_test"));
         assertEquals(ErrorCode.AGENT_NOT_FOUND, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("readPendingSecretRefs: 兼容 H2 历史双重编码的 JSON 数组")
+    void readPendingSecretRefs_acceptsLegacyTextNode() throws Exception {
+        AgentMetadata metadata = meta(null);
+        metadata.setPendingSecretRefs(new ObjectMapper().readTree(
+                "\"[{\\\"alias\\\":\\\"OPENAI\\\",\\\"source\\\":\\\"CONTROL_PLANE\\\","
+                        + "\\\"secret_id\\\":\\\"sec_1\\\",\\\"inject_as\\\":\\\"OPENAI_API_KEY\\\"}]\""));
+        when(agentMetadataRepository.findById("ag_test")).thenReturn(Optional.of(metadata));
+
+        List<FreezeSecretRefItem> refs = service.readPendingSecretRefs("ag_test");
+
+        assertEquals(1, refs.size());
+        assertEquals("OPENAI", refs.get(0).getAlias());
+        assertEquals("sec_1", refs.get(0).getSecretId());
+    }
+
+    @Test
+    @DisplayName("getDraft: 历史双重编码值在响应中规范化为数组 JSON")
+    void getDraft_normalizesLegacyPendingSecretRefs() throws Exception {
+        AgentMetadata metadata = meta(null);
+        metadata.setPendingSecretRefs(new ObjectMapper().readTree("\"[]\""));
+        when(agentMetadataRepository.findById("ag_test")).thenReturn(Optional.of(metadata));
+
+        AgentDraftResponse response = service.getDraft("ag_test");
+
+        assertEquals("[]", response.getPendingSecretRefs());
+    }
+
+    @Test
+    @DisplayName("readPendingSecretRefs: 非数组 JSON 返回 30012")
+    void readPendingSecretRefs_rejectsNonArrayJson() throws Exception {
+        AgentMetadata metadata = meta(null);
+        metadata.setPendingSecretRefs(new ObjectMapper().readTree("\"not-an-array\""));
+        when(agentMetadataRepository.findById("ag_test")).thenReturn(Optional.of(metadata));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.readPendingSecretRefs("ag_test"));
+
+        assertEquals(ErrorCode.SNAPSHOT_CANONICALIZE_FAILED, ex.getErrorCode());
     }
 }

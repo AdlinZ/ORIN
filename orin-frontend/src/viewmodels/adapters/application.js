@@ -42,12 +42,14 @@ export const toSessionListViewModel = (payload = []) => asArray(payload).map((it
 }))
 
 export const toModelListViewModel = (payload = []) => asArray(payload).map((item) => ({
-  id: item.id || item.modelId || item.name,
+  id: item.id ?? item.modelId ?? item.name,
   name: item.name || item.modelName || item.modelId || '',
   modelId: item.modelId || item.model || item.name || '',
   provider: item.provider || item.providerName || '',
-  type: item.type || item.modelType || 'CHAT',
-  status: item.status || (item.enabled === false ? 'DISABLED' : 'ENABLED'),
+  providerKey: String(item.provider || item.providerName || '').toLowerCase().replace(/[^a-z0-9]/g, ''),
+  type: String(item.type || item.modelType || 'CHAT').toUpperCase(),
+  status: String(item.status || (item.enabled === false ? 'DISABLED' : 'ENABLED')).toUpperCase(),
+  enabled: item.enabled !== false && String(item.status || 'ENABLED').toUpperCase() !== 'DISABLED',
   createTime: formatDateText(item.createTime || item.createdAt),
   description: item.description || '',
   traceId: item.traceId || item.trace_id || '',

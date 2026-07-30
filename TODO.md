@@ -24,6 +24,14 @@
 
 完成度判断仍以“前端入口 + Java service + Python AI Engine + smoke / E2E 验收”同时成立为准。
 
+## vNext 产品功能主线
+
+- [x] `F01` 接入并监控服务器：Workspace 浏览器 + 真实 Docker Runner 已完成 enrollment、ONLINE、Drain/Restore、OFFLINE、resume、Revoke；生产安装与独立物理机验收留待 Production Ready
+- [x] `F02` 创建并冻结 Agent：真实浏览器、权限路径与冻结版本验收通过
+- [x] `F03` 在 Runner 上运行 Agent：独立 Docker Runner 经唯一 `TaskRuntime` 执行冻结版本，结果/事件回传与浏览器详情验收通过
+- [x] `F04` 观察和控制 Run：实时日志、Trace、取消/重试与资源级权限验收已在 F03 事实链上闭环
+- [x] `F05` 发布 API 与 MCP：Workspace 发布冻结版本、一次性 Key 交接、真实 Docker Runner REST Run、MCP HTTP/stdio Bridge 与错误契约验收通过；桌面 MCP 客户端展示留待 Release gate
+
 ---
 
 ## Phase 1.5：角色化体验与权限闭环

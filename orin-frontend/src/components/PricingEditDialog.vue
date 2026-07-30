@@ -258,7 +258,7 @@ watch(() => props.modelValue, async (open) => {
     // 2. fixedProviderId 模式：调后端精确接口，而非全量拉取再 find
     resetForm();
     form.providerId = props.fixedProviderId;
-    await tryFetchByProvider(props.fixedProviderId, form.tenantGroup);
+    await tryFetchByProvider();
   } else {
     // 3. 纯新增模式
     resetForm();
@@ -272,7 +272,7 @@ const resetForm = () => {
 /**
  * 精确查询已有规则并预填（仅在 fixedProviderId 场景使用）
  */
-const tryFetchByProvider = async (providerId, tenantGroup) => {
+const tryFetchByProvider = async () => {
   try {
     // Inline filtering to avoid slash route issues with path variables
     const res = await getPricingConfig();

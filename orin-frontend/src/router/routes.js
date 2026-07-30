@@ -2,14 +2,13 @@
  * ORIN 系统路由常量
  * 集中管理所有路由路径，避免硬编码
  *
- * Workspace vNext 四入口（主线）：
- * 1. Agents   — 创建、草稿、冻结版本
- * 2. Runners  — 接入、状态、容量
- * 3. Runs     — 执行、日志、取消、重试
- * 4. Endpoints — 发布 API / MCP
+ * Workspace 承载产品主线页面：
+ * - Agents — 创建、草稿、冻结版本
+ * - Runners / Runs — 执行与运行治理
+ * - Endpoints — 发布 API / MCP
  *
- * 旧模块已降级为历史重定向，不再占一级导航：
- * - 智能体管理 / 知识库 / 运行监控 / 系统设置 → LEGACY_ROUTE_REDIRECTS
+ * 主导航按“概览 → Agent → 运行 → 发布 → 资源 → 系统设置”组织；
+ * 未出现在菜单中的页面及历史路径继续保留，供兼容链接和定向管理使用。
  */
 
 const agentRoutes = {
@@ -21,17 +20,20 @@ const agentRoutes = {
     WORKSPACE: '/dashboard/applications/workspace',
     DEVELOPER: '/dashboard/applications/developer',
     SKILLS: '/dashboard/applications/extensions?tab=skills',
-    MCP: '/dashboard/applications/extensions?tab=mcp',
+    MCP: '/dashboard/applications/mcp-tools',
+    MCP_ADVANCED: '/dashboard/applications/extensions?tab=mcp',
     MODEL_TOOLS: '/dashboard/applications/extensions?tab=bindings',
     EXTENSIONS: '/dashboard/applications/extensions',
     COLLABORATION_WORKFLOWS: '/dashboard/applications/collaboration/workflows',
     WORKFLOWS: '/dashboard/applications/workflows',
+    WORKFLOWS_ADVANCED: '/dashboard/applications/workflows/advanced',
     WORKFLOW_EXECUTION: '/dashboard/applications/workflows/execution',
     WORKFLOW_CREATE: '/dashboard/applications/workflows/create',
     WORKFLOW_EDIT: '/dashboard/applications/workflows/edit/:id',
     WORKFLOW_VISUAL: '/dashboard/applications/workflows/visual',
     WORKFLOW_VISUAL_EDIT: '/dashboard/applications/workflows/visual/:id',
     MODELS: '/dashboard/applications/models',
+    MODEL_ADVANCED: '/dashboard/applications/models/advanced',
     MODEL_ADD: '/dashboard/applications/models/add',
     MODEL_EDIT: '/dashboard/applications/models/edit/:id',
     COLLABORATION_DASHBOARD: '/dashboard/applications/collaboration/dashboard',
@@ -49,9 +51,10 @@ const agentRoutes = {
     WORKSPACE_VERSION_DEPRECATE: '/workspace/agents/:agentId/versions/:versionId/deprecate',
 }
 
-// ==================== Workspace vNext 四入口 ====================
+// ==================== Workspace 核心产品页面 ====================
 const workspaceRoutes = {
     ROOT: '/workspace',
+    OVERVIEW: '/workspace/overview',
     AGENTS: '/workspace/agents',
     AGENT_DRAFT: '/workspace/agents/:agentId',
     AGENT_VERSIONS: '/workspace/agents/:agentId/versions',
@@ -117,8 +120,8 @@ const systemRoutes = {
     MESSAGES: '/dashboard/control/notification-channels?tab=overview',
     DATA_ASSETS: '/dashboard/control/data-assets',
     FILES: '/dashboard/control/data-assets?assetTab=files',
-    SETTINGS: '/dashboard/control/system-env',
-    SETTINGS_BASE: '/dashboard/control/system-env',
+    SETTINGS: '/dashboard/control/admin-overview',
+    SETTINGS_BASE: '/dashboard/control/admin-overview',
     SETTINGS_MAIL: '/dashboard/control/notification-channels?tab=service',
     SETTINGS_NOTIFICATIONS: '/dashboard/control/notification-channels',
     SETTINGS_MODEL_DEFAULTS: '/dashboard/control/system-env',
@@ -129,6 +132,7 @@ const systemRoutes = {
     SYNC: '/dashboard/control/data-assets?assetTab=sync&tab=changes',
     SETTINGS_MCP_SERVICE: '/dashboard/control/mcp-service',
     AUDIT_LOGS: '/dashboard/control/audit-logs',
+    AUDIT_SETTINGS: '/dashboard/control/audit-settings',
     MODELS: '/dashboard/applications/models',
     PRICING: '/dashboard/control/pricing',
     MONITOR_SETTINGS: '/dashboard/control/system-env',
@@ -164,7 +168,7 @@ export const ROUTES = {
     SETUP: '/setup',
     PORTAL: '/portal',
     PORTAL_API_KEYS: '/portal/api-keys',
-    HOME: '/workspace/agents',
+    HOME: workspaceRoutes.OVERVIEW,
     WORKSPACE: workspaceRoutes,
     MCP: mcpRoutes,
     AGENTS: agentRoutes,

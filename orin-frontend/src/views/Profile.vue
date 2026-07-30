@@ -226,7 +226,6 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import {
   User, Camera, Message, Location, Calendar, Edit, EditPen,
   Lock, Key, Iphone, Check, TrendCharts, Clock,
-  Collection, DataAnalysis, ChatDotRound
 } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/stores/user';

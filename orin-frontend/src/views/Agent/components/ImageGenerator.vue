@@ -128,7 +128,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { 
-  Picture, Loading, Warning, Operation, MagicStick, 
+  Picture, Warning, Operation, MagicStick,
   Download, Share 
 } from '@element-plus/icons-vue';
 import { useAgentInteraction } from '../composables/useAgentInteraction';
@@ -142,7 +142,7 @@ const props = defineProps({
 const prompt = ref('');
 const styleTags = ['赛博朋克 2077', '电影感 8K 光追', '宫崎骏动漫风格', '写实油画', '极简主义海报'];
 
-const { isProcessing, result, dataType, error, interact } = useAgentInteraction(props.agentId);
+const { isProcessing, result, error, interact } = useAgentInteraction(props.agentId);
 
 const imageUrl = computed(() => {
     if (!result.value) return '';

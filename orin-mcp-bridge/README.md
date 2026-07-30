@@ -4,13 +4,11 @@ Local stdio bridge for connecting Claude Desktop to ORIN's Streamable HTTP MCP e
 
 ## Prerequisites
 
-Before starting ORIN Backend for Claude Desktop, allow the bridge Origin:
-
-```bash
-export ORIN_MCP_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
-```
-
-Restart ORIN Backend after changing this value. The bridge sends `Origin` derived from `ORIN_BASE_URL` by default, so `ORIN_BASE_URL=http://localhost:8080` sends `Origin: http://localhost:8080`.
+The stdio bridge is a server-to-server client and does not send an `Origin`
+header by default, so normal Claude Desktop use does not require a CORS change.
+Set `ORIN_MCP_ORIGIN` only when a reverse proxy or an explicit browser-like
+Origin policy requires it; then add that exact value to `CORS_ALLOWED_ORIGINS`
+before restarting the backend.
 
 ## Install Locally
 
@@ -27,7 +25,7 @@ The only direct dependency is `mcp==1.27.1`.
 ```bash
 export ORIN_BASE_URL=http://localhost:8080
 export ORIN_API_KEY=<ORIN_API_KEY>
-# Optional override when ORIN Backend allows a different Origin.
+# Optional browser-like Origin for a proxy that explicitly requires it.
 export ORIN_MCP_ORIGIN=http://localhost:8080
 ```
 
@@ -62,6 +60,9 @@ Restart Claude Desktop after editing its config.
 
 ## Troubleshooting
 
-- `403` or `Origin not allowed`: ensure ORIN Backend was started with `ORIN_MCP_ALLOWED_ORIGINS` containing the same origin as `ORIN_BASE_URL`.
+- `403` or `Origin not allowed`: only relevant when `ORIN_MCP_ORIGIN` is set;
+  ensure `CORS_ALLOWED_ORIGINS` contains that exact Origin.
 - `ORIN_API_KEY is required`: set a valid ORIN gateway API key in the Claude Desktop config.
-- No tools appear: confirm the API key user owns at least one Agent or published Workflow with `mcpExposed=true`.
+- No tools appear: confirm the `CLIENT_ACCESS` API Key is assigned to at least
+  one active published Endpoint. Workflow tools remain visible only when the
+  key owner has a published workflow with `mcpExposed=true`.

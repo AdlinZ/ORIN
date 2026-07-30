@@ -260,7 +260,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { Plus, Refresh, Edit, Delete, ChatDotRound, Close } from '@element-plus/icons-vue'
+import { Plus, Refresh, Delete, ChatDotRound, Close } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import {

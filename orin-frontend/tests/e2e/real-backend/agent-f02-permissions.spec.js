@@ -96,12 +96,8 @@ test.describe('F02 权限失败路径浏览器 E2E', () => {
         const versionsUrl = page.url() + '/versions'
         await page.goto(versionsUrl)
 
-        // As ROLE_USER, there should be NO "切到 active" or "deprecate" buttons visible
-        const switchBtn = page.getByRole('button', { name: /切到 active/ })
-        const deprecateBtn = page.getByRole('button', { name: /deprecate|退役/ })
-
-        await expect(switchBtn).toHaveCount(0)
-        await expect(deprecateBtn).toHaveCount(0)
+        // 普通用户只能运行/发布，不能进入版本治理菜单
+        await expect(page.getByRole('button', { name: '版本管理' })).toHaveCount(0)
     })
 
     test('ROLE_OPERATOR 可以看到 switch 和 deprecate 控件', async ({ page }) => {
@@ -121,14 +117,8 @@ test.describe('F02 权限失败路径浏览器 E2E', () => {
         const versionsUrl = page.url() + '/versions'
         await page.goto(versionsUrl)
 
-        // As ROLE_OPERATOR, switch and deprecate buttons should be visible
-        const switchBtn = page.getByRole('button', { name: /切到 active/ })
-        const deprecateBtn = page.getByRole('button', { name: /deprecate|退役/ })
-
-        // At least one of these should be visible (depends on version state)
-        const switchCount = await switchBtn.count()
-        const deprecateCount = await deprecateBtn.count()
-        expect(switchCount + deprecateCount).toBeGreaterThan(0)
+        // Operator 可以管理非当前冻结版本
+        await expect(page.getByRole('button', { name: '版本管理' }).first()).toBeVisible()
     })
 
     test('deprecate 当前 active 版本应显示错误提示（409）', async ({ page }) => {

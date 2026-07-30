@@ -79,13 +79,15 @@ public class VisualAnalysisService {
                 ? config.getSiliconFlowEndpoint()
                 : baseUrl;
 
-        // Log warning if using placeholder API key
+        // Never log a key or a derived prefix: prefixes are still sensitive
+        // material and are useful to an attacker when combined with another
+        // accidental disclosure.
         if (sfApiKey == null || sfApiKey.isEmpty()) {
             log.error("SiliconFlow API key is NOT CONFIGURED! Please set it in System Settings -> Model Config");
         } else if (sfApiKey.equals("sk-placeholder")) {
             log.error("SiliconFlow API key is still using placeholder 'sk-placeholder'! Please configure a valid API key");
         } else {
-            log.info("Using SiliconFlow API key starting with: {}", sfApiKey.substring(0, Math.min(8, sfApiKey.length())));
+            log.debug("SiliconFlow API key is configured");
         }
 
         String url = sfBaseUrl + "/chat/completions";

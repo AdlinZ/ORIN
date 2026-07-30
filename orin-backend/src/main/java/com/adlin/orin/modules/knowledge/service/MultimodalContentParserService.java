@@ -329,13 +329,10 @@ public class MultimodalContentParserService {
         String base64Image = Base64.getEncoder().encodeToString(imageData);
         String imageDataUri = "data:" + mimeType + ";base64," + base64Image;
 
-        // 打印调试信息
-        log.info("=== VLM Debug Info ===");
-        log.info("File: {}", path.getFileName());
-        log.info("MimeType: {}", mimeType);
-        log.info("Base64 length: {}", base64Image.length());
-        log.info("DataURI prefix: data:{};base64,", mimeType);
-        log.info("First 100 chars of base64: {}", base64Image.substring(0, Math.min(100, base64Image.length())));
+        // Keep diagnostics structural.  Image bytes and any base64 prefix can
+        // contain user data, so neither belongs in an application log.
+        log.debug("Prepared OCR image: fileName={}, mimeType={}, encodedBytes={}",
+                path.getFileName(), mimeType, base64Image.length());
 
         // 优先使用传入的配置中的模型，否则使用全局默认配置
         String vlmModel = null;
@@ -361,7 +358,7 @@ public class MultimodalContentParserService {
 
         // 检查返回结果是否包含失败标记
         if (result == null || result.isEmpty() || result.contains("解析失败") || result.contains("Analysis Failed") || result.contains("API failed")) {
-            throw new Exception("VLM OCR 识别失败，返回结果: " + result);
+            throw new Exception("VLM OCR 识别失败，未返回有效结果");
         }
 
         return result;

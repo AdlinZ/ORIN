@@ -13,7 +13,8 @@
 ### 路由原则
 
 - 路由常量存在 ≠ 能力交付，部分路径仅作历史兼容；当前主入口以 `topMenuConfig.js` 的角色可见菜单为准
-- `topMenuConfig.js` 负责顶部菜单的角色过滤和可见性开关，当前不使用占位状态字段标记发布状态
+- `topMenuConfig.js` 只暴露“概览 → Agent → 运行 → 发布 → 资源 → 系统设置”六个直接入口；历史页面保留路由，不等于需要继续暴露菜单
+- 一级菜单不得按技术模块继续扩张；新入口应归入现有六类，并先证明属于 Agent / Workflow 发布与治理闭环
 - 同一能力存在多个路径别名时，必须在 `topMenuConfig.js` 标注主入口，避免误判"多个独立能力"
 
 ### 排查命令
@@ -34,6 +35,13 @@ rg "开发中|未启用|待实现|ElMessage\.(info|warning)" src
 ### 表格
 
 业务表格使用项目内的 `ResizableTable` 包装组件（位于 `src/components/`），支持列宽拖拽与持久化。新增表格时优先复用，避免直接用裸 `el-table`。
+
+核心闭环列表（Agent / Run / Endpoint）遵循以下信息优先级：
+
+1. 名称、用户输入和当前可用状态；
+2. 下一步产品动作；
+3. 模型、版本、节点等执行上下文；
+4. 完整 ID、Trace 和底层事件只放在详情或排障入口，不作为列表主列。
 
 ### 前端统一改造 1.0
 
@@ -69,7 +77,7 @@ npm run build && npm run preview
 - [ ] `npm run build` 通过，无 TypeScript / 类型告警
 - [ ] `npm run test` 通过
 - [ ] 涉及浏览器交互时 `npm run test:e2e` 通过或记录未运行原因
-- [ ] 关键路径手工烟测：登录 / 智能体列表 / 工作流可视化首屏 / 监控大屏
+- [ ] 关键路径手工烟测：登录 / 产品概览 / Agent → Run → Endpoint 主链路 / 工作流可视化首屏
 - [ ] 新增页面已在 `topMenuConfig.js` 注册角色和可见性口径
 - [ ] 历史路由别名未误删（参见 `src/router/routes.js` 中重定向项）
 

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCurlCommand,
   buildMcpConfig,
-  buildPublicUrl
+  buildPublicUrl,
+  resolvePublicOrigin,
 } from '@/domains/endpoint/publishDelivery'
 
 describe('Endpoint publish delivery helpers', () => {
@@ -14,6 +15,14 @@ describe('Endpoint publish delivery helpers', () => {
   it('preserves an absolute URL returned by the API', () => {
     expect(buildPublicUrl('https://orin.example.com', 'https://api.example.com/run'))
       .toBe('https://api.example.com/run')
+  })
+
+  it('uses the public backend origin instead of a local frontend dev proxy', () => {
+    expect(resolvePublicOrigin('http://localhost:5173')).toBe('http://localhost:8080')
+    expect(resolvePublicOrigin('http://127.0.0.1:4174')).toBe('http://127.0.0.1:8080')
+    expect(resolvePublicOrigin('https://orin.example.com')).toBe('https://orin.example.com')
+    expect(resolvePublicOrigin('http://localhost:5173', 'https://api.orin.example.com/'))
+      .toBe('https://api.orin.example.com')
   })
 
   it('builds a copyable curl command with API key authentication', () => {

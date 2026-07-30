@@ -5,6 +5,7 @@ import com.adlin.orin.modules.knowledge.service.GraphExtractionService;
 import com.adlin.orin.modules.knowledge.service.RAGFlowIntegrationService;
 import com.adlin.orin.modules.system.entity.SystemConfigEntity;
 import com.adlin.orin.modules.system.repository.SystemConfigRepository;
+import com.adlin.orin.modules.settings.support.SecretConfigSanitizer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -115,7 +116,10 @@ public class IntegrationController {
     public ResponseEntity<Map<String, Object>> getDifyConfig() {
         Map<String, Object> result = new HashMap<>();
         result.put("apiUrl", getDifyConfigValue(DIFY_API_URL_KEY, ""));
-        result.put("apiKey", getDifyConfigValue(DIFY_API_KEY_KEY, ""));
+        result.put("apiKey", SecretConfigSanitizer.redact(
+                DIFY_API_KEY_KEY,
+                getDifyConfigValue(DIFY_API_KEY_KEY, "")
+        ));
         result.put("enabled", Boolean.parseBoolean(getDifyConfigValue(DIFY_ENABLED_KEY, "false")));
         return ResponseEntity.ok(result);
     }
@@ -124,7 +128,10 @@ public class IntegrationController {
     @Operation(summary = "保存 Dify 配置")
     public ResponseEntity<Map<String, Object>> saveDifyConfig(@RequestBody Map<String, Object> config) {
         saveDifyConfigValue(DIFY_API_URL_KEY, asString(config.getOrDefault("apiUrl", "")), "Dify API 地址");
-        saveDifyConfigValue(DIFY_API_KEY_KEY, asString(config.getOrDefault("apiKey", "")), "Dify API Key");
+        Object apiKey = config.getOrDefault("apiKey", "");
+        if (!SecretConfigSanitizer.isMaskedValue(apiKey)) {
+            saveDifyConfigValue(DIFY_API_KEY_KEY, asString(apiKey), "Dify API Key");
+        }
         saveDifyConfigValue(DIFY_ENABLED_KEY, String.valueOf(config.getOrDefault("enabled", false)), "Dify 启用状态");
         return getDifyConfig();
     }
@@ -171,7 +178,7 @@ public class IntegrationController {
     @Operation(summary = "获取 RAGFlow 配置")
     public ResponseEntity<Map<String, Object>> getRagflowConfig() {
         Map<String, Object> config = INTEGRATION_CONFIGS.get("ragflow");
-        return ResponseEntity.ok(config != null ? config : new HashMap<>());
+        return ResponseEntity.ok(SecretConfigSanitizer.redactCopy(config));
     }
 
     @PostMapping("/ragflow")
@@ -179,9 +186,12 @@ public class IntegrationController {
     public ResponseEntity<Map<String, Object>> saveRagflowConfig(@RequestBody Map<String, Object> config) {
         Map<String, Object> ragflowConfig = INTEGRATION_CONFIGS.computeIfAbsent("ragflow", k -> new HashMap<>());
         ragflowConfig.put("apiUrl", config.getOrDefault("apiUrl", ""));
-        ragflowConfig.put("apiKey", config.getOrDefault("apiKey", ""));
+        Object apiKey = config.getOrDefault("apiKey", "");
+        if (!SecretConfigSanitizer.isMaskedValue(apiKey)) {
+            ragflowConfig.put("apiKey", apiKey);
+        }
         ragflowConfig.put("enabled", config.getOrDefault("enabled", false));
-        return ResponseEntity.ok(ragflowConfig);
+        return getRagflowConfig();
     }
 
     @GetMapping("/ragflow/test")
@@ -232,7 +242,7 @@ public class IntegrationController {
     @Operation(summary = "获取 AutoGen 配置")
     public ResponseEntity<Map<String, Object>> getAutogenConfig() {
         Map<String, Object> config = INTEGRATION_CONFIGS.get("autogen");
-        return ResponseEntity.ok(config != null ? config : new HashMap<>());
+        return ResponseEntity.ok(SecretConfigSanitizer.redactCopy(config));
     }
 
     @PostMapping("/autogen")
@@ -240,10 +250,13 @@ public class IntegrationController {
     public ResponseEntity<Map<String, Object>> saveAutogenConfig(@RequestBody Map<String, Object> config) {
         Map<String, Object> autogenConfig = INTEGRATION_CONFIGS.computeIfAbsent("autogen", k -> new HashMap<>());
         autogenConfig.put("serviceUrl", config.getOrDefault("serviceUrl", ""));
-        autogenConfig.put("apiKey", config.getOrDefault("apiKey", ""));
+        Object apiKey = config.getOrDefault("apiKey", "");
+        if (!SecretConfigSanitizer.isMaskedValue(apiKey)) {
+            autogenConfig.put("apiKey", apiKey);
+        }
         autogenConfig.put("maxConcurrency", config.getOrDefault("maxConcurrency", 5));
         autogenConfig.put("enabled", config.getOrDefault("enabled", false));
-        return ResponseEntity.ok(autogenConfig);
+        return getAutogenConfig();
     }
 
     @GetMapping("/autogen/test")
@@ -276,7 +289,7 @@ public class IntegrationController {
     @Operation(summary = "获取 CrewAI 配置")
     public ResponseEntity<Map<String, Object>> getCrewaiConfig() {
         Map<String, Object> config = INTEGRATION_CONFIGS.get("crewai");
-        return ResponseEntity.ok(config != null ? config : new HashMap<>());
+        return ResponseEntity.ok(SecretConfigSanitizer.redactCopy(config));
     }
 
     @PostMapping("/crewai")
@@ -284,10 +297,13 @@ public class IntegrationController {
     public ResponseEntity<Map<String, Object>> saveCrewaiConfig(@RequestBody Map<String, Object> config) {
         Map<String, Object> crewaiConfig = INTEGRATION_CONFIGS.computeIfAbsent("crewai", k -> new HashMap<>());
         crewaiConfig.put("serviceUrl", config.getOrDefault("serviceUrl", ""));
-        crewaiConfig.put("apiKey", config.getOrDefault("apiKey", ""));
+        Object apiKey = config.getOrDefault("apiKey", "");
+        if (!SecretConfigSanitizer.isMaskedValue(apiKey)) {
+            crewaiConfig.put("apiKey", apiKey);
+        }
         crewaiConfig.put("defaultModel", config.getOrDefault("defaultModel", "gpt-4"));
         crewaiConfig.put("enabled", config.getOrDefault("enabled", false));
-        return ResponseEntity.ok(crewaiConfig);
+        return getCrewaiConfig();
     }
 
     @GetMapping("/crewai/test")
@@ -342,7 +358,10 @@ public class IntegrationController {
         result.put("host",     getNeo4jConfigValue(NEO4J_HOST_KEY, "localhost"));
         result.put("port",     asInt(getNeo4jConfigValue(NEO4J_PORT_KEY, "7687"), 7687));
         result.put("username", getNeo4jConfigValue(NEO4J_USERNAME_KEY, "neo4j"));
-        result.put("password", getNeo4jConfigValue(NEO4J_PASSWORD_KEY, ""));
+        result.put("password", SecretConfigSanitizer.redact(
+                NEO4J_PASSWORD_KEY,
+                getNeo4jConfigValue(NEO4J_PASSWORD_KEY, "")
+        ));
         result.put("database", getNeo4jConfigValue(NEO4J_DATABASE_KEY, "neo4j"));
         result.put("maxConnectionPoolSize",          asInt(getNeo4jConfigValue(NEO4J_MAX_POOL_KEY, "50"), 50));
         result.put("connectionAcquisitionTimeoutMs", asInt(getNeo4jConfigValue(NEO4J_TIMEOUT_KEY, "60000"), 60000));
@@ -357,7 +376,10 @@ public class IntegrationController {
         saveNeo4jConfigValue(NEO4J_HOST_KEY,     asString(config.getOrDefault("host", "localhost")), "Neo4j Host");
         saveNeo4jConfigValue(NEO4J_PORT_KEY,     asString(config.getOrDefault("port", 7687)),        "Neo4j Port");
         saveNeo4jConfigValue(NEO4J_USERNAME_KEY, asString(config.getOrDefault("username", "neo4j")), "Neo4j 用户名");
-        saveNeo4jConfigValue(NEO4J_PASSWORD_KEY, asString(config.getOrDefault("password", "")),      "Neo4j 密码");
+        Object password = config.getOrDefault("password", "");
+        if (!SecretConfigSanitizer.isMaskedValue(password)) {
+            saveNeo4jConfigValue(NEO4J_PASSWORD_KEY, asString(password), "Neo4j 密码");
+        }
         saveNeo4jConfigValue(NEO4J_DATABASE_KEY, asString(config.getOrDefault("database", "neo4j")), "Neo4j 数据库");
         saveNeo4jConfigValue(NEO4J_MAX_POOL_KEY, asString(config.getOrDefault("maxConnectionPoolSize", 50)),          "Neo4j 连接池大小");
         saveNeo4jConfigValue(NEO4J_TIMEOUT_KEY,  asString(config.getOrDefault("connectionAcquisitionTimeoutMs", 60000)), "Neo4j 获取连接超时");

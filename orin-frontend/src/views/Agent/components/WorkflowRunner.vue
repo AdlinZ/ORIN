@@ -93,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { VideoPlay } from '@element-plus/icons-vue';
 import { chatAgent } from '@/api/agent'; // Use chat API but route to workflow logic
 import { ElMessage } from 'element-plus';

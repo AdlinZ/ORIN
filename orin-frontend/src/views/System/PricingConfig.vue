@@ -272,7 +272,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { Money, Monitor, RefreshRight, Plus, Search, Download } from '@element-plus/icons-vue';
+import { Monitor, RefreshRight, Plus, Search, Download } from '@element-plus/icons-vue';
 import echarts from '@/utils/echarts';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue';

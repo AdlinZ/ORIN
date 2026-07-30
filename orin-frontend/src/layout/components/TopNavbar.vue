@@ -12,7 +12,7 @@
         :key="menu.id"
         class="menu-item"
         :class="{ active: activeMenuId === menu.id }"
-        @mouseenter="handleMenuHover(menu.id)"
+        @mouseenter="handleMenuHover(menu)"
         @mouseleave="handleMenuLeave"
         @click="handleMenuClick(menu)"
       >
@@ -24,6 +24,7 @@
         <!-- 下拉二级菜单 -->
         <transition name="dropdown">
           <div
+            v-if="menu.children.length > 0"
             v-show="activeDropdown === menu.id"
             class="dropdown-menu"
             @mouseenter="keepDropdownOpen(menu.id)"
@@ -158,7 +159,17 @@
     
     <div class="mobile-menu-content">
       <div v-for="menu in visibleMenus" :key="menu.id" class="mobile-menu-group">
-        <div class="mobile-menu-title" :style="{ color: menu.color }">
+        <router-link
+          v-if="menu.children.length === 0"
+          :to="menu.path"
+          class="mobile-menu-title mobile-menu-direct"
+          :style="{ color: menu.color }"
+          @click="closeMobileMenu"
+        >
+          <el-icon><component :is="getIconComponent(menu.icon)" /></el-icon>
+          <span>{{ menu.title }}</span>
+        </router-link>
+        <div v-else class="mobile-menu-title" :style="{ color: menu.color }">
           <el-icon><component :is="getIconComponent(menu.icon)" /></el-icon>
           <span>{{ menu.title }}</span>
         </div>
@@ -310,7 +321,7 @@ import { ROUTES } from '@/router/routes'
 import { getVisibleMenus, getActiveMenuId, getDefaultHomeByRoles } from '@/router/topMenuConfig'
 import NotificationCenter from './NotificationCenter.vue'
 import {
-  Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh, DataAnalysis,
+  Bell, ArrowDown, User, Setting, Sunny, Moon, SwitchButton, Menu, Refresh,
   Loading, Close, HelpFilled, Odometer, DocumentChecked, Lock,
   Fold, Cpu, MagicStick
 } from '@element-plus/icons-vue'
@@ -387,8 +398,8 @@ const handleRefresh = () => {
 const toggleMobileMenu = () => { showMobileMenu.value = !showMobileMenu.value }
 const closeMobileMenu = () => { showMobileMenu.value = false }
 
-const handleMenuHover = (menuId) => {
-  activeDropdown.value = menuId
+const handleMenuHover = (menu) => {
+  activeDropdown.value = menu.children?.length ? menu.id : null
 }
 
 const handleMenuLeave = () => {
@@ -405,12 +416,10 @@ const keepDropdownOpen = (menuId) => {
 }
 
 const handleMenuClick = (menu) => {
-  // 只切换下拉菜单，不导航到父路由
-  if (activeDropdown.value === menu.id) {
-    activeDropdown.value = null
-  } else {
-    activeDropdown.value = menu.id
+  if (menu.path) {
+    router.push(menu.path)
   }
+  activeDropdown.value = null
 }
 
 const closeDropdown = () => {
@@ -606,10 +615,6 @@ ${userMsg}
 const quickCommand = (cmd) => {
   systemInput.value = cmd
   sendSystemMessage()
-}
-
-const showSystemAI = () => {
-  showSystemEval.value = true
 }
 
 const handleUserCommand = (command) => {
@@ -934,6 +939,16 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 8px;
+}
+
+.mobile-menu-direct {
+  border-radius: 6px;
+  margin: 0 8px 8px;
+  text-decoration: none;
+}
+
+.mobile-menu-direct:hover {
+  background: var(--neutral-gray-50);
 }
 
 .mobile-menu-item {

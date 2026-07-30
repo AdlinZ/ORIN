@@ -48,7 +48,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["run", "clear", "stop", "select-workflow"]);
+defineEmits(["run", "clear", "stop", "select-workflow"]);
 
 const i18n = inject(I18N_KEY, null);
 const t = i18n?.t || ((key) => key);

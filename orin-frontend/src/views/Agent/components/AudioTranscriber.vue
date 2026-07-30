@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { Microphone, Loading } from '@element-plus/icons-vue';
 import { useAgentInteraction } from '../composables/useAgentInteraction';
 import { uploadMultimodalFile } from '@/api/agent';
@@ -69,7 +69,7 @@ const props = defineProps({
 });
 
 const selectedFile = ref(null);
-const { isProcessing, result, dataType, error, interact } = useAgentInteraction(props.agentId);
+const { isProcessing, result, interact } = useAgentInteraction(props.agentId);
 
 const resultText = computed(() => {
     if (!result.value) return '';

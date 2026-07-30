@@ -33,7 +33,8 @@ vi.mock('element-plus', async (importOriginal) => {
   }
 })
 
-const createWrapper = () => mount(AuditCenterV2, {
+const createWrapper = (props = {}) => mount(AuditCenterV2, {
+  props,
   global: {
     stubs: {
       OrinPageShell: { template: '<div><slot /><slot name="actions" /></div>' },
@@ -105,6 +106,18 @@ describe('AuditCenterV2', () => {
     await Promise.resolve()
     expect(getMock).toHaveBeenCalledWith('/audit/logs', { params: { page: 0, size: 20 } })
     expect(wrapper.find('.audit-rows').text()).toBe('1')
+  })
+
+  it('keeps the daily audit entry read-only and skips logger loading', async () => {
+    const wrapper = createWrapper({ mode: 'logs' })
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(wrapper.text()).toContain('审计记录')
+    expect(wrapper.text()).not.toContain('保存配置')
+    expect(wrapper.text()).not.toContain('审计存储配置')
+    expect(wrapper.text()).not.toContain('日志控制台')
+    expect(getMock).not.toHaveBeenCalledWith('/system/log-config/loggers')
   })
 
   it('saves audit config with three put requests', async () => {

@@ -78,7 +78,7 @@ docker compose --env-file .env up --build -d
 - 后端服务：<http://localhost:8080>（Swagger：`/swagger-ui/index.html`）
 - AI Engine：<http://localhost:8000>
 
-`.env.example` 的默认值仅用于本机 smoke。真实部署或共享环境必须替换数据库密码、`JWT_SECRET`、`ORIN_DEFAULT_ADMIN_PASSWORD`、CORS、provider key 等配置。Docker quickstart 依赖 `docker/mysql/init/01-orin-schema.sql` 作为 schema snapshot baseline 初始化 MySQL，后端启动后由 Flyway 补跑快照之后的迁移。
+`.env.example` 是变量模板，不包含可用密码或密钥。启动前必须至少替换数据库密码、`JWT_SECRET`、`ORIN_DEFAULT_ADMIN_PASSWORD` 和 CORS；provider key 可在需要相应能力时再配置。Docker quickstart 依赖 `docker/mysql/init/01-orin-schema.sql` 作为 schema snapshot baseline 初始化 MySQL，后端启动后由 Flyway 补跑快照之后的迁移。发布候选的完整门禁见 [Release Checklist](docs/release-checklist.md)。
 
 ## 验收命令
 

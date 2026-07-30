@@ -1,5 +1,9 @@
 import asyncio
+import ipaddress
 from typing import Any, Dict, Optional, TYPE_CHECKING
+from urllib.parse import urlsplit
+
+import httpx
 from openai import AsyncOpenAI, APITimeoutError, APIConnectionError, RateLimitError
 from app.models.workflow import Node, NodeExecutionOutput
 from app.engine.handlers.base import BaseNodeHandler
@@ -7,6 +11,20 @@ from app.core.config import settings
 
 if TYPE_CHECKING:
     from app.engine.executor import GraphExecutor
+
+
+def _should_trust_env(base_url: Any) -> bool:
+    """Keep proxy support for remote providers, never for loopback models."""
+    if not isinstance(base_url, str):
+        return True
+    hostname = (urlsplit(base_url).hostname or "").lower()
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        return False
+    try:
+        return not ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return True
+
 
 class RealLLMNodeHandler(BaseNodeHandler):
     def __init__(self, executor: Optional["GraphExecutor"] = None):
@@ -40,10 +58,13 @@ class RealLLMNodeHandler(BaseNodeHandler):
 
         # Use temporary client if node provides custom credentials, else use cached global client
         if node_api_key or node_base_url:
-            run_client = AsyncOpenAI(
-                api_key=effective_api_key,
-                base_url=effective_base_url
-            )
+            client_args: Dict[str, Any] = {
+                "api_key": effective_api_key,
+                "base_url": effective_base_url,
+            }
+            if not _should_trust_env(effective_base_url):
+                client_args["http_client"] = httpx.AsyncClient(trust_env=False)
+            run_client = AsyncOpenAI(**client_args)
             should_close = True
         else:
             run_client = self.client

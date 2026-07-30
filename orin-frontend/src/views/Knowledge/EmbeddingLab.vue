@@ -447,6 +447,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import {
   Search,
   Setting,
@@ -466,6 +467,7 @@ import { getKnowledgeList, getKnowledgeVectorStatus, testRetrieval } from '@/api
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 
+const route = useRoute();
 const HISTORY_KEY = 'orin-retrieval-history';
 const MAX_HISTORY = 50;
 
@@ -632,10 +634,20 @@ const loadInitialData = async () => {
 
   initialDataLoading.value = true;
   try {
-    const [modelsRes, kbRes, vectorRes, agentsRes] = await Promise.allSettled([
+    getKnowledgeVectorStatus()
+      .then((status) => {
+        vectorStatus.value = normalizeVectorStatus(status);
+      })
+      .catch((error) => {
+        vectorStatus.value = normalizeVectorStatus({
+          healthy: false,
+          connection: error?.message,
+        });
+      });
+
+    const [modelsRes, kbRes, agentsRes] = await Promise.allSettled([
       getModelList(),
       getKnowledgeList(),
-      getKnowledgeVectorStatus(),
       getAgentList(),
     ]);
 
@@ -657,19 +669,16 @@ const loadInitialData = async () => {
       await loadKnowledgeBases({ silent: true });
     }
 
-    if (vectorRes.status === 'fulfilled') {
-      vectorStatus.value = normalizeVectorStatus(vectorRes.value);
-    } else {
-      vectorStatus.value = normalizeVectorStatus({ healthy: false, connection: vectorRes.reason?.message });
-    }
-
     if (!config.embeddingModel) {
       config.embeddingModel = embeddingModels.value[0]?.modelId || '';
     }
 
     if (agentsRes.status === 'fulfilled') {
       agents.value = unwrapList(agentsRes.value);
-      selectedAgentId.value = selectedAgentId.value || agents.value[0]?.agentId || '';
+      const requestedAgentId = String(route.query.agentId || '');
+      selectedAgentId.value = agents.value.some(agent => String(agent.agentId) === requestedAgentId)
+        ? requestedAgentId
+        : (selectedAgentId.value || agents.value[0]?.agentId || '');
     } else {
       console.warn('Failed to load agents for retrieval config', agentsRes.reason);
       agents.value = [];
@@ -710,9 +719,14 @@ const unwrapList = (response) => {
 const applyKnowledgeBases = (response) => {
   const kbs = unwrapList(response)
     .map(normalizeKb)
-    .filter(kb => kb.id && (kb.status === 'ENABLED' || kb.status === undefined || kb.status === null));
+    .filter(kb => kb.id && !['DISABLED', 'INACTIVE'].includes(kb.status));
 
   knowledgeBases.value = [{ id: 'all', name: '全局检索 (All KBs)', status: 'ENABLED' }, ...kbs];
+  const requestedKbId = String(route.query.kbId || '');
+  if (requestedKbId && knowledgeBases.value.some(kb => kb.id === requestedKbId)) {
+    selectedKbId.value = requestedKbId;
+    return;
+  }
   if (!selectedKbId.value || !knowledgeBases.value.some(kb => kb.id === selectedKbId.value)) {
     selectedKbId.value = knowledgeBases.value[0]?.id || '';
   }
@@ -748,9 +762,9 @@ const normalizeVectorStatus = (status) => ({
 });
 
 const normalizeKb = (kb) => ({
-  id: kb.id || kb.kbId || kb.knowledgeBaseId,
+  id: String(kb.id || kb.kbId || kb.knowledgeBaseId || ''),
   name: kb.name || kb.title || kb.kbName || '未命名知识库',
-  status: kb.status,
+  status: kb.status || (kb.enabled === false ? 'DISABLED' : 'ENABLED'),
 });
 
 const handleSearch = async () => {

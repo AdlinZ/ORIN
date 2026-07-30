@@ -62,7 +62,8 @@
 - `GET /api/v1/runs` 筛选参数（status、agentId、runnerId），H2 3 维筛选测试通过
 - Run 资源级 ACL：普通用户只可查看、取消或重试自己的 Run；`ROLE_OPERATOR` / `ROLE_ADMIN` 可跨 owner 处理；历史无主记录只向特权角色可见
 - `RunDetailPage.vue` — 独立详情页：状态流转（el-steps）、事件时间线（el-timeline，2s 自动轮询）、实时日志、Trace 跳转、终态原因中文解释、Cancel/Retry 按钮
-- `RunListPage.vue` — 列表页 + 状态/Agent 筛选 + 行点击跳转详情
+- `RunListPage.vue` — 运行中心按“进行中 / 已产出结果 / 需要处理 / 已停止”聚合记录，失败任务可直接诊断或重试；Runner 等调度字段不占用主列表
+- Trace 不再作为主菜单入口，只从具体 Run 详情的技术信息中下钻
 - Python Runner 6 步事件时间线（started → config → secrets → execution_started → execution_completed → finished）
 - 深层链接 `/workspace/runs/:runId` 正确加载 Run 详情
 - 详情页自动轮询（活跃 Run 时每 2-3s 刷新状态/事件/日志）

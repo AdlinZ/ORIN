@@ -792,8 +792,8 @@ import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinStepFlow from '@/components/orin/OrinStepFlow.vue';
 import { ElMessage } from 'element-plus';
 import { 
-  Link, Key, InfoFilled, Collection, Service, OfficeBuilding,
-  Connection, Check, RefreshLeft, Platform, Cpu, Document, Monitor, CirclePlus,
+  Link, Key, Collection, Service, OfficeBuilding,
+  Connection, Check, RefreshLeft, Platform, Cpu, Monitor,
   Opportunity, Star, Sunrise, Moon, User
 } from '@element-plus/icons-vue';
 

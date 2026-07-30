@@ -2,9 +2,17 @@
   <div class="page-container">
     <OrinPageShell
       domain="系统设置"
-      title="环境配置"
-      description="维护数据库、缓存、队列、向量引擎与知识服务等运行环境参数"
+      title="高级环境参数"
+      description="仅在部署变更或排障时维护数据库、队列、存储和外部服务参数。"
       icon="Tools"
+    />
+
+    <el-alert
+      title="安全提示：已配置的密码与密钥只显示固定掩码；保留掩码保存不会覆盖原值，输入新值才会替换。"
+      type="info"
+      show-icon
+      :closable="false"
+      class="secret-contract-alert"
     />
 
     <div class="layout">
@@ -778,6 +786,7 @@ import {
 import { getModelConfig, updateModelConfig } from '@/api/modelConfig';
 import { getExternalKeys } from '@/api/apiKey';
 import { getModelList } from '@/api/model';
+import { isMaskedSecret } from '@/domains/system/secretConfig';
 import {
   getDifyConfig, saveDifyConfig, testDifyConnection,
   getRagflowConfig, saveRagflowConfig, testRagflowConnection,
@@ -1043,6 +1052,10 @@ const saveMilvusCard = async () => { if (await saveMilvusConfig()) finishCardEdi
 
 const testMilvusConnection = async () => {
   if (testingMilvus.value) return;
+  if (isMaskedSecret(milvusConfig.token)) {
+    ElMessage.warning('Token 已安全隐藏；如需用新凭据测试，请先输入新 Token');
+    return;
+  }
   testingMilvus.value = true;
   milvusStatus.value.online = false;
   const t = setTimeout(() => { testingMilvus.value = false; ElMessage.warning('连接超时'); }, 10000);
@@ -1168,6 +1181,10 @@ const saveMinioConfig = async () => {
 
 const testMinioConnection = async () => {
   if (testingMinio.value) return;
+  if (isMaskedSecret(minioConfig.accessKey) || isMaskedSecret(minioConfig.secretKey)) {
+    ElMessage.warning('访问凭据已安全隐藏；如需测试新凭据，请先重新输入 Access Key 与 Secret Key');
+    return;
+  }
   testingMinio.value = true;
   try {
     const candidate = await testMinioConnectionApi({
@@ -1413,7 +1430,9 @@ const handleTestDifyConnection = async () => {
       ElMessage.warning('请先填写 Dify API 地址和 API Key');
       return;
     }
-    const res = await testDifyConnection({ apiUrl, apiKey });
+    const res = isMaskedSecret(apiKey)
+      ? await testDifyConnection()
+      : await testDifyConnection({ apiUrl, apiKey });
     res.success ? ElMessage.success('Dify 连接成功') : ElMessage.error(res.message || '连接失败');
   } catch (e) { ElMessage.error('测试失败: ' + (e.message || e)); }
 };
@@ -1621,6 +1640,10 @@ const setupObserver = () => {
 .page-container {
   padding: 0;
   color: #243244;
+}
+
+.secret-contract-alert {
+  margin: 0 0 16px;
 }
 
 .layout {

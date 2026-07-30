@@ -23,10 +23,18 @@ module.exports = {
         'vue/multi-word-component-names': 'off',
         'vue/require-default-prop': 'off',
         'vue/no-v-html': 'off',
-        'vue/max-attributes-per-line': ['warn', {
-            singleline: 3,
-            multiline: 1
-        }],
+        // Template layout is formatted by Prettier. Keep ESLint focused on
+        // correctness: the vue recommended style rules below otherwise report
+        // thousands of non-semantic warnings for valid existing templates.
+        'vue/html-indent': 'off',
+        'vue/singleline-html-element-content-newline': 'off',
+        'vue/multiline-html-element-content-newline': 'off',
+        'vue/max-attributes-per-line': 'off',
+        'vue/attributes-order': 'off',
+        'vue/html-self-closing': 'off',
+        'vue/html-closing-bracket-newline': 'off',
+        'vue/first-attribute-linebreak': 'off',
+        'vue/html-quotes': 'off',
 
         // JavaScript 相关
         'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',

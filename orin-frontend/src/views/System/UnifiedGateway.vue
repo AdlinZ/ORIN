@@ -371,7 +371,7 @@
         </section>
 
         <section v-if="activeWorkspace === 'access'" class="workspace-panel access-workspace">
-          <ApiKeyManagement embedded />
+          <ApiKeyManagement embedded :initial-tab="route.query.credentialTab" />
           <div class="access-list-section block-gap">
             <div class="workspace-section-head">
               <span class="command-eyebrow">访问名单</span>
@@ -498,7 +498,6 @@ import {
   TrendCharts
 } from '@element-plus/icons-vue'
 import OrinMetricStrip from '@/components/orin/OrinMetricStrip.vue'
-import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDetailPanel from '@/components/orin/OrinDetailPanel.vue'
@@ -509,13 +508,11 @@ import UnifiedGatewayAclTab from './components/gateway/UnifiedGatewayAclTab.vue'
 import UnifiedGatewayPoliciesTab from './components/gateway/UnifiedGatewayPoliciesTab.vue'
 import UnifiedGatewayRateLimitTab from './components/gateway/UnifiedGatewayRateLimitTab.vue'
 import ApiKeyManagement from './ApiKeyManagement.vue'
-import { useUnifiedGatewayWorkbench } from './composables/useUnifiedGatewayWorkbench'
 import { useUnifiedGatewayRoutes } from './composables/useUnifiedGatewayRoutes'
 import { useUnifiedGatewayPolicies } from './composables/useUnifiedGatewayPolicies'
 import { getAllApiKeys } from '@/api/apiKey'
 import { getGatewayAuditLogs } from '@/api/audit'
 import { getModelList } from '@/api/model'
-import { getAllProviders } from '@/api/system'
 import { createAsyncState, markLoading, markSuccess, markEmpty, markError } from '@/viewmodels'
 import dayjs from 'dayjs'
 
@@ -604,8 +601,7 @@ const quickstartTabs = [
 const quickstartCodeSnippets = computed(() => {
   const origin = baseUrl.value
   return {
-    curl: `curl -sS "${origin}/v1/chat/completions" \\\\
-  -H "Authorization: Bearer sk-orin-..." \\\\
+    curl: `curl -sS --oauth2-bearer "$ORIN_API_KEY" "${origin}/v1/chat/completions" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{
     "model": "deepseek-ai/DeepSeek-V3",
@@ -615,7 +611,7 @@ const quickstartCodeSnippets = computed(() => {
     nodejs: `import OpenAI from "openai";
 
 const client = new OpenAI({
-  apiKey: "sk-orin-...",
+  apiKey: process.env.ORIN_API_KEY,
   baseURL: "${origin}/v1",
 });
 
@@ -624,10 +620,11 @@ const completion = await client.chat.completions.create({
   messages: [{ role: "user", content: "Hello, ORIN!" }],
 });
 // → completion.choices[0].message.content`,
-    python: `from openai import OpenAI
+    python: `import os
+from openai import OpenAI
 
 client = OpenAI(
-    api_key="sk-orin-...",
+    api_key=os.environ["ORIN_API_KEY"],
     base_url="${origin}/v1",
 )
 
@@ -761,14 +758,6 @@ async function loadGatewayConsole() {
 }
 
 const {
-  state: workbenchState,
-  workbench,
-  metrics,
-  statusItems,
-  loadWorkbench
-} = useUnifiedGatewayWorkbench()
-
-const {
   state: routesState,
   routes,
   controlPlaneCoverage,
@@ -784,24 +773,9 @@ const {
 
 const { loadPolicies } = useUnifiedGatewayPolicies()
 
-const controlPlaneEndpointPreview = computed(() => {
-  const endpoints = workbench.value.controlPlaneCoverage?.endpoints || []
-  return [
-    ...endpoints.filter((item) => item.status === 'ATTENTION_REQUIRED')
-  ].slice(0, 8)
-})
-
 const attentionControlPlaneEndpoints = computed(() =>
   (controlPlaneCoverage.value.endpoints || []).filter((item) => item.status === 'ATTENTION_REQUIRED')
 )
-
-const workbenchAttentionEndpoints = computed(() =>
-  (workbench.value.controlPlaneCoverage?.endpoints || []).filter((item) => item.status === 'ATTENTION_REQUIRED')
-)
-
-const coverageSummary = computed(() => workbench.value.controlPlaneCoverage?.summary || {})
-
-const attentionEndpointCount = computed(() => coverageSummary.value.attentionRequiredEndpoints || 0)
 
 const workspaceSummaryMap = computed(() => {
   const keyCount = apiKeys.value.length
@@ -816,138 +790,6 @@ const workspaceSummaryMap = computed(() => {
     traffic: '限流、熔断、重试与默认防线'
   }
 })
-
-const heroMetrics = computed(() => {
-  const overview = workbench.value.overview || {}
-  const healthy = overview.healthyInstances ?? 0
-  const unhealthy = overview.unhealthyInstances ?? 0
-  const totalInstances = healthy + unhealthy
-  return [
-    { key: 'requests', label: '总请求数', value: formatNumber(overview.totalRequests), meta: '累计网关流量' },
-    { key: 'qps', label: '当前 QPS', value: overview.qps ?? 0, meta: '最近 6 分钟估算' },
-    { key: 'latency', label: '平均延迟', value: `${overview.avgLatencyMs ?? 0}ms`, meta: '近 1 小时成功请求' },
-    {
-      key: 'errorRate',
-      label: '错误率',
-      value: `${overview.errorRate ?? 0}%`,
-      meta: '异常请求占比',
-      intent: Number(overview.errorRate || 0) > 0 ? 'danger' : 'success'
-    },
-    {
-      key: 'activeRoutes',
-      label: '活跃入口',
-      value: overview.activeRoutes ?? 0,
-      meta: '当前参与匹配的入口数量',
-      intent: (overview.activeRoutes ?? 0) > 0 ? 'success' : 'warning'
-    },
-    {
-      key: 'serviceHealth',
-      label: '服务健康',
-      value: `${healthy}/${totalInstances}`,
-      meta: unhealthy > 0 ? `${unhealthy} 个异常实例` : '实例健康状态正常',
-      intent: unhealthy > 0 ? 'danger' : 'success'
-    }
-  ]
-})
-
-const operationsSummary = computed(() => {
-  const attention = attentionEndpointCount.value
-  const failures = workbench.value.recentFailures?.length || 0
-  const unhealthy = workbench.value.overview?.unhealthyInstances || 0
-  const totalEvents = attention + failures + unhealthy
-  if (totalEvents > 0) {
-    return {
-      title: `${totalEvents} 个入口问题需要处理`,
-      description: '核心运行指标仍放在首位；这里只收敛会影响调用成功率、访问安全或上游健康的事项。',
-      badge: '待处理项',
-      summary: buildFocusSummary(attention, failures, unhealthy),
-      intent: 'warning'
-    }
-  }
-  return {
-    title: '入口运行正常',
-    description: '模型 API、服务代理和后台控制面没有失败诊断。下一步通常是测试核心入口或补充单独配置。',
-    badge: '当前结论',
-    summary: '没有需要立即处理的入口异常',
-    intent: 'success'
-  }
-})
-
-const entryLanes = computed(() => [
-  {
-    key: 'open-api',
-    label: '开放能力面 /v1',
-    value: `${workbench.value.overview?.activeRoutes || 0} 个入口`,
-    meta: '模型 API 与 OpenAI 兼容入口。',
-    intent: 'success'
-  },
-  {
-    key: 'control-plane',
-    label: '后台控制面 /api/v1',
-    value: `${coverageSummary.value.baselineGovernedEndpoints || 0}/${coverageSummary.value.totalEndpoints || 0}`,
-    meta: attentionEndpointCount.value > 0
-      ? `${attentionEndpointCount.value} 个入口需要处理。`
-      : '后台入口默认经过基础保护链路。',
-    intent: attentionEndpointCount.value > 0 ? 'warning' : 'success'
-  },
-  {
-    key: 'rescue',
-    label: '救援入口',
-    value: coverageSummary.value.rescueReservedEndpoints || 0,
-    meta: '登录、健康检查、统一网关修复入口保留直连，配置错误时仍能救回系统。',
-    intent: 'neutral'
-  }
-])
-
-const primaryActions = computed(() => {
-  if (attentionEndpointCount.value > 0) {
-    return [
-      { key: 'policy', label: '添加单独配置', type: 'primary', handler: handlePrimaryEntryAction },
-      { key: 'test', label: '测试入口', type: 'default', handler: openRouteTest }
-    ]
-  }
-  if ((workbench.value.recentFailures?.length || 0) > 0) {
-    return [
-      { key: 'test', label: '测试入口', type: 'primary', handler: openRouteTest },
-      { key: 'api', label: '查看统一入口', type: 'default', handler: () => setActiveWorkspace('api') }
-    ]
-  }
-  return [
-    { key: 'test', label: '测试入口', type: 'primary', handler: openRouteTest },
-    { key: 'traffic', label: '查看流量策略', type: 'default', handler: () => setActiveWorkspace('traffic') }
-  ]
-})
-
-const quickActions = computed(() => [
-  {
-    key: 'test',
-    label: '测试入口',
-    description: '输入路径和方法，确认匹配、策略和目标。',
-    handler: openRouteTest
-  },
-  {
-    key: 'open-api',
-    label: '配置统一入口',
-    description: '维护 /v1、后台控制面或服务代理入口。',
-    handler: () => setActiveWorkspace('api')
-  },
-  {
-    key: 'proxy',
-    label: '配置上游服务',
-    description: '把上游服务、实例和健康检查接入统一入口。',
-    handler: () => setActiveWorkspace('api')
-  },
-  {
-    key: 'traffic',
-    label: '流量策略',
-    description: '维护限流、熔断、重试和平台底线。',
-    handler: () => setActiveWorkspace('traffic')
-  }
-])
-
-const secondaryRuntimeMetrics = computed(() =>
-  metrics.value.filter((metric) => metric.key === 'coverage')
-)
 
 watch(
   () => route.query.workspace,
@@ -988,34 +830,11 @@ function openRouteTest() {
   testDialogVisible.value = true
 }
 
-function buildFocusSummary(attention, failures, unhealthy) {
-  const parts = []
-  if (failures > 0) parts.push(`${failures} 条失败`)
-  if (attention > 0) parts.push(`${attention} 个策略问题`)
-  if (unhealthy > 0) parts.push(`${unhealthy} 个上游异常`)
-  return parts.join('，')
-}
-
 function formatNumber(value) {
   const num = Number(value || 0)
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
   return String(num)
-}
-
-async function handlePrimaryEntryAction() {
-  const firstAttention = workbenchAttentionEndpoints.value[0]
-  if (firstAttention) {
-    await createLocalControlPlaneRoute(firstAttention)
-    await loadWorkbench()
-    setActiveWorkspace('api')
-    return
-  }
-  if (workbench.value.recentFailures?.length) {
-    setActiveWorkspace('api')
-    return
-  }
-  openRouteTest()
 }
 
 const runTest = async () => {
@@ -1050,18 +869,6 @@ const formatMethods = (methods = []) => {
   return methods.join(', ')
 }
 
-const coverageStatusLabel = (status) => {
-  if (status === 'POLICY_ENFORCED') return '单独配置'
-  if (status === 'BASELINE_GOVERNED') return '基础保护'
-  if (status === 'RESCUE_RESERVED') return '救援保留'
-  return '需要处理'
-}
-
-const coverageStatusType = (status) => {
-  if (status === 'POLICY_ENFORCED' || status === 'BASELINE_GOVERNED') return 'success'
-  if (status === 'RESCUE_RESERVED') return 'info'
-  return 'warning'
-}
 </script>
 
 <style scoped>

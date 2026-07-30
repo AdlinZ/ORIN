@@ -5,6 +5,7 @@ Run:
     cd orin-ai-engine && python -m pytest tests/test_task_runtime.py -v
 """
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,6 +14,93 @@ from app.engine.task_runtime import TaskRuntime
 
 
 class TestTaskRuntimeAgent:
+    @pytest.mark.asyncio
+    async def test_execute_agent_task_supports_explicit_deterministic_runner_provider(self):
+        runtime = TaskRuntime()
+
+        result = await runtime.execute_agent_task(
+            description="verify the Runner path",
+            expected_role="agent",
+            context={"config_snapshot": '{"model":{"providerType":"ORIN_DETERMINISTIC"}}'},
+        )
+
+        assert result == "ORIN deterministic runner result: verify the Runner path"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_task_unwraps_h2_quoted_config_snapshot(self):
+        runtime = TaskRuntime()
+        snapshot = '{"model":{"providerType":"ORIN_DETERMINISTIC"}}'
+        quoted_snapshot = json.dumps(snapshot)
+        deeply_quoted_snapshot = snapshot
+        for _ in range(6):
+            deeply_quoted_snapshot = json.dumps(deeply_quoted_snapshot)
+
+        quoted_result = await runtime.execute_agent_task(
+            description="quoted snapshot",
+            expected_role="agent",
+            context={"config_snapshot": quoted_snapshot},
+        )
+        deeply_quoted_result = await runtime.execute_agent_task(
+            description="deeply quoted snapshot",
+            expected_role="agent",
+            context={"config_snapshot": deeply_quoted_snapshot},
+        )
+
+        assert quoted_result == "ORIN deterministic runner result: quoted snapshot"
+        assert deeply_quoted_result == "ORIN deterministic runner result: deeply quoted snapshot"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_task_does_not_treat_invalid_snapshot_as_deterministic(self):
+        runtime = TaskRuntime()
+        mock_output = MagicMock()
+        mock_output.outputs = {"text": "provider output"}
+
+        with patch("app.engine.task_runtime.RealLLMNodeHandler") as mock_handler_cls:
+            mock_handler_cls.return_value.run = AsyncMock(return_value=mock_output)
+            result = await runtime.execute_agent_task(
+                description="hello",
+                expected_role="agent",
+                context={"config_snapshot": "not-json"},
+            )
+
+        assert result == "provider output"
+
+    @pytest.mark.asyncio
+    async def test_execute_agent_task_maps_frozen_ollama_agent_to_llm_node(self):
+        runtime = TaskRuntime()
+        mock_output = MagicMock()
+        mock_output.outputs = {"text": "local model output"}
+        snapshot = {
+            "config": {
+                "systemPrompt": "你是 ORIN 本地助手。",
+                "temperature": 0.2,
+                "maxTokens": 512,
+            },
+            "model": {
+                "providerType": "OLLAMA",
+                "modelName": "qwen2.5:0.5b",
+                "baseUrl": None,
+            },
+        }
+
+        with patch("app.engine.task_runtime.RealLLMNodeHandler") as mock_handler_cls:
+            mock_handler_cls.return_value.run = AsyncMock(return_value=mock_output)
+            result = await runtime.execute_agent_task(
+                description="介绍你自己",
+                expected_role="agent",
+                context={"config_snapshot": json.dumps(snapshot)},
+            )
+
+        assert result == "local model output"
+        node = mock_handler_cls.return_value.run.await_args.args[0]
+        assert node.data["model"] == "qwen2.5:0.5b"
+        assert node.data["base_url"] == "http://127.0.0.1:11434/v1"
+        assert node.data["api_key"] == "ollama"
+        assert node.data["temperature"] == 0.2
+        assert node.data["max_tokens"] == 512
+        assert "你是 ORIN 本地助手。" in node.data["prompt"]
+        assert "介绍你自己" in node.data["prompt"]
+
     @pytest.mark.asyncio
     async def test_execute_agent_task_returns_text_output(self):
         runtime = TaskRuntime()

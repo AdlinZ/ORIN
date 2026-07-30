@@ -22,7 +22,7 @@
                 link
                 size="small"
                 :icon="Refresh"
-                @click="$emit('refresh-logs')"
+                @click="emit('refresh-logs')"
               />
             </div>
             <div class="log-content">
@@ -253,10 +253,10 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted } from 'vue';
 import {
   Position, Delete, MoreFilled, ArrowRight,
-  Operation, Search, Paperclip, Setting,
+  Operation, Search, Paperclip,
   Tickets, Refresh, Cpu, Warning, Download
 } from '@element-plus/icons-vue';
 import { chatAgent } from '@/api/agent';
@@ -270,6 +270,8 @@ const props = defineProps({
   parameters: { type: Object, default: () => ({}) },
   logs: { type: Array, default: () => [] }
 });
+
+const emit = defineEmits(['refresh-logs']);
 
 const formatTime = (ts) => {
   if (!ts) return '-';
@@ -307,14 +309,6 @@ const getRoleLabel = (role) => ({
   'assistant': 'Assistant'
 }[role] || 'Unknown');
 
-const latestTokenCount = computed(() => {
-  if (metrics.value.tokens.length > 0) return metrics.value.tokens[metrics.value.tokens.length - 1].value;
-  return 0;
-});
-const latestLatency = computed(() => {
-  if (metrics.value.latency.length > 0) return Math.round(metrics.value.latency[metrics.value.latency.length - 1].value);
-  return 0;
-});
 
 const handleKeyEnter = (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {

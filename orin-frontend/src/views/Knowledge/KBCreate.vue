@@ -1233,7 +1233,6 @@ const kbDescription = ref('');
 const descModel = ref('');
 const generatingDesc = ref(false);
 const generatingName = ref(false);
-const creating = ref(false);
 const allModels = ref([]);
 // Rerank 模型列表 (从 allModels 筛选)
 const rerankModels = computed(() => {
@@ -1249,14 +1248,6 @@ const rerankModels = computed(() => {
 });
 const createdKbId = ref(null); // Track created KB to avoid duplicate creation
 const uploadedFiles = ref(new Set()); // Track uploaded files to avoid duplicate upload
-
-// Chat models for description generation
-const chatModels = computed(() => {
-   return allModels.value.filter(m => m.type === 'CHAT' || m.type === 'LLM' || m.type === undefined).map(m => ({
-      name: m.name,
-      modelId: m.modelId || m.name
-   }));
-});
 
 // Step 3 specific state
 const creatingFiles = ref([]);
@@ -1366,25 +1357,6 @@ const rerankOptions = computed(() => {
    }
    return options;
 });
-
-// OCR Provider Options (service-based, not model-based)
-const ocrProviderOptions = [
-   { label: '本地 (Tesseract)', value: 'local', icon: 'Monitor' },
-   { label: 'Azure Vision', value: 'azure', icon: 'Cloud' },
-   { label: 'Google Cloud Vision', value: 'google', icon: 'Cloudy' },
-   { label: '阿里云 OCR', value: 'aliyun', icon: 'Cloud' },
-   { label: '腾讯云 OCR', value: 'tencent', icon: 'Cloudy' }
-];
-
-// ASR Provider Options (service-based)
-const asrProviderOptions = [
-   { label: '本地 (Whisper)', value: 'local', icon: 'Monitor' },
-   { label: 'Azure Speech', value: 'azure', icon: 'Cloud' },
-   { label: 'Google Speech', value: 'google', icon: 'Cloudy' },
-   { label: '阿里云 ASR', value: 'aliyun', icon: 'Cloud' },
-   { label: '腾讯云 ASR', value: 'tencent', icon: 'Cloudy' },
-   { label: 'OpenAI Whisper API', value: 'openai', icon: 'MagicStick' }
-];
 
 // OCR Model Options - dynamically from models (OCR/VISION type)
 const ocrModelOptions = computed(() => {

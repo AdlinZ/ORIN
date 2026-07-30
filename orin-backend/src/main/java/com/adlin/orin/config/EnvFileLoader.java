@@ -30,14 +30,19 @@ public class EnvFileLoader implements EnvironmentPostProcessor {
 
         if (!props.isEmpty()) {
             PropertySource<?> propertySource = new org.springframework.core.env.PropertiesPropertySource("envFile", props);
-            environment.getPropertySources().addFirst(propertySource);
+            // .env is a local-development fallback, never an authority over
+            // process/container/command-line configuration.  Giving it the
+            // highest priority made a stale orin-backend/.env silently replace
+            // production DB credentials and CLI overrides.
+            environment.getPropertySources().addLast(propertySource);
             logger.info("✓ 已从 .env 文件加载 {} 个环境变量", props.size());
         } else {
             logger.warn("未找到 .env 文件，请确保 .env 文件存在于项目根目录");
         }
     }
 
-    private Properties loadEnvFile() {
+    /** Package-visible for precedence tests; production callers use postProcessEnvironment. */
+    Properties loadEnvFile() {
         Properties props = new Properties();
 
         // 1. 尝试从当前工作目录加载

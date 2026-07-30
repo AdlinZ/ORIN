@@ -483,8 +483,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  ArrowLeft, ArrowRight, CircleClose, Clock, Coin, Connection, Cpu,
-  Folder, List, Loading, Menu, Monitor, More, Plus, Refresh, Search, Star, TrendCharts
+  ArrowLeft, ArrowRight, Clock, Coin, Connection, Cpu,
+  Folder, List, Menu, Monitor, More, Plus, Refresh, Search, Star, TrendCharts
 } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import LineChart from '@/components/LineChart.vue';
@@ -1197,7 +1197,6 @@ const getUsageColor = (value) => {
   return '#27ae60';
 };
 const getNodeStatusText = (snapshot) => (!snapshot || snapshot.online === null ? '待采集' : snapshot.online ? '在线' : '离线');
-const getNodeStatusType = (snapshot) => (!snapshot || snapshot.online === null ? 'info' : snapshot.online ? 'success' : 'danger');
 const getNodeStatusClass = (snapshot) => (!snapshot || snapshot.online === null ? 'pending' : snapshot.online ? 'online' : 'offline');
 
 const updateIsMobile = () => {

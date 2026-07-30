@@ -4,8 +4,11 @@ import com.adlin.orin.H2SecurityIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,5 +66,26 @@ class AgentDraftOwnershipH2Test extends H2SecurityIntegrationTest {
     void unauthenticatedCannotReadDraft() throws Exception {
         mockMvc.perform(get("/api/v1/agents/{agentId}/draft", AGENT_ID))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("13. 保存空 SecretReference 数组时 H2 JSON 列不再双重编码")
+    void pendingSecretRefsPersistAsJsonArray() throws Exception {
+        mockMvc.perform(put("/api/v1/agents/{agentId}/draft", AGENT_ID)
+                        .header("Authorization", "Bearer " + jwtCreator())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Draft Owner Agent",
+                                  "pendingSecretRefs": []
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pending_secret_refs").value("[]"));
+
+        String storedJson = db.queryForObject(
+                "SELECT CAST(pending_secret_refs AS VARCHAR) FROM agent_metadata WHERE agent_id = ?",
+                String.class, AGENT_ID);
+        assertEquals("[]", storedJson);
     }
 }

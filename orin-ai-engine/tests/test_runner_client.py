@@ -5,7 +5,13 @@ from __future__ import annotations
 import pytest
 from unittest.mock import ANY, patch
 
-from app.runner.client import AuthError, LeaseTerminalError, RunnerClient, _new_traceparent
+from app.runner.client import (
+    AuthError,
+    LeaseTerminalError,
+    RunnerClient,
+    _new_traceparent,
+    _should_trust_env,
+)
 
 
 class TestRunnerClientEnroll:
@@ -157,6 +163,23 @@ class TestRunnerClientBaseUrl:
         assert len(trace_id) == 32 and trace_id != "0" * 32
         assert len(span_id) == 16 and span_id != "0" * 16
         assert flags == "01"
+
+    @pytest.mark.parametrize("url", [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://[::1]:8080",
+    ])
+    def test_loopback_control_plane_bypasses_environment_proxy(self, url):
+        assert _should_trust_env(url) is False
+
+    def test_remote_control_plane_keeps_environment_proxy_support(self):
+        assert _should_trust_env("https://orin.example.com") is True
+
+    def test_http_client_receives_loopback_proxy_decision(self):
+        with patch("app.runner.client.httpx.Client") as mock_http:
+            RunnerClient("http://localhost:8080")
+
+        assert mock_http.call_args.kwargs["trust_env"] is False
 
 
 class TestRunnerClientAuthErrors:

@@ -161,6 +161,7 @@ test.describe('Wave 4 knowledge domain browser smoke', () => {
     await mockBackends(page)
 
     const paths = [
+      '/dashboard/resources/center',
       '/dashboard/resources/assets',
       '/dashboard/resources/knowledge/create',
       '/dashboard/resources/knowledge/detail/1',
@@ -175,16 +176,25 @@ test.describe('Wave 4 knowledge domain browser smoke', () => {
 
     for (const path of paths) {
       const startErrorCount = runtimeErrors.length
-      await page.goto(path, { waitUntil: 'networkidle' })
+      await page.goto(path, { waitUntil: 'domcontentloaded' })
       await expect(page.locator('body')).not.toHaveText(/^\\s*$/)
       await expect(page.locator('body')).not.toContainText('登录工作台')
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])
     }
 
-    await page.goto('/dashboard/resources/embedding-lab', { waitUntil: 'networkidle' })
+    await page.goto('/dashboard/resources/embedding-lab', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/dashboard\/resources\/retrieval/)
 
-    await page.goto('/dashboard/resources/graph', { waitUntil: 'networkidle' })
+    await page.goto('/dashboard/resources/graph', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/dashboard\/resources\/assets/)
+
+    await page.goto('/dashboard/resources/center', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: '知识库', exact: true })).toBeVisible()
+    await expect(page.getByText('整理 Agent 和工作流可检索的内容')).toBeVisible()
+    const knowledgeRow = page.getByRole('row').filter({ hasText: '产品手册知识库' })
+    await expect(knowledgeRow.getByText('已有内容', { exact: true })).toBeVisible()
+    await knowledgeRow.getByRole('button', { name: '测试并用于 Agent' }).click()
+    await expect(page).toHaveURL(/\/dashboard\/resources\/retrieval\?kbId=1/)
+    await expect(page.getByText('产品手册知识库', { exact: true }).first()).toBeVisible()
   })
 })

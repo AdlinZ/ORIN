@@ -28,7 +28,6 @@ args: -m orin_mcp_bridge
 env:
   ORIN_BASE_URL=http://localhost:8080
   ORIN_API_KEY=<CLIENT_ACCESS_KEY>
-  ORIN_MCP_ORIGIN=http://localhost:8080
 ```
 
 If your Codex MCP configuration supports Streamable HTTP directly, point it at:
@@ -83,11 +82,10 @@ Codex is the primary developer acceptance client. Cursor and Windsurf support St
 
 Claude Desktop starts local MCP servers through `claude_desktop_config.json`, so ORIN uses the local `orin-mcp-bridge` stdio bridge to forward requests to `/v1/mcp`.
 
-Before starting ORIN Backend, allow the bridge Origin and restart the backend:
-
-```bash
-export ORIN_MCP_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
-```
+The bridge does not send a browser `Origin` header by default, so it does not
+need a CORS exception. Set `ORIN_MCP_ORIGIN` only when an explicit proxy policy
+requires it, and then include that exact value in `CORS_ALLOWED_ORIGINS` before
+restarting the backend.
 
 Install the bridge locally:
 
@@ -97,14 +95,14 @@ python3 -m venv .venv
 .venv/bin/pip install -e .
 ```
 
-If the bridge reports `403` or `Origin not allowed`, check that `ORIN_MCP_ALLOWED_ORIGINS` contains the origin derived from `ORIN_BASE_URL`.
+If the bridge reports `403` or `Origin not allowed` while `ORIN_MCP_ORIGIN` is
+set, check that `CORS_ALLOWED_ORIGINS` contains the configured Origin.
 
 Bridge environment:
 
 ```bash
 export ORIN_BASE_URL=http://localhost:8080
 export ORIN_API_KEY=<ORIN_API_KEY>
-export ORIN_MCP_ORIGIN=http://localhost:8080
 ```
 
 ### macOS
@@ -274,7 +272,8 @@ If another backend instance is already consuming the default RabbitMQ queues, st
 ## Troubleshooting
 
 - `401`: the key is missing, disabled, rotated, or not a `CLIENT_ACCESS / sk-orin-*` key.
-- `403` or `Origin not allowed`: add `ORIN_MCP_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080` before backend startup.
+- `403` or `Origin not allowed`: if `ORIN_MCP_ORIGIN` is set, add that exact
+  value to `CORS_ALLOWED_ORIGINS` before backend startup.
 - Empty `tools/list`: enable `mcpExposed=true` on an Agent or a published Workflow owned by the API key user.
 - Claude Desktop does not show ORIN tools: restart Claude Desktop after editing `claude_desktop_config.json`, and run the bridge from the same Python venv configured in the file.
 - Workflow call returns only submission metadata: this is expected. Workflow MCP calls enqueue through ORIN's workflow queue and return `taskId`, `workflowInstanceId`, `traceId`, and `statusUrl`.

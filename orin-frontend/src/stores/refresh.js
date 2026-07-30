@@ -62,7 +62,7 @@ export const useRefreshStore = defineStore('refresh', () => {
         refreshStatus.value = 'cancelling';
 
         // 取消所有活跃的请求
-        activeControllers.value.forEach((controller, key) => {
+        activeControllers.value.forEach((controller, _key) => {
             controller.abort();
         });
 

@@ -25,10 +25,10 @@ function normalizeType(type) {
 function normalizeStats(item) {
   const stats = item.stats || {}
   return {
-    documentCount: Number(stats.documentCount || item.docCount || 0),
-    tableCount: Number(stats.tableCount || 0),
-    skillCount: Number(stats.skillCount || 0),
-    memoryEntryCount: Number(stats.memoryEntryCount || 0)
+    documentCount: Number(stats.documentCount ?? item.documentCount ?? item.docCount ?? 0),
+    tableCount: Number(stats.tableCount ?? item.tableCount ?? 0),
+    skillCount: Number(stats.skillCount ?? item.skillCount ?? 0),
+    memoryEntryCount: Number(stats.memoryEntryCount ?? item.memoryEntryCount ?? 0)
   }
 }
 
@@ -36,14 +36,22 @@ export function toKnowledgeListViewModel(payload) {
   const rows = asArray(payload)
   return rows.map((item) => {
     const type = normalizeType(item.type)
+    const enabled = item.enabled ?? item.status !== 'DISABLED'
     return {
-      id: item.id,
+      id: item.id ?? item.kbId ?? item.knowledgeBaseId,
       name: item.name || '未命名知识库',
       description: item.description || item.remark || '',
       type,
+      enabled,
+      status: item.status || (enabled ? 'ENABLED' : 'DISABLED'),
       stats: normalizeStats(item),
-      createdAt: item.createdAt || item.createTime || null,
-      updatedAt: item.updatedAt || item.updateTime || null,
+      createdAt: item.createdAt || item.createTime || item.gmtCreate || null,
+      updatedAt: item.updatedAt
+        || item.updateTime
+        || item.gmtModified
+        || item.modifiedAt
+        || item.syncTime
+        || null,
       raw: item
     }
   })

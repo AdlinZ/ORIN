@@ -138,7 +138,7 @@ const props = defineProps({
 const prompt = ref('');
 const styleTags = ['你好，我是一个人工智能助手。', '这是关于宇宙的浪漫诗篇。', '今天天气很好，出去走走吧。', '请耐心等待程序运行结果。'];
 
-const { isProcessing, result, dataType, error, interact } = useAgentInteraction(props.agentId);
+const { isProcessing, result, interact } = useAgentInteraction(props.agentId);
 
 const audioUrl = computed(() => {
     if (!result.value) return '';

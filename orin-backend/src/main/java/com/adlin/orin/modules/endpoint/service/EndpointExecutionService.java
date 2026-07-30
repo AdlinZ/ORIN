@@ -19,7 +19,6 @@ import com.adlin.orin.modules.run.service.RunService;
 import com.adlin.orin.modules.runner.entity.Runner;
 import com.adlin.orin.modules.runner.entity.RunnerStatus;
 import com.adlin.orin.modules.runner.repository.RunnerRepository;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -135,8 +134,7 @@ public class EndpointExecutionService {
                     "Endpoint 未配置访问策略，拒绝访问");
         }
         try {
-            Map<String, Object> config = objectMapper.readValue(configJson,
-                    new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> config = EndpointConfigParser.parse(objectMapper, configJson);
             @SuppressWarnings("unchecked")
             List<String> allowedIds = (List<String>) config.get("allowedApiKeyIds");
             if (allowedIds == null || !allowedIds.contains(apiKey.getSecretId())) {

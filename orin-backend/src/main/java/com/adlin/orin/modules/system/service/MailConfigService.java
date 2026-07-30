@@ -75,9 +75,9 @@ public class MailConfigService {
      * 保存邮件配置
      */
     public MailConfigEntity saveConfig(MailConfigEntity config) {
-        log.info("收到邮件配置保存请求: mailerType={}, apiKey={}, fromEmail={}",
+        log.info("收到邮件配置保存请求: mailerType={}, apiKeyConfigured={}, fromEmail={}",
                 config.getMailerType(),
-                config.getApiKey() != null && config.getApiKey().startsWith("••") ? "••••••••" : config.getApiKey(),
+                config.getApiKey() != null && !config.getApiKey().isBlank(),
                 config.getFromEmail());
 
         Optional<MailConfigEntity> oldConfig = config.getId() != null
@@ -414,7 +414,8 @@ public class MailConfigService {
             String fromEmail = config.getFromEmail();
             String fromName = config.getFromName();
 
-            log.info("Resend发送邮件: fromEmail={}, apiKey={}", fromEmail, apiKey != null ? (apiKey.length() > 10 ? apiKey.substring(0, 10) + "..." : apiKey) : "null");
+            log.info("Resend发送邮件: fromEmail={}, apiKeyConfigured={}",
+                    fromEmail, apiKey != null && !apiKey.isBlank());
 
             if (apiKey == null || apiKey.isEmpty() || fromEmail == null || fromEmail.isEmpty()) {
                 log.error("Resend配置不完整");

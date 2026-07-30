@@ -5,12 +5,12 @@
                 <h2>{{ form.name || '（未命名 Agent）' }}</h2>
                 <div class="state-row">
                     <el-tag v-if="stateLabel === 'FROZEN'" type="success" size="small">
-                        FROZEN · v{{ form.activeVersionNumber || '?' }} · digest={{ digestShort }}
+                        可运行 · v{{ form.activeVersionNumber || '?' }}
                     </el-tag>
                     <el-tag v-else-if="stateLabel === 'DEPRECATED'" type="info" size="small">
-                        DEPRECATED
+                        已退役
                     </el-tag>
-                    <el-tag v-else type="warning" size="small" effect="plain">DRAFT（未冻结）</el-tag>
+                    <el-tag v-else type="warning" size="small" effect="plain">编辑中</el-tag>
                     <el-button
                         v-if="stateLabel !== 'DRAFT'"
                         link
@@ -20,8 +20,7 @@
                     >查看版本</el-button>
                 </div>
                 <p class="hint">
-                    草稿是唯一可变真相。可多次保存并继续编辑以生成 v2 / v3；
-                    点击「冻结」会读取当前 pendingSecretRefs 提交一个不可变 AgentVersion。
+                    完成名称、系统指令和模型配置后，冻结为一个可运行、可发布的版本。
                 </p>
             </div>
             <div class="header-actions">
@@ -63,7 +62,6 @@
         />
 
         <el-form
-            ref="formRef"
             :model="form"
             :rules="rules"
             label-position="top"
@@ -85,94 +83,79 @@
             </section>
 
             <section class="form-section">
-                <h3>执行配置</h3>
-                <el-form-item label="系统 Prompt" prop="systemPrompt">
+                <h3>核心配置</h3>
+                <p class="section-hint">这些内容直接决定 Agent 如何响应。</p>
+                <el-form-item label="系统指令" prop="systemPrompt">
                     <el-input
                         v-model="form.systemPrompt"
                         type="textarea"
                         :rows="6"
-                        placeholder="You are a helpful assistant..."
+                        placeholder="说明角色、目标、边界和期望的输出方式"
                     />
                 </el-form-item>
-                <el-form-item label="Mode" prop="mode">
-                    <el-select v-model="form.mode" placeholder="选择模式" clearable>
-                        <el-option label="agent" value="agent" />
-                        <el-option label="chat" value="chat" />
-                        <el-option label="completion" value="completion" />
-                        <el-option label="workflow" value="workflow" />
-                    </el-select>
-                </el-form-item>
                 <el-form-item label="模型" prop="modelName">
-                    <el-input v-model="form.modelName" placeholder="gpt-4o / claude-3-5-sonnet 等" />
+                    <el-input v-model="form.modelName" placeholder="例如 gpt-4o、qwen-max" />
                 </el-form-item>
-                <el-form-item label="Provider" prop="providerType">
-                    <el-input v-model="form.providerType" placeholder="OPENAI / ANTHROPIC / LOCAL 等" />
-                </el-form-item>
-                <el-row :gutter="16">
-                    <el-col :span="8">
-                        <el-form-item label="Temperature">
-                            <el-input-number
-                                v-model="form.temperature"
-                                :step="0.05"
-                                :min="0"
-                                :max="2"
-                                :precision="2"
-                            />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="Top P">
-                            <el-input-number
-                                v-model="form.topP"
-                                :step="0.05"
-                                :min="0"
-                                :max="1"
-                                :precision="2"
-                            />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="Max Tokens">
-                            <el-input-number
-                                v-model="form.maxTokens"
-                                :step="64"
-                                :min="1"
-                            />
-                        </el-form-item>
-                    </el-col>
-                </el-row>
             </section>
 
-            <section class="form-section">
-                <h3>模型凭据（CONTROL_PLANE 引用）</h3>
-                <p class="section-hint">
-                    点击右侧新增按钮添加 SecretReference；alphanum alias，
-                    secret_id 选自已存的 GatewaySecret；freeze 时一起落库（alias 升序），
-                    草稿可随时保存而不必立刻冻结。
-                </p>
-                <SecretReferenceEditor
-                    v-model="secretRefs"
-                    :available-secrets="availableSecrets"
-                />
+            <section class="form-section advanced-section">
+                <el-collapse v-model="advancedPanels">
+                    <el-collapse-item name="execution" title="高级执行参数">
+                        <p class="section-hint">只有需要覆盖默认行为时才调整。</p>
+                        <el-row :gutter="16">
+                            <el-col :xs="24" :sm="12">
+                                <el-form-item label="运行模式" prop="mode">
+                                    <el-select v-model="form.mode" placeholder="选择模式">
+                                        <el-option label="Agent" value="agent" />
+                                        <el-option label="对话" value="chat" />
+                                        <el-option label="文本补全" value="completion" />
+                                        <el-option label="工作流" value="workflow" />
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :xs="24" :sm="12">
+                                <el-form-item label="模型提供方" prop="providerType">
+                                    <el-input v-model="form.providerType" placeholder="例如 OPENAI、LOCAL" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row :gutter="16">
+                            <el-col :xs="24" :sm="8">
+                                <el-form-item label="随机性">
+                                    <el-input-number v-model="form.temperature" :step="0.05" :min="0" :max="2" :precision="2" />
+                                </el-form-item>
+                            </el-col>
+                            <el-col :xs="24" :sm="8">
+                                <el-form-item label="采样范围">
+                                    <el-input-number v-model="form.topP" :step="0.05" :min="0" :max="1" :precision="2" />
+                                </el-form-item>
+                            </el-col>
+                            <el-col :xs="24" :sm="8">
+                                <el-form-item label="最大输出长度">
+                                    <el-input-number v-model="form.maxTokens" :step="64" :min="1" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </el-collapse-item>
+                    <el-collapse-item name="secrets" title="凭据绑定">
+                        <p class="section-hint">仅在模型或工具需要私密凭据时添加。凭据值不会写入 Agent 版本。</p>
+                        <SecretReferenceEditor
+                            v-model="secretRefs"
+                            :available-secrets="availableSecrets"
+                        />
+                    </el-collapse-item>
+                </el-collapse>
             </section>
 
             <section class="form-section sticky-actions">
-                <div class="freeze-summary">
-                    <h3>冻结摘要</h3>
-                    <ul>
-                        <li>
-                            Schema：<code>snapshotSchemaVersion=1 (RFC 8785 JCS)</code>
-                        </li>
-                        <li>
-                            字段数：{{ editedFieldCount }}（name/desc/system prompt/model 等）
-                        </li>
-                        <li>
-                            Secret refs：{{ secretRefs.length }}（CONTROL_PLANE 来自草稿持久化列）
-                        </li>
-                        <li>
-                            digest 公式：<code>SHA-256(JCS(canonical_envelope))</code>
-                        </li>
-                    </ul>
+                <div class="readiness">
+                    <div>
+                        <strong>冻结准备</strong>
+                        <span>{{ readinessSummary }}</span>
+                    </div>
+                    <el-tag :type="validationWarnings.length ? 'warning' : 'success'" effect="plain">
+                        {{ validationWarnings.length ? `还差 ${validationWarnings.length} 项` : '可以冻结' }}
+                    </el-tag>
                 </div>
                 <div class="actions">
                     <el-button
@@ -217,8 +200,8 @@ const secretRefs = ref([])
 const errorMessage = ref(null)
 const validationWarnings = ref([])
 const lastSaveMessage = ref('')
+const advancedPanels = ref([])
 
-const formRef = ref(null)
 const form = reactive({
     name: '',
     description: '',
@@ -232,7 +215,6 @@ const form = reactive({
     activeVersionId: null,
     activeVersionNumber: null,
     activeVersionStatus: null,
-    contentDigest: null,
 })
 
 const rules = {
@@ -240,14 +222,9 @@ const rules = {
 }
 
 const stateLabel = computed(() => form.activeVersionStatus || 'DRAFT')
-const digestShort = computed(() => (form.contentDigest ? form.contentDigest.slice(0, 12) + '…' : '—'))
-
-const editedFieldCount = computed(() => {
-    return [
-        form.name, form.description, form.systemPrompt, form.mode,
-        form.modelName, form.providerType, form.temperature, form.topP, form.maxTokens,
-    ].filter((x) => x !== null && x !== undefined && x !== '').length
-})
+const readinessSummary = computed(() => validationWarnings.value.length
+    ? '补齐必要配置后即可生成可运行版本'
+    : `核心配置已完成${secretRefs.value.length ? `，已绑定 ${secretRefs.value.length} 个凭据` : ''}`)
 
 const loadDraft = async () => {
     loading.value = true
@@ -267,7 +244,6 @@ const loadDraft = async () => {
             activeVersionId: draft.activeVersionId || draft.active_version_id,
             activeVersionNumber: draft.activeVersionNumber || draft.active_version_number,
             activeVersionStatus: draft.activeVersionStatus || draft.active_version_status,
-            contentDigest: draft.activeVersionDigest || draft.active_version_digest,
         })
         // 反序列化草稿上的 secret refs
         const refsJson = draft.pendingSecretRefs || draft.pending_secret_refs
@@ -305,10 +281,9 @@ const loadAvailableSecrets = async () => {
 
 const validateForm = async () => {
     const warnings = []
-    if (!form.name?.trim()) warnings.push('名称不能为空')
-    if (!form.modelName?.trim()) warnings.push('Model 名称不能为空（freeze 后不可更改）')
-    if (!form.systemPrompt?.trim()) warnings.push('建议为 Agent 填写系统 Prompt')
-    if (!secretRefs.value.length) warnings.push('MVP 暂无 secret refs；用户允许无 Secret 合法 Agent 冻结')
+    if (!form.name?.trim()) warnings.push('请填写 Agent 名称')
+    if (!form.modelName?.trim()) warnings.push('请选择或填写模型')
+    if (!form.systemPrompt?.trim()) warnings.push('请填写系统指令')
     validationWarnings.value = warnings
 }
 
@@ -357,9 +332,7 @@ const onFreeze = async () => {
             return
         }
         const resp = await freezeAgentVersion(route.params.agentId)
-        ElMessage.success(
-            `已冻结 v${resp.versionNumber}（${resp.status}，digest=${(resp.contentDigest || '').slice(0, 12)}…）`
-        )
+        ElMessage.success(`v${resp.versionNumber} 已冻结，现在可以运行或发布`)
         router.push(ROUTES.AGENTS.WORKSPACE_VERSION_DETAIL
             .replace(':agentId', route.params.agentId)
             .replace(':versionId', resp.agent_version_id))
@@ -443,6 +416,24 @@ onMounted(async () => {
     color: var(--text-secondary, #64748b);
     font-size: 12px;
 }
+.advanced-section {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+.advanced-section :deep(.el-collapse) {
+    border: 0;
+}
+.advanced-section :deep(.el-collapse-item__header) {
+    font-size: 15px;
+    font-weight: 600;
+}
+.advanced-section :deep(.el-collapse-item__wrap) {
+    border-bottom: 0;
+}
+.advanced-section :deep(.el-select),
+.advanced-section :deep(.el-input-number) {
+    width: 100%;
+}
 .sticky-actions {
     position: sticky;
     bottom: 0;
@@ -450,20 +441,21 @@ onMounted(async () => {
     border-color: var(--orin-border-strong, #d8e0e8);
     box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.04);
 }
-.freeze-summary {
+.readiness {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-bottom: 12px;
 }
-.freeze-summary ul {
-    margin: 0;
-    padding-left: 22px;
-    font-size: 13px;
-    color: var(--text-secondary, #475569);
+.readiness div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
-.freeze-summary code {
-    background: #f1f5f9;
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-size: 12px;
+.readiness span {
+    color: var(--text-secondary, #64748b);
+    font-size: 13px;
 }
 .actions {
     display: flex;

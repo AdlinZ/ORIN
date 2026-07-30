@@ -395,21 +395,24 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     ]))
   })
 
-  test('shows the full dashboard navigation for admins and redirects regular users', async ({ page }) => {
+  test('shows the reduced product navigation for admins and redirects regular users', async ({ page }) => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_ADMIN'])
     await page.goto('/dashboard')
 
-    await expect(page).toHaveURL(/\/dashboard\/control\/admin-overview/)
+    await expect(page).toHaveURL(/\/workspace\/agents/)
     const adminNav = page.locator('.navbar-menu')
-    await expect(adminNav.getByText('平台控制')).toBeVisible()
-    await expect(adminNav.getByText('运行观测')).toBeVisible()
-    await expect(adminNav.getByText('应用构建')).toBeVisible()
-    await expect(adminNav.getByText('资源知识')).toBeVisible()
+    await expect(adminNav.getByText('构建', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('运行', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('发布', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('管理', { exact: true })).toBeVisible()
+    await expect(adminNav.getByText('更多工具', { exact: true })).toHaveCount(0)
 
     await authenticate(page, ['ROLE_USER'])
     await page.goto('/dashboard/control/users')
+    await expect(page).toHaveURL(/\/portal\/api-keys/)
+    await page.goto('/workspace/agents')
     await expect(page).toHaveURL(/\/portal\/api-keys/)
   })
 

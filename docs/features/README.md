@@ -8,11 +8,11 @@
 
 | ID | 功能 | 用户结果 | 当前状态 |
 | --- | --- | --- | --- |
-| F01 | [接入并监控服务器](./F01-接入并监控服务器.md) | 用户把自己的服务器接入 ORIN，并看到真实在线状态和资源 | Partially Integrated |
+| F01 | [接入并监控服务器](./F01-接入并监控服务器.md) | 用户把自己的服务器接入 ORIN，并看到真实在线状态和资源 | E2E Working |
 | F02 | [创建并冻结 Agent](./F02-创建并冻结Agent.md) | 用户完成 Agent 草稿配置并得到不可变 AgentVersion | E2E Working |
-| F03 | [在 Runner 上运行 Agent](./F03-在Runner上运行Agent.md) | 用户选择 Runner/RunnerPool，真实执行一个固定 AgentVersion | Prototype |
-| F04 | [观察和控制 Run](./F04-观察和控制Run.md) | 用户查看状态、日志、Trace、结果，并能取消或重试 | Prototype |
-| F05 | [发布 API 与 MCP](./F05-发布API与MCP.md) | 用户把已验证 AgentVersion 发布并从外部真实调用 | Prototype |
+| F03 | [在 Runner 上运行 Agent](./F03-在Runner上运行Agent.md) | 用户选择 Runner/RunnerPool，真实执行一个固定 AgentVersion | E2E Working |
+| F04 | [观察和控制 Run](./F04-观察和控制Run.md) | 用户查看状态、日志、Trace、结果，并能取消或重试 | E2E Working |
+| F05 | [发布 API 与 MCP](./F05-发布API与MCP.md) | 用户把已验证 AgentVersion 发布并从外部真实调用 | E2E Working |
 
 功能按 F01 → F05 形成主路径。允许并行准备后续功能的技术基础，但不得在前置用户旅程尚未成立时把后续功能标记为完成。
 

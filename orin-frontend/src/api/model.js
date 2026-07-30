@@ -7,6 +7,13 @@ export function getModelList() {
     });
 }
 
+export function getModelProviderCredentials() {
+    return request({
+        url: '/gateway/secrets/provider-credentials',
+        method: 'get'
+    });
+}
+
 export function saveModel(data) {
     return request({
         url: '/models',

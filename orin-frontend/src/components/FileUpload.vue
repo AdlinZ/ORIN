@@ -111,7 +111,7 @@ const handleError = (error) => {
   ElMessage.error(`上传失败: ${error.message}`)
 }
 
-const handleRemove = (file) => {
+const handleRemove = (_file) => {
   const urls = fileList.value.map(f => f.response?.url || f.url).filter(Boolean)
   emit('update:modelValue', props.multiple ? urls : urls[0])
   emit('change', urls)

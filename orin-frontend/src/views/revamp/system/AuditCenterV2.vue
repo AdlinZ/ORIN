@@ -2,8 +2,10 @@
   <div class="page-container">
     <OrinPageShell
       v-if="props.showHeader"
-      title="审计中心"
-      description="统一追踪访问行为、系统操作与关键配置变更"
+      :title="isLogsOnly ? '审计记录' : '高级审计设置'"
+      :description="isLogsOnly
+        ? '追踪访问行为、系统操作与关键配置变更。'
+        : '维护审计保留策略与运行时 Logger；仅在排障或策略调整时使用。'"
       icon="List"
       domain="组织权限"
     >
@@ -12,6 +14,7 @@
           刷新
         </el-button>
         <el-button
+          v-if="showConfigTab"
           type="primary"
           :icon="Check"
           :loading="saving"
@@ -210,6 +213,7 @@ const props = defineProps({
 
 const showConfigTab = computed(() => props.mode === 'all')
 const showLoggersTab = computed(() => props.mode === 'all')
+const isLogsOnly = computed(() => props.mode === 'logs')
 const activeTab = ref(props.initialTab)
 const saving = ref(false)
 const cleaning = ref(false)
@@ -419,7 +423,9 @@ const resetAllLoggers = async () => {
 }
 
 const loadAll = async () => {
-  await Promise.all([loadLogs(), loadStats(), loadConfig(), loadLoggers()])
+  const requests = [loadLogs(), loadStats(), loadConfig()]
+  if (showLoggersTab.value) requests.push(loadLoggers())
+  await Promise.all(requests)
 }
 
 const formatDate = (value) => value ? dayjs(value).format('YYYY-MM-DD') : '-'

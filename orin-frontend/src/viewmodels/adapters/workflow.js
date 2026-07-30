@@ -49,7 +49,7 @@ export function toWorkflowListViewModel(payload) {
     id: item.id || item.workflowId,
     workflowName: item.workflowName || item.name || '未命名工作流',
     description: item.description || '',
-    status: item.status || 'DRAFT',
+    status: String(item.status || 'DRAFT').toUpperCase(),
     updatedAt: item.updatedAt || item.updateTime || item.modifiedAt || null,
     createdAt: item.createdAt || item.createTime || null,
     source: item.source || 'ORIN',
@@ -57,6 +57,14 @@ export function toWorkflowListViewModel(payload) {
     traceId: resolveTraceId(item),
     raw: item
   }))
+}
+
+export function workflowDeliveryState(workflow = {}, issueCount = 0) {
+  const status = String(workflow.status || 'DRAFT').toUpperCase()
+  if (status === 'ARCHIVED') return 'ARCHIVED'
+  if (Number(issueCount) > 0) return 'BLOCKED'
+  if (isWorkflowPublished(status)) return 'READY'
+  return 'READY_TO_PUBLISH'
 }
 
 export function toWorkflowStatsViewModel(rows) {

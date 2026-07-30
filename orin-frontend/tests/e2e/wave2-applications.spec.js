@@ -45,6 +45,24 @@ const models = [
     type: 'CHAT',
     status: 'ENABLED',
     createTime: '2026-05-22 09:00:00'
+  },
+  {
+    id: 2,
+    name: 'OpenAI Chat',
+    modelId: 'gpt-test',
+    provider: 'OpenAI',
+    type: 'CHAT',
+    status: 'ENABLED',
+    createTime: '2026-05-22 09:10:00'
+  },
+  {
+    id: 3,
+    name: 'Local Embedding',
+    modelId: 'local-embedding',
+    provider: 'Ollama',
+    type: 'EMBEDDING',
+    status: 'DISABLED',
+    createTime: '2026-05-22 09:20:00'
   }
 ]
 
@@ -55,6 +73,38 @@ const workflows = [
     type: 'router_specialists',
     specialist_agent_ids: ['agent-1'],
     finalizer_enabled: true
+  }
+]
+
+const mcpServices = [
+  {
+    id: 1,
+    name: 'Git',
+    type: 'STDIO',
+    command: 'git-mcp /workspace',
+    enabled: true,
+    status: 'CONNECTED',
+    lastConnected: '2026-05-22T10:00:00Z',
+    healthScore: 100
+  },
+  {
+    id: 2,
+    name: 'Time',
+    type: 'STDIO',
+    command: 'time',
+    enabled: true,
+    status: 'ERROR',
+    lastError: 'AI Engine MCP operation failed',
+    healthScore: 0
+  },
+  {
+    id: 3,
+    name: 'Filesystem',
+    type: 'STDIO',
+    command: 'filesystem /workspace',
+    enabled: false,
+    status: 'DISCONNECTED',
+    healthScore: 100
   }
 ]
 
@@ -72,11 +122,30 @@ async function authenticate(page) {
 }
 
 async function mockWave2Backends(page) {
+  // Keep this browser smoke independent from whichever local backend profile is running.
+  // More specific mocks registered below take precedence over this fallback.
+  await page.route('**/api/**', async (route) => route.fulfill(json([])))
+  await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
   await page.route('**/api/v1/setup/status', async (route) => route.fulfill(json({
     completed: true,
     canInitialize: false
   })))
   await page.route('**/api/system/mcp/**', async (route) => route.fulfill(json([])))
+  await page.route('**/api/system/mcp/services', async (route) => route.fulfill(json(mcpServices)))
+  await page.route('**/api/system/mcp/tools', async (route) => route.fulfill(json([
+    {
+      id: 'filesystem',
+      key: 'filesystem',
+      name: 'Filesystem',
+      description: '本地文件系统读写与检索',
+      type: 'STDIO',
+      command: 'filesystem /app',
+      installed: true,
+      serviceId: 3,
+      enabled: false,
+      status: 'DISCONNECTED'
+    }
+  ])))
   await page.route('**/api/playground/api/agents', async (route) => route.fulfill(json(agents.map((agent) => ({
     id: agent.id,
     name: agent.name,
@@ -110,13 +179,15 @@ async function mockWave2Backends(page) {
   })))
   await page.route('**/api/v1/conversation-logs/**', async (route) => route.fulfill(json([])))
   await page.route('**/api/v1/models**', async (route) => route.fulfill(json(models)))
+  await page.route('**/api/v1/gateway/secrets/provider-credentials', async (route) => route.fulfill(json([
+    { secretId: 'provider-deepseek', provider: 'DeepSeek', status: 'ACTIVE', enabled: true }
+  ])))
   await page.route('**/api/v1/skills**', async (route) => route.fulfill(json(skills)))
   await page.route('**/api/v1/system/providers', async (route) => route.fulfill(json([
     { providerKey: 'DeepSeek', providerName: 'DeepSeek', icon: 'Cpu' }
   ])))
   await page.route('**/api/v1/collaboration/**', async (route) => route.fulfill(json([])))
   await page.route('**/api/v1/mcp/**', async (route) => route.fulfill(json([])))
-  await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 }
 
 test.describe('Wave 2 application domain browser smoke', () => {
@@ -134,6 +205,7 @@ test.describe('Wave 2 application domain browser smoke', () => {
       '/dashboard/applications/agents',
       '/dashboard/applications/conversations',
       '/dashboard/applications/models',
+      '/dashboard/applications/mcp-tools',
       '/dashboard/applications/skills',
       '/dashboard/applications/extensions',
       '/dashboard/applications/collaboration/dashboard',
@@ -149,5 +221,34 @@ test.describe('Wave 2 application domain browser smoke', () => {
       await expect(page.locator('body')).not.toContainText('登录工作台')
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])
     }
+
+    await page.goto('/dashboard/applications/models', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: '模型', exact: true })).toBeVisible()
+    const modelSummary = page.getByRole('region', { name: '模型可用性概览' })
+    await expect(modelSummary.getByText('可用于 Agent', { exact: true })).toBeVisible()
+    await expect(modelSummary.getByText('待配置凭据', { exact: true })).toBeVisible()
+    await expect(modelSummary.getByText('已停用', { exact: true })).toBeVisible()
+    await expect(page.getByRole('row').filter({ hasText: 'DeepSeek Chat' })).toContainText('可用于 Agent')
+    await expect(page.getByRole('row').filter({ hasText: 'OpenAI Chat' })).toContainText('待配置凭据')
+    await expect(page.getByRole('row').filter({ hasText: 'Local Embedding' })).toContainText('已停用')
+
+    await page.getByRole('button', { name: '管理供应商凭据' }).click()
+    await expect(page).toHaveURL(/workspace=access&credentialTab=provider/)
+    await expect(page.getByRole('tab', { name: '外部供应商密钥 (Credentials)' })).toHaveAttribute('aria-selected', 'true')
+
+    await page.goto('/dashboard/applications/mcp-tools', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: 'MCP 工具', exact: true })).toBeVisible()
+    await expect(page.getByRole('row').filter({ hasText: 'Git' })).toContainText('可用于 Agent')
+    await expect(page.getByRole('row').filter({ hasText: 'Time' })).toContainText('连接故障')
+    await expect(page.getByRole('row').filter({ hasText: 'Filesystem' })).toContainText('已停用')
+    await expect(page.getByText('git-mcp /workspace', { exact: true })).toHaveCount(0)
+    await expect(page.getByText('filesystem /workspace', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '工具模板' })).toHaveCount(0)
+
+    await page.getByRole('button', { name: '进入高级管理' }).click()
+    await expect(page).toHaveURL(/tab=mcp/)
+    await expect(page.getByRole('heading', { name: 'MCP服务', exact: true })).toBeVisible()
+    await page.getByRole('tab', { name: '工具市场', exact: true }).click()
+    await expect(page.getByText('MCP 工具市场', { exact: true })).toBeVisible()
   })
 })

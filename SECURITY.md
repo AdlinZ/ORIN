@@ -7,9 +7,10 @@ ORIN is in active stabilization. Security reports are handled on a best-effort b
 | Version | Supported |
 |---------|-----------|
 | `main` | Yes, best-effort |
-| released tags | Not yet available |
+| `v0.1.0` and later tags | Best-effort for the latest supported release |
 
-The project has not published a stable release yet. Until `v0.1.0` is tagged, security fixes target `main`.
+Security fixes target `main` first. Maintainers may publish a patch release for
+the latest tag when the impact and available capacity warrant it.
 
 ## Reporting a Vulnerability
 

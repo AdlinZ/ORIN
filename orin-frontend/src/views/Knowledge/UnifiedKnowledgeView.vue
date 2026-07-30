@@ -140,7 +140,7 @@
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { ROUTES } from '@/router/routes'
 import { useKnowledgeStore } from '@/stores/knowledgeStore'
 import { Document, DataLine, Cpu, User, Upload, Aim } from '@element-plus/icons-vue'
@@ -151,7 +151,6 @@ import DifySyncButton from './components/DifySyncButton.vue'
 import { getAgentList } from '@/api/agent'
 
 const route = useRoute()
-const router = useRouter()
 const knowledgeStore = useKnowledgeStore()
 const activeTab = ref('UNSTRUCTURED')
 const selectedAgent = ref('')

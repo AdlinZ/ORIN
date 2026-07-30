@@ -57,6 +57,43 @@ def _build_headers(materialized_secrets: Dict[str, str]) -> Dict[str, str]:
     return headers
 
 
+def _decode_config_snapshot(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Decode a Runner config snapshot, including H2 JSON-string wrappers."""
+    raw_snapshot = context.get("config_snapshot")
+    if not isinstance(raw_snapshot, str) or not raw_snapshot.strip():
+        return {}
+    snapshot: Any = raw_snapshot
+    # A JSON document stored through Hibernate as ``String`` can come back
+    # quoted on H2.  The AgentVersion -> Run copy may add a second layer.
+    # Unwrap only a small, bounded number of JSON-string layers so malformed
+    # or ordinary provider snapshots still follow the real execution path.
+    for _ in range(8):
+        if not isinstance(snapshot, str) or not snapshot.strip():
+            break
+        try:
+            decoded = json.loads(snapshot)
+        except (TypeError, ValueError):
+            return {}
+        if decoded == snapshot:
+            return {}
+        snapshot = decoded
+    return snapshot if isinstance(snapshot, dict) else {}
+
+
+def _deterministic_runner_output(description: str, context: Dict[str, Any]) -> Optional[str]:
+    """Return a stable output only for the explicit F03 smoke-test provider.
+
+    ``ORIN_DETERMINISTIC`` is intentionally opt-in and is not a fallback for a
+    missing provider.  It lets the Runner E2E path exercise the real
+    TaskRuntime without introducing an external LLM credential into CI.
+    """
+    snapshot = _decode_config_snapshot(context)
+    model = snapshot.get("model") if isinstance(snapshot, dict) else None
+    if not isinstance(model, dict) or model.get("providerType") != "ORIN_DETERMINISTIC":
+        return None
+    return f"ORIN deterministic runner result: {description}"
+
+
 class TaskRuntime:
     """Single execution kernel for collaboration subtasks."""
 
@@ -79,6 +116,10 @@ class TaskRuntime:
         """
         context = context or {}
         materialized_secrets = materialized_secrets or {}
+
+        deterministic_output = _deterministic_runner_output(description, context)
+        if deterministic_output is not None:
+            return deterministic_output
 
         # Prefer ORIN native agent runtime when a specific agent is provided.
         # This path avoids requiring OPENAI_API_KEY in ai-engine.
@@ -153,15 +194,44 @@ class TaskRuntime:
                         return value.strip()
             return str(data)
 
+        snapshot = _decode_config_snapshot(context)
+        snapshot_model = snapshot.get("model") if isinstance(snapshot.get("model"), dict) else {}
+        snapshot_config = snapshot.get("config") if isinstance(snapshot.get("config"), dict) else {}
+        provider_type = str(snapshot_model.get("providerType") or "").strip().upper()
+
+        node_data: Dict[str, Any] = {
+            "prompt": description,
+            "model": context.get("model", "default"),
+            "expectedRole": expected_role,
+            "max_tokens": agent_max_tokens,
+        }
+        if provider_type in {"OLLAMA", "LOCAL_OLLAMA"}:
+            system_prompt = str(snapshot_config.get("systemPrompt") or "").strip()
+            node_data.update({
+                "prompt": (
+                    f"{system_prompt}\n\n用户请求：\n{description}"
+                    if system_prompt else description
+                ),
+                "model": snapshot_model.get("modelName") or "qwen2.5:0.5b",
+                "temperature": snapshot_config.get("temperature", 0.7),
+                "max_tokens": _bounded_int(
+                    snapshot_config.get("maxTokens"),
+                    agent_max_tokens,
+                ),
+                # Ollama exposes an OpenAI-compatible API and accepts any
+                # non-empty local placeholder as the SDK api_key.
+                "api_key": "ollama",
+                "base_url": (
+                    snapshot_model.get("baseUrl")
+                    or context.get("ollama_base_url")
+                    or "http://127.0.0.1:11434/v1"
+                ),
+            })
+
         node = Node(
             id="runtime_single_task",
             type="llm",
-            data={
-                "prompt": description,
-                "model": context.get("model", "default"),
-                "expectedRole": expected_role,
-                "max_tokens": agent_max_tokens,
-            },
+            data=node_data,
         )
 
         llm_handler = RealLLMNodeHandler(executor=self.executor)
@@ -171,7 +241,6 @@ class TaskRuntime:
             result = output.outputs.get("text", "")
             return str(result) if result else "No result"
         return "No output"
-
     async def execute_workflow_task(
         self,
         *,

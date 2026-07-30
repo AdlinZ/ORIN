@@ -180,16 +180,6 @@ const agentsState = reactive({ status: 'loading' })
 const keysState = reactive({ status: 'loading' })
 const tracesState = reactive({ status: 'loading' })
 
-const summaryState = computed(() => {
-  const s = summary.value
-  const agents = s.myAgents?.agents || []
-  const keys = s.myApiKeys?.keys || []
-  const traces = s.recentTraces || []
-  const total = agents.length + keys.length + traces.length
-  if (total > 0) return { status: 'success' }
-  return loadingState
-})
-
 const kpiMetrics = computed(() => [
   {
     label: '我的智能体',

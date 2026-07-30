@@ -2,9 +2,17 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.models.workflow import Node
-from app.engine.handlers.llm import RealLLMNodeHandler
+from app.engine.handlers.llm import RealLLMNodeHandler, _should_trust_env
 from openai import RateLimitError, OpenAIError
 import httpx
+
+
+def test_llm_handler_bypasses_proxy_only_for_loopback_providers():
+    assert _should_trust_env("http://localhost:11434/v1") is False
+    assert _should_trust_env("http://127.0.0.1:11434/v1") is False
+    assert _should_trust_env("http://[::1]:11434/v1") is False
+    assert _should_trust_env("https://api.openai.com/v1") is True
+
 
 @pytest.mark.asyncio
 async def test_llm_handler_success():

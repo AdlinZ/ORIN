@@ -475,7 +475,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { marked } from 'marked';
 import {
   ArrowRight,
-  Brush,
   ChatRound,
   Cpu,
   DataAnalysis,
@@ -488,10 +487,8 @@ import {
   MagicStick,
   Microphone,
   Operation,
-  Paperclip,
   Picture,
   Plus,
-  ScaleToOriginal,
   Top,
   User,
   VideoCamera
@@ -529,10 +526,7 @@ const selectedUploadFileName = ref('');
 const inputMessage = ref('');
 const activeWorkspace = ref('chat');
 const showServicePanel = ref(false);
-const creatorPrompt = ref('');
 const creatorMode = ref('image');
-const generatingCreation = ref(false);
-const creationResult = ref(null);
 const loadingAgents = ref(false);
 const loadingKnowledge = ref(false);
 const loadingSessions = ref(false);
@@ -615,57 +609,6 @@ const creationModes = [
   { value: 'audio', label: '音频', icon: Microphone }
 ];
 
-const creationActions = [
-  {
-    label: 'AI 抠图',
-    prompt: '帮我把图片主体抠出来，保留干净透明背景。',
-    previewClass: 'cutout'
-  },
-  {
-    label: '擦除',
-    prompt: '帮我擦除图片里多余的元素，并自然补全背景。',
-    previewClass: 'erase'
-  },
-  {
-    label: '区域重绘',
-    prompt: '帮我重绘指定区域，保持整体光影和风格一致。',
-    previewClass: 'redraw'
-  },
-  {
-    label: '扩图',
-    prompt: '帮我扩展画面边界，让构图更完整。',
-    previewClass: 'expand'
-  },
-  {
-    label: '变清晰',
-    prompt: '帮我提升图片清晰度，保留自然质感。',
-    previewClass: 'enhance'
-  }
-];
-
-const creationShowcases = [
-  {
-    title: 'T cat 新品首发',
-    desc: '现代社媒拼贴风海报，适合新品预热、活动发布和轻营销内容。',
-    className: 'poster-cat'
-  },
-  {
-    title: '4 min sol',
-    desc: '信息图拼贴与工业视觉结合，适合报告封面、科普内容和数据表达。',
-    className: 'poster-industrial'
-  },
-  {
-    title: '毛孩派对',
-    desc: '明亮活动视觉，适合社区运营、线下活动和节日促销。',
-    className: 'poster-party'
-  },
-  {
-    title: '春日玻璃字',
-    desc: '清透 3D 字效与自然元素，适合品牌海报和节气视觉。',
-    className: 'poster-spring'
-  }
-];
-
 const displayName = computed(() => userStore.userInfo?.name || userStore.userInfo?.username || userStore.username || '用户');
 const avatarText = computed(() => String(displayName.value || 'U').slice(0, 1).toUpperCase());
 const userAvatar = computed(() => userStore.userInfo?.avatar || '');
@@ -740,10 +683,6 @@ const creationAgent = computed(() => {
   return imageCreationAgents.value[0] || null;
 });
 
-const canGenerateCreation = computed(() => {
-  return Boolean(creatorPrompt.value.trim() && creationAgent.value && !generatingCreation.value);
-});
-
 const creationServiceHint = computed(() => {
   if (creationAgent.value) return null;
   if (loadingAgents.value) {
@@ -778,12 +717,6 @@ const goCreationSetup = () => {
   router.push(ROUTES.AGENTS.ONBOARD);
 };
 
-const creationWorkspaceSubtitle = computed(() => {
-  if (creatorMode.value === 'video') return '生成视频、首帧参考和动态视觉内容';
-  if (creatorMode.value === 'audio') return '把文字转成可播放的语音音频';
-  return '生成图片、海报和视觉创意内容';
-});
-
 const creationRuntimeParameters = computed(() => ({
   imageSize: '1328x1328',
   guidanceScale: 7.5,
@@ -793,14 +726,6 @@ const creationRuntimeParameters = computed(() => ({
   speed: 1,
   gain: 0
 }));
-
-const currentSessionTitle = computed(() => {
-  if (currentSessionId.value) {
-    const session = sessions.value.find((item) => item.id === currentSessionId.value);
-    if (session?.title) return session.title;
-  }
-  return '有什么可以帮你？';
-});
 
 const showCommandMenu = computed(() => {
   return inputMessage.value.trimStart().startsWith('/') && !sending.value && !uploadingFile.value;
@@ -1042,101 +967,6 @@ const clearKnowledgeSelection = () => {
 const getAgentMeta = (agent) => {
   if (!agent) return '智能体服务';
   return agent.description || agent.modelName || agent.modelType || agent.viewType || '智能体服务';
-};
-
-const applyCreationAction = (action) => {
-  creatorPrompt.value = action.prompt;
-  creationResult.value = null;
-};
-
-const normalizeBackendMediaUrl = (url) => {
-  if (!url || typeof url !== 'string') return '';
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  return url.startsWith('/') ? url : `/${url}`;
-};
-
-const findFirstMediaUrl = (value, keys) => {
-  if (!value) return '';
-  if (typeof value === 'string') {
-    return value.startsWith('http') || value.startsWith('/') || value.startsWith('data:') ? value : '';
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findFirstMediaUrl(item, keys);
-      if (found) return found;
-    }
-    return '';
-  }
-  if (typeof value === 'object') {
-    for (const key of keys) {
-      if (typeof value[key] === 'string' && value[key]) return value[key];
-    }
-    for (const item of Object.values(value)) {
-      const found = findFirstMediaUrl(item, keys);
-      if (found) return found;
-    }
-  }
-  return '';
-};
-
-const extractCreationResult = (res, type) => {
-  const payload = (res?.status || res?.dataType || res?.errorMessage) ? res : (res?.data ?? res);
-  const keys = type === 'video'
-    ? ['video_url', 'videoUrl', 'url', 'download_url', 'downloadUrl']
-    : ['image_url', 'imageUrl', 'url', 'download_url', 'downloadUrl'];
-  const url = findFirstMediaUrl(payload, keys);
-  return {
-    status: payload?.status,
-    errorMessage: payload?.errorMessage || payload?.error || payload?.message || '',
-    url: normalizeBackendMediaUrl(url)
-  };
-};
-
-const generateCreation = async () => {
-  const prompt = creatorPrompt.value.trim();
-  if (!prompt || generatingCreation.value) return;
-
-  const agent = creationAgent.value;
-  if (!agent) {
-    ElMessage.warning(creationServiceHint.value?.title || '当前没有可用的创作服务');
-    return;
-  }
-
-  generatingCreation.value = true;
-  creationResult.value = null;
-
-  try {
-    const requestPayload = {
-      prompt,
-      mode: creatorMode.value,
-      image_size: '1024x1024',
-      aspect_ratio: '1:1',
-      guidance_scale: 7.5,
-      num_inference_steps: 20
-    };
-    const res = await chatAgent(agent.id, JSON.stringify(requestPayload));
-    const parsed = extractCreationResult(res, creatorMode.value);
-
-    if (parsed.status === 'FAILED' || parsed.status === 'ERROR') {
-      throw new Error(parsed.errorMessage || '创作服务返回失败');
-    }
-    if (!parsed.url) {
-      throw new Error(parsed.errorMessage || '创作服务没有返回可展示的媒体地址');
-    }
-
-    creationResult.value = {
-      type: creatorMode.value,
-      url: parsed.url,
-      prompt,
-      agentName: agent.name || '创作服务',
-      createdAt: new Date().toISOString()
-    };
-    ElMessage.success('创作完成');
-  } catch (error) {
-    ElMessage.error(error?.message || '创作失败，请检查后端智能体配置');
-  } finally {
-    generatingCreation.value = false;
-  }
 };
 
 const clearUploadedFile = () => {

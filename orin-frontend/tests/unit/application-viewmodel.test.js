@@ -40,7 +40,9 @@ describe('application domain viewmodels', () => {
 
     expect(model.name).toBe('deepseek-chat')
     expect(model.provider).toBe('DeepSeek')
+    expect(model.providerKey).toBe('deepseek')
     expect(model.status).toBe('DISABLED')
+    expect(model.enabled).toBe(false)
     expect(skill.skillName).toBe('SearchDocs')
     expect(skill.skillType).toBe('KNOWLEDGE')
     expect(skill.status).toBe('ACTIVE')

@@ -353,7 +353,7 @@
 
 <script setup>
 import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue';
-import { Cpu, Monitor, RefreshRight, Download, Coin, Timer, Money, ChatDotRound, TrendCharts } from '@element-plus/icons-vue';
+import { Monitor, RefreshRight, Download, Coin, Timer, Money, ChatDotRound, TrendCharts } from '@element-plus/icons-vue';
 import echarts from '@/utils/echarts';
 import { getTokenByDayOfWeek, getTokenByHour, getTokenByType, getSessions, getTokenStats, getDailyTokenTrend, getLatencyStats, getCostDistribution, getAgentList } from '@/api/monitor';
 import { ElMessage } from 'element-plus';
@@ -385,7 +385,6 @@ const costStats = ref({ total: 0, breakdown: [] });
 
 // Agent filter
 const agentList = ref([]);
-const selectedAgent = ref('');
 const sessionStats = ref({ count: 0, avgTokens: 0, errorCount: 0 });
 
 // Date range

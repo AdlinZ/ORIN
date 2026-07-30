@@ -28,11 +28,6 @@ const props = defineProps({
   showDataZoom: { type: Boolean, default: true }
 });
 
-// 检查是否为多系列数据模式
-const isMultiSeries = computed(() => {
-  return props.series && props.series.length > 0;
-});
-
 // 解析实际颜色 (处理 CSS 变量)
 const actualColor = computed(() => {
   if (props.color && props.color.startsWith('var(') && props.resolveColor) {

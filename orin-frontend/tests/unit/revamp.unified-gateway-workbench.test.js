@@ -142,6 +142,18 @@ describe('gateway workbench revamp', () => {
     expect(tabLabels).not.toContain('安全与流量')
   })
 
+  it('uses environment-variable placeholders in quickstart snippets instead of fake or embedded API keys', async () => {
+    const wrapper = mount(UnifiedGateway, { global: { stubs } })
+    await Promise.resolve()
+    await nextTick()
+
+    expect(wrapper.vm.quickstartCodeSnippets.curl).toContain('--oauth2-bearer "$ORIN_API_KEY"')
+    expect(wrapper.vm.quickstartCodeSnippets.nodejs).toContain('process.env.ORIN_API_KEY')
+    expect(wrapper.vm.quickstartCodeSnippets.python).toContain('import os')
+    expect(wrapper.vm.quickstartCodeSnippets.python).toContain('os.environ["ORIN_API_KEY"]')
+    expect(JSON.stringify(wrapper.vm.quickstartCodeSnippets)).not.toContain('sk-orin-')
+  })
+
   it('switches from overview to the unified entry workspace', async () => {
     const wrapper = mount(UnifiedGateway, { global: { stubs } })
     await Promise.resolve()

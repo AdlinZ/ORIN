@@ -1327,7 +1327,6 @@ const runtimeStatusHint = ref('空闲');
 const sessionPaneCollapsed = ref(false);
 const sidebarTab = ref('session');
 const activeConfigTab = ref('tools');
-const currentConfigId = ref('default');
 const selectedModelName = ref('');
 const modelSwitching = ref(false);
 const modelCatalog = ref([]);
@@ -1385,11 +1384,6 @@ const {
   leftDrawerMode: 'narrow',
   
 });
-
-// 保留 isMobile 以便兼容某些未删干净的模板指令
-const isMobile = isNarrow;
-
-const configProfiles = [{ id: 'default', name: '初始配置（默认）' }];
 
 const currentUserLabel = computed(() => {
   const profile = userStore.userInfo || {};
@@ -1629,12 +1623,6 @@ const findAgentById = (agentId) => {
   const targetId = normalizeId(agentId);
   if (!targetId) return null;
   return agents.value.find((agent) => normalizeId(agent.id) === targetId) || null;
-};
-
-const getAgentColor = (name) => {
-  const colors = ['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-  const index = name ? name.charCodeAt(0) % colors.length : 0;
-  return colors[index];
 };
 
 const getConfigStorageKey = (agentId) => `${CONFIG_STORAGE_PREFIX}${agentId}`;
@@ -3324,12 +3312,6 @@ const toggleDocFilter = async (kbId, docId) => {
   }
 };
 
-const syncKbDocFilters = async () => {
-  if (currentSessionId.value) {
-    await updateKbDocFilters(currentSessionId.value, normalizeKbDocFilters(kbDocFilters));
-  }
-};
-
 
 const openSettings = () => {
   sidebarTab.value = 'config';
@@ -3759,15 +3741,6 @@ const handleEnter = (event) => {
   }
 };
 
-const traceIcon = (type) => {
-  const iconMap = {
-    'KB_STRUCTURE': 'Folder',
-    'KB_SEARCH': 'Search',
-    'KB_RETRIEVE': 'Document'
-  };
-  return iconMap[type] || 'Setting';
-};
-
 const getVisibleToolTraces = (traces = []) => {
   if (!Array.isArray(traces) || traces.length === 0) return [];
   const toolBindTraces = traces.filter((trace) => trace?.type === 'TOOL_BIND');
@@ -4092,16 +4065,6 @@ const openCitation = (chunk) => {
   if (!opened) {
     // 浏览器拦截弹窗时降级为当前页跳转
     router.push(target);
-  }
-};
-
-const reloadWorkspace = async () => {
-  await Promise.allSettled([loadAgents(), loadKnowledgeBases(), loadSkills(), loadMcpServicesSafe(), loadToolCatalogSafe(), loadModelCatalog(), loadCollaborationWorkflows(), loadProviderKeys()]);
-  if (currentAgentId.value) {
-    await restoreConfigForAgent(currentAgentId.value);
-    await loadAgentRuntimeConfig(currentAgentId.value);
-    await loadSessions(currentAgentId.value, { autoSelect: !currentSessionId.value });
-    await ensureConfiguredKbsAttached();
   }
 };
 

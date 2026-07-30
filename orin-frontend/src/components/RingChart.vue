@@ -34,8 +34,6 @@ const initChart = async () => {
 const updateOption = () => {
   if (!chartInstance) return;
 
-  const percentage = ((props.value / props.max) * 100).toFixed(1);
-
   const option = {
     series: [
       {

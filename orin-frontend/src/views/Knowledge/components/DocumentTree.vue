@@ -64,14 +64,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import {
   Document,
   Picture,
   Film,
   Microphone,
   Files,
-  Search,
   RefreshRight,
   Delete,
   Loading
@@ -206,7 +205,7 @@ const handleDelete = async () => {
 }
 
 // Close context menu on click outside
-const handleClickOutside = (event) => {
+const handleClickOutside = (_event) => {
   if (contextMenuVisible.value) {
     hideContextMenu()
   }

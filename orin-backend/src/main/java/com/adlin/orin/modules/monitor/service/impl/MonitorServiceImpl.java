@@ -22,6 +22,7 @@ import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.settings.support.SecretConfigSanitizer;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.service.ProviderRegistry;
 import lombok.RequiredArgsConstructor;
@@ -1113,7 +1114,8 @@ public class MonitorServiceImpl implements MonitorService {
                                                 continue;
                                         String[] parts = line.split("=", 2);
                                         if (parts.length == 2) {
-                                                props.put(parts[0].trim(), parts[1].trim());
+                                                String key = parts[0].trim();
+                                                props.put(key, SecretConfigSanitizer.redact(key, parts[1].trim()));
                                         }
                                 }
                         }
@@ -1128,6 +1130,17 @@ public class MonitorServiceImpl implements MonitorService {
                 try {
                         if (properties == null || properties.isEmpty()) {
                                 log.warn("updateSystemProperties called with empty payload");
+                                return;
+                        }
+                        Map<String, String> writableProperties = properties.entrySet().stream()
+                                        .filter(entry -> !SecretConfigSanitizer.isSensitiveKey(entry.getKey())
+                                                        || !SecretConfigSanitizer.isMaskedValue(entry.getValue()))
+                                        .collect(Collectors.toMap(
+                                                        Map.Entry::getKey,
+                                                        Map.Entry::getValue,
+                                                        (left, right) -> right,
+                                                        LinkedHashMap::new));
+                        if (writableProperties.isEmpty()) {
                                 return;
                         }
                         java.nio.file.Path path = java.nio.file.Paths
@@ -1147,8 +1160,8 @@ public class MonitorServiceImpl implements MonitorService {
                                                 continue;
                                         }
                                         String[] parts = line.split("=", 2);
-                                        if (parts.length == 2 && properties.containsKey(parts[0].trim())) {
-                                                newLines.add(parts[0].trim() + "=" + properties.get(parts[0].trim()));
+                                        if (parts.length == 2 && writableProperties.containsKey(parts[0].trim())) {
+                                                newLines.add(parts[0].trim() + "=" + writableProperties.get(parts[0].trim()));
                                                 updatedKeys.add(parts[0].trim());
                                         } else {
                                                 newLines.add(line);
@@ -1156,7 +1169,7 @@ public class MonitorServiceImpl implements MonitorService {
                                 }
 
                                 // Add remaining keys to the end
-                                for (Map.Entry<String, String> entry : properties.entrySet()) {
+                                for (Map.Entry<String, String> entry : writableProperties.entrySet()) {
                                         if (!updatedKeys.contains(entry.getKey())) {
                                                 newLines.add(entry.getKey() + "=" + entry.getValue());
                                         }

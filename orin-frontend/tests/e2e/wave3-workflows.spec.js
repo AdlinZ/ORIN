@@ -7,10 +7,21 @@ const workflowDefinition = {
     graph: {
       nodes: [
         { id: 'start_1', type: 'start', position: { x: 120, y: 180 }, data: { id: 'start_1', label: '开始' } },
-        { id: 'end_1', type: 'end', position: { x: 520, y: 180 }, data: { id: 'end_1', label: '结束' } }
+        { id: 'agent_1', type: 'agent', position: { x: 320, y: 180 }, data: { id: 'agent_1', label: '智能体', agentId: 'agent-1' } },
+        {
+          id: 'end_1',
+          type: 'end',
+          position: { x: 520, y: 180 },
+          data: {
+            id: 'end_1',
+            label: '结束',
+            outputs: [{ name: 'answer', value: '{{ agent_1.output }}' }]
+          }
+        }
       ],
       edges: [
-        { id: 'edge-start-end', source: 'start_1', target: 'end_1', type: 'smoothstep' }
+        { id: 'edge-start-agent', source: 'start_1', target: 'agent_1', type: 'smoothstep' },
+        { id: 'edge-agent-end', source: 'agent_1', target: 'end_1', type: 'smoothstep' }
       ]
     }
   }
@@ -24,6 +35,26 @@ const workflows = [
     status: 'ACTIVE',
     workflowType: 'DAG',
     workflowDefinition,
+    updatedAt: now,
+    createdAt: now
+  },
+  {
+    id: 'wf-draft',
+    workflowName: '待发布工作流',
+    description: '编排有效但尚未发布',
+    status: 'DRAFT',
+    workflowType: 'DAG',
+    workflowDefinition,
+    updatedAt: now,
+    createdAt: now
+  },
+  {
+    id: 'wf-blocked',
+    workflowName: '需要修复工作流',
+    description: '缺少有效节点',
+    status: 'ACTIVE',
+    workflowType: 'DAG',
+    workflowDefinition: { workflow: { graph: { nodes: [], edges: [] } } },
     updatedAt: now,
     createdAt: now
   }
@@ -137,6 +168,7 @@ test.describe('Wave 3 workflow domain browser smoke', () => {
 
     const paths = [
       '/dashboard/applications/workflows',
+      '/dashboard/applications/workflows/advanced',
       '/dashboard/applications/workflows/execution?workflowId=wf-1',
       '/dashboard/applications/workflows/create',
       '/dashboard/applications/workflows/edit/wf-1',
@@ -155,5 +187,18 @@ test.describe('Wave 3 workflow domain browser smoke', () => {
     }
 
     await expect(page).toHaveURL(/\/dashboard\/applications\/workflows\/visual/)
+
+    await page.goto('/dashboard/applications/workflows', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: '工作流', exact: true })).toBeVisible()
+    await expect(page.getByRole('row').filter({ hasText: '订单审核工作流' })).toContainText('可运行')
+    await expect(page.getByRole('row').filter({ hasText: '待发布工作流' })).toContainText('待发布')
+    await expect(page.getByRole('row').filter({ hasText: '需要修复工作流' })).toContainText('需修复')
+    await expect(page.getByText('工作流总数', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('columnheader', { name: '编排', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '执行记录', exact: true })).toHaveCount(0)
+
+    const readyRow = page.getByRole('row').filter({ hasText: '订单审核工作流' })
+    await readyRow.getByRole('button', { name: '运行验证' }).click()
+    await expect(page).toHaveURL(/\/dashboard\/applications\/workflows\/execution\?workflowId=wf-1/)
   })
 })

@@ -9,6 +9,24 @@ export function buildPublicUrl(origin, externalUrl) {
   return `${String(origin || '').replace(/\/$/, '')}${externalUrl}`
 }
 
+export function resolvePublicOrigin(browserOrigin, configuredOrigin = '') {
+  const configured = String(configuredOrigin || '').trim().replace(/\/$/, '')
+  if (configured) return configured
+
+  try {
+    const url = new URL(browserOrigin)
+    const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(url.hostname)
+      && ['5173', '4174'].includes(url.port)
+    if (isLocalDevelopment) {
+      url.port = '8080'
+      return url.origin
+    }
+    return url.origin
+  } catch (_) {
+    return String(browserOrigin || '').replace(/\/$/, '')
+  }
+}
+
 function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\"'\"'")}'`
 }

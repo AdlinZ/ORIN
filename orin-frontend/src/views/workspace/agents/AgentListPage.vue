@@ -2,10 +2,9 @@
     <div class="workspace-agents">
         <header class="page-header">
             <div>
-                <h2>Agents（vNext）</h2>
+                <h2>Agent</h2>
                 <p class="hint">
-                    列表来源于 Control Plane（{@code GET /api/v1/agents}）。
-                    草稿是唯一可变真相；冻结后 AgentVersion 完全只读（含 digest）。
+                    定义能力并冻结版本。可运行的 Agent 可以直接进入运行或发布。
                 </p>
             </div>
             <div class="header-actions">
@@ -14,23 +13,22 @@
             </div>
         </header>
 
+        <section class="summary-strip" aria-label="Agent 交付状态">
+            <button type="button" :class="{ active: statusFilter === 'DRAFT' }" @click="toggleStatusFilter('DRAFT')">
+                <strong>{{ deliveryCounts.draft }}</strong><span>待冻结</span>
+            </button>
+            <button type="button" :class="{ active: statusFilter === 'FROZEN' }" @click="toggleStatusFilter('FROZEN')">
+                <strong>{{ deliveryCounts.ready }}</strong><span>可运行</span>
+            </button>
+        </section>
+
         <section class="action-row">
             <el-input
                 v-model="search"
-                placeholder="按名称 / 模型 / 描述搜索"
+                placeholder="搜索 Agent"
                 clearable
                 style="width: 280px"
             />
-            <el-select
-                v-model="statusFilter"
-                clearable
-                placeholder="状态筛选"
-                style="width: 160px"
-            >
-                <el-option label="未冻结" value="DRAFT" />
-                <el-option label="已冻结" value="FROZEN" />
-                <el-option label="已退役" value="DEPRECATED" />
-            </el-select>
         </section>
 
         <OrinAsyncState
@@ -38,46 +36,59 @@
             empty-text="暂无 Agent。点击「新建 Agent」开始。"
             @retry="loadData"
         >
-            <OrinDataTable>
-                <el-table :data="filteredAgents" stripe border class="agent-table">
-                    <el-table-column prop="name" label="名称" min-width="200" show-overflow-tooltip />
-                    <el-table-column prop="description" label="说明" min-width="240" show-overflow-tooltip />
-                    <el-table-column label="Model" min-width="160" show-overflow-tooltip>
+            <OrinDataTable
+                title="Agent 能力"
+                :description="`${filteredAgents.length} / ${rows.length} 个 Agent`"
+            >
+                <ResizableTable
+                    :data="filteredAgents"
+                    stripe
+                    border
+                    table-class="agent-table"
+                    :row-style="{ cursor: 'pointer' }"
+                    @row-click="openAgent"
+                >
+                    <el-table-column label="Agent" min-width="320">
                         <template #default="{ row }">
-                            <span class="model-cell">
-                                {{ row.modelName || '—' }}
-                                <el-tag v-if="row.providerType" size="small" effect="plain">
-                                    {{ row.providerType }}
+                            <div class="agent-identity">
+                                <strong>{{ row.name }}</strong>
+                                <span>{{ row.description || '暂无说明' }}</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="模型" min-width="190">
+                        <template #default="{ row }">
+                            <div class="execution-config">
+                                <span>{{ row.modelName || '尚未选择模型' }}</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="交付状态" width="150" align="center">
+                        <template #default="{ row }">
+                            <div class="version-state">
+                                <el-tag :type="deliveryState(row).type" size="small">
+                                    {{ deliveryState(row).label }}
                                 </el-tag>
-                            </span>
+                            </div>
                         </template>
                     </el-table-column>
-                    <el-table-column label="当前版本" width="120" align="center">
+                    <el-table-column label="下一步" width="220" align="center" fixed="right">
                         <template #default="{ row }">
-                            <el-tag v-if="row.activeVersionNumber" size="small" type="success">
-                                v{{ row.activeVersionNumber }}
-                            </el-tag>
-                            <el-tag v-else size="small" effect="plain">未冻结</el-tag>
+                            <el-button
+                                v-if="deliveryState(row).key === 'DRAFT'"
+                                link
+                                type="primary"
+                                @click.stop="openDraft(row)"
+                            >
+                                继续配置
+                            </el-button>
+                            <template v-else-if="deliveryState(row).key === 'READY'">
+                                <el-button link type="primary" @click.stop="runAgent(row)">运行</el-button>
+                                <el-button link type="success" @click.stop="publishAgent(row)">发布</el-button>
+                            </template>
                         </template>
                     </el-table-column>
-                    <el-table-column label="状态" width="120" align="center">
-                        <template #default="{ row }">
-                            <el-tag v-if="row.activeVersionStatus === 'FROZEN'" size="small" type="success">
-                                FROZEN
-                            </el-tag>
-                            <el-tag v-else-if="row.activeVersionStatus === 'DEPRECATED'" size="small" type="info">
-                                DEPRECATED
-                            </el-tag>
-                            <el-tag v-else size="small" effect="plain">DRAFT</el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="200" align="center">
-                        <template #default="{ row }">
-                            <el-button link type="primary" @click="openDraft(row)">编辑草稿</el-button>
-                            <el-button link type="primary" @click="openVersions(row)">查看版本</el-button>
-                        </template>
-                    </el-table-column>
-                </el-table>
+                </ResizableTable>
             </OrinDataTable>
         </OrinAsyncState>
     </div>
@@ -90,7 +101,9 @@ import { Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
 import OrinDataTable from '@/components/orin/OrinDataTable.vue'
+import ResizableTable from '@/components/ResizableTable.vue'
 import { ROUTES } from '@/router/routes'
+import { getAgentDeliveryState } from '@/views/workspace/coreLoopPresentation'
 import {
     createAgent,
     listAgents
@@ -101,6 +114,12 @@ const state = reactive({ status: 'loading', error: null })
 const rows = ref([])
 const search = ref('')
 const statusFilter = ref('')
+const deliveryState = getAgentDeliveryState
+
+const deliveryCounts = computed(() => ({
+    draft: rows.value.filter((row) => deliveryState(row).key === 'DRAFT').length,
+    ready: rows.value.filter((row) => deliveryState(row).key === 'READY').length,
+}))
 
 const filteredAgents = computed(() => {
     const q = search.value.trim().toLowerCase()
@@ -128,8 +147,6 @@ const loadData = async () => {
             name: m.name,
             description: m.description,
             modelName: m.modelName,
-            providerType: m.providerType,
-            activeVersionNumber: m.activeVersionNumber,
             activeVersionStatus: m.activeVersionStatus,
         }))
         rows.value = out
@@ -149,7 +166,7 @@ const onCreate = async () => {
     if (!name) return
     try {
         const created = await createAgent({ name, description: '' })
-        ElMessage.success(`已创建 Agent：${created.name}（id=${created.agentId}）`)
+        ElMessage.success(`已创建 Agent：${created.name}`)
         await loadData()
         const id = created.agentId || created.id
         router.push(ROUTES.AGENTS.WORKSPACE_DRAFT.replace(':agentId', id))
@@ -166,12 +183,31 @@ const openVersions = (row) => {
     router.push(ROUTES.AGENTS.WORKSPACE_VERSIONS.replace(':agentId', row.agentId))
 }
 
+const openAgent = (row) => {
+    if (deliveryState(row).key === 'DRAFT') openDraft(row)
+    else openVersions(row)
+}
+
+const toggleStatusFilter = (nextFilter) => {
+    statusFilter.value = statusFilter.value === nextFilter ? '' : nextFilter
+}
+
+const runAgent = (row) => {
+    router.push({ path: ROUTES.WORKSPACE.RUNS, query: { agentId: row.agentId, create: '1' } })
+}
+
+const publishAgent = (row) => {
+    router.push({ path: ROUTES.WORKSPACE.ENDPOINTS, query: { agentId: row.agentId, publish: '1' } })
+}
+
 onMounted(loadData)
 </script>
 
 <style scoped>
 .workspace-agents {
     padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 .page-header {
     display: flex;
@@ -201,10 +237,48 @@ onMounted(loadData)
     align-items: center;
     margin-bottom: 16px;
 }
-.model-cell {
-    display: inline-flex;
+.summary-strip {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.summary-strip button {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1px solid var(--el-border-color-light, #dbe2ea);
+    border-radius: 10px;
+    background: var(--el-bg-color, #fff);
+    color: var(--el-text-color-secondary, #64748b);
+    cursor: pointer;
+}
+.summary-strip button.active {
+    border-color: var(--el-color-primary, #155eef);
+    color: var(--el-color-primary, #155eef);
+    background: var(--el-color-primary-light-9, #eff4ff);
+}
+.summary-strip strong {
+    font-size: 18px;
+}
+.agent-identity,
+.execution-config,
+.version-state {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+}
+.version-state {
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+}
+.agent-identity span {
+    overflow: hidden;
+    color: var(--el-text-color-secondary, #64748b);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .agent-table :deep(.el-table__cell) {
     vertical-align: middle;

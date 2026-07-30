@@ -40,6 +40,21 @@ async function mockBackends(page) {
     if (path === '/api/v1/setup/status') {
       return route.fulfill(json({ completed: true, canInitialize: false }))
     }
+    if (path === '/api/v1/dashboard/summary') {
+      return route.fulfill(json({
+        systemHealth: {
+          backend: { status: 'UP' },
+          aiEngine: { status: 'UP', reachable: true }
+        },
+        adminStats: {
+          totalUsers: 1,
+          totalApiKeys: 1,
+          activeAlerts: 0,
+          resolvedAlerts: 0
+        },
+        topAlertEvents: []
+      }))
+    }
 
     if (path === '/api/v1/users') {
       return route.fulfill(json({
@@ -137,7 +152,11 @@ async function mockBackends(page) {
       return route.fulfill(json([]))
     }
     if (path === '/api/v1/system/integrations/dify') {
-      return route.fulfill(json({ apiUrl: 'http://localhost:3000/v1', enabled: false }))
+      return route.fulfill(json({
+        apiUrl: 'http://localhost:3000/v1',
+        apiKey: '********',
+        enabled: false
+      }))
     }
     if (path === '/api/v1/sync/dify/overview') {
       return route.fulfill(json({ apps: 0, workflows: 0, conversations: 0 }))
@@ -147,8 +166,13 @@ async function mockBackends(page) {
       return route.fulfill(json({
         'spring.datasource.url': 'jdbc:mysql://localhost:3306/orin',
         'spring.datasource.username': 'orin',
+        'spring.datasource.password': '********',
         'spring.data.redis.host': 'localhost',
-        'spring.data.redis.port': '6379'
+        'spring.data.redis.port': '6379',
+        'spring.data.redis.password': '********',
+        'milvus.token': '********',
+        'storage.minio.access-key': '********',
+        'storage.minio.secret-key': '********'
       }))
     }
     if (path === '/api/v1/knowledge/diagnose/milvus') {
@@ -286,6 +310,7 @@ test.describe('Wave 6 system control browser smoke', () => {
     await mockBackends(page)
 
     const paths = [
+      '/dashboard/control/admin-overview',
       '/dashboard/control/users',
       '/dashboard/control/departments',
       '/dashboard/control/roles',
@@ -297,6 +322,7 @@ test.describe('Wave 6 system control browser smoke', () => {
       '/dashboard/control/statistics',
       '/dashboard/control/notification-channels',
       '/dashboard/control/audit-logs',
+      '/dashboard/control/audit-settings',
       '/dashboard/runtime/maintenance',
       '/dashboard/control/api-keys',
       '/dashboard/control/mail/setup'
@@ -314,5 +340,59 @@ test.describe('Wave 6 system control browser smoke', () => {
 
     await page.goto('/dashboard/control/api-keys', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/dashboard\/control\/gateway/)
+  })
+
+  test('separates daily governance from advanced operations', async ({ page }) => {
+    await authenticate(page)
+    await mockBackends(page)
+
+    await page.goto('/dashboard/control/admin-overview', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: '系统设置', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '高级运维' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '环境参数' })).toBeVisible()
+
+    await page.goto('/dashboard/control/audit-logs', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: '审计记录', level: 1 })).toBeVisible()
+    await expect(page.getByRole('button', { name: '保存配置' })).toHaveCount(0)
+    await expect(page.getByRole('tab', { name: '审计存储配置' })).toHaveCount(0)
+    await expect(page.getByRole('tab', { name: '日志控制台' })).toHaveCount(0)
+
+    await page.goto('/dashboard/control/system-env', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: '高级环境参数', level: 1 })).toBeVisible()
+    await expect(page.getByText(/只显示固定掩码/)).toBeVisible()
+    const visibleConfigValues = await page.locator('input').evaluateAll(inputs => inputs.map(input => input.value))
+    expect(visibleConfigValues).toContain('********')
+  })
+
+  test('opens single-destination domains directly and keeps grouped menus', async ({ page }) => {
+    await authenticate(page)
+    await page.addInitScript(() => {
+      window.localStorage.setItem('orin_menu_mode', 'topbar')
+    })
+    await mockBackends(page)
+
+    await page.goto('/dashboard/control/users', { waitUntil: 'domcontentloaded' })
+
+    const overviewTitle = page.locator('.menu-title').filter({ hasText: /^概览$/ })
+    const overviewMenu = page.locator('.navbar-menu > .menu-item').filter({ has: overviewTitle })
+    await expect(overviewMenu).toHaveCount(1)
+    await overviewMenu.hover()
+    await expect(overviewMenu.locator('.dropdown-menu')).toHaveCount(0)
+    await overviewMenu.click()
+    await expect(page).toHaveURL(/\/workspace\/overview/)
+
+    const agentTitle = page.locator('.menu-title').filter({ hasText: /^Agent$/ })
+    const agentMenu = page.locator('.navbar-menu > .menu-item').filter({ has: agentTitle })
+    await expect(agentMenu).toHaveCount(1)
+    await agentMenu.hover()
+    await expect(agentMenu.locator('.dropdown-menu')).toBeVisible()
+    await expect(agentMenu.locator('.dropdown-menu')).toContainText('Agent 列表')
+    await expect(agentMenu.locator('.dropdown-menu')).toContainText('工作流')
+
+    const runsTitle = page.locator('.menu-title').filter({ hasText: /^运行$/ })
+    const runsMenu = page.locator('.navbar-menu > .menu-item').filter({ has: runsTitle })
+    await expect(runsMenu).toHaveCount(1)
+    await runsMenu.click()
+    await expect(page).toHaveURL(/\/workspace\/runs/)
   })
 })

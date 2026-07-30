@@ -8,14 +8,15 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
+import httpx
 from mcp import ClientSession
-from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 import mcp.types as types
 
-VERSION = "0.1.0"
+VERSION = "0.3.0-rc.1"
 
 
 class ConfigError(ValueError):
@@ -26,7 +27,7 @@ class ConfigError(ValueError):
 class BridgeConfig:
     base_url: str
     api_key: str
-    origin: str
+    origin: str | None
 
     @property
     def endpoint(self) -> str:
@@ -37,7 +38,11 @@ def load_config(env: Mapping[str, str] | None = None) -> BridgeConfig:
     values = os.environ if env is None else env
     base_url = _required(values, "ORIN_BASE_URL").rstrip("/")
     api_key = _required(values, "ORIN_API_KEY")
-    origin = values.get("ORIN_MCP_ORIGIN", "").strip() or derive_origin(base_url)
+    # A stdio bridge is a server-to-server client, not a browser.  Sending an
+    # Origin by default wrongly subjects local desktop clients to the backend
+    # browser CORS allow-list.  Keep Origin opt-in for deployments that need a
+    # browser-like policy check or an upstream proxy that explicitly requires it.
+    origin = values.get("ORIN_MCP_ORIGIN", "").strip() or None
     return BridgeConfig(base_url=base_url, api_key=api_key, origin=origin)
 
 
@@ -51,8 +56,9 @@ def derive_origin(base_url: str) -> str:
 def build_headers(config: BridgeConfig) -> dict[str, str]:
     headers = {
         "Authorization": f"Bearer {config.api_key}",
-        "Origin": config.origin,
     }
+    if config.origin:
+        headers["Origin"] = config.origin
     # Propagate W3C traceparent from ORIN backend for distributed tracing.
     # ORIN Backend sets ORIN_TRACEPARENT in the environment when calling the AI Engine;
     # the bridge echoes it in the MCP callback headers so ORIN can correlate the full链路.
@@ -87,7 +93,16 @@ def error_result(message: str) -> types.CallToolResult:
 
 @asynccontextmanager
 async def remote_session(config: BridgeConfig):
-    async with create_mcp_http_client(headers=build_headers(config)) as http_client:
+    # A local stdio bridge commonly connects to localhost.  Inherited shell
+    # proxy variables can otherwise route that loopback request through an
+    # unrelated proxy and turn an available ORIN endpoint into a 502.  A proxy
+    # is not part of the bridge contract, so make direct delivery explicit.
+    async with httpx.AsyncClient(
+        headers=build_headers(config),
+        follow_redirects=True,
+        timeout=httpx.Timeout(30.0, read=300.0),
+        trust_env=False,
+    ) as http_client:
         async with streamable_http_client(config.endpoint, http_client=http_client) as (
             read_stream,
             write_stream,

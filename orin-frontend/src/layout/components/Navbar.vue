@@ -181,7 +181,7 @@ import { ElMessage } from 'element-plus';
 import { useDark, useFullscreen } from '@vueuse/core';
 import { generateBreadcrumbs } from '@/router/routes';
 import { 
-  Refresh, Moon, Sunny, FullScreen, DataAnalysis, Cpu, Aim, EditPen, User, Loading,
+  Refresh, Moon, Sunny, FullScreen, DataAnalysis, Cpu, Loading,
   Close, HelpFilled, Odometer, DocumentChecked, Lock
 } from '@element-plus/icons-vue';
 import { chatAgent, getAgentList } from '@/api/agent';
@@ -214,7 +214,7 @@ const toggleDarkMode = () => {
 };
 
 // Fullscreen logic
-const { isFullscreen, toggle: toggleFullScreen } = useFullscreen();
+const { toggle: toggleFullScreen } = useFullscreen();
 
 // 刷新当前页面
 const handleRefresh = () => {
@@ -301,10 +301,10 @@ const sendSystemMessage = async () => {
     try {
         // [PHASE] 1. Gather Real System Data
         const [hardwareRes, agentsRes, kbRes, logsRes] = await Promise.allSettled([
-            getServerHardware().catch(e => ({ error: 'Hardware fetch failed' })),
-            getAgentList().catch(e => []),
-            getKnowledgeList().catch(e => ({ list: [] })),
-            getTokenHistory({ size: 5 }).catch(e => ({ content: [] })) // Last 5 tasks
+            getServerHardware().catch(_e => ({ error: 'Hardware fetch failed' })),
+            getAgentList().catch(_e => []),
+            getKnowledgeList().catch(_e => ({ list: [] })),
+            getTokenHistory({ size: 5 }).catch(_e => ({ content: [] })) // Last 5 tasks
         ]);
 
         // Format Hardware

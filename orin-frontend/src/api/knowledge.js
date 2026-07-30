@@ -205,9 +205,10 @@ export const retrievalFromRAGFlow = (config, ragflowKbId, topK) => {
 };
 
 export const uploadToRAGFlow = (kbId, fileName, fileContent, config) => {
-    return request.post(`/knowledge/${kbId}/documents/ragflow/upload`, fileContent, {
-        params: { fileName },
-        headers: { 'Content-Type': 'application/octet-stream' }
+  return request.post(`/knowledge/${kbId}/documents/ragflow/upload`, fileContent, {
+        ...config,
+        params: { ...config?.params, fileName },
+        headers: { ...config?.headers, 'Content-Type': 'application/octet-stream' }
     });
 };
 

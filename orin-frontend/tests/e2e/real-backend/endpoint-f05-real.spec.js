@@ -89,10 +89,10 @@ test.describe('F05 Workspace publish real-browser E2E', () => {
     try {
       await login(page)
       await page.goto('/workspace/endpoints')
-      await page.getByRole('button', { name: '发布端点' }).click()
-      const publishDialog = page.getByRole('dialog', { name: '发布端点' })
+      await page.getByRole('button', { name: '发布服务' }).click()
+      const publishDialog = page.getByRole('dialog', { name: '发布服务' })
       await expect(publishDialog).toBeVisible()
-      await publishDialog.getByPlaceholder('如：客服 Agent v1').fill(endpointName)
+      await publishDialog.getByPlaceholder('例如：客服问答服务').fill(endpointName)
 
       const selects = publishDialog.locator('.el-select')
       await expect(selects).toHaveCount(1)
@@ -101,34 +101,30 @@ test.describe('F05 Workspace publish real-browser E2E', () => {
       await expect(agentOption).toBeVisible()
       await agentOption.click()
 
-      await expect(selects).toHaveCount(2)
-      const versionSelect = selects.nth(1)
-      const versionInput = publishDialog.getByRole('combobox', { name: '版本' })
-      const versionDropdownId = await versionInput.getAttribute('aria-controls')
-      if (!versionDropdownId) throw new Error('Version selector omitted aria-controls')
-      await versionSelect.click()
-      const versionOptions = page.locator(`#${versionDropdownId} [role="option"]:not(.is-disabled)`)
-      await expect(versionOptions).toHaveCount(1)
-      await versionOptions.click()
-      expect(await versionInput.getAttribute('value')).not.toBe('')
+      await expect(publishDialog.getByText('版本 v1', { exact: true })).toBeVisible()
 
       const [publishResponse] = await Promise.all([
         page.waitForResponse((candidate) =>
           candidate.url().includes('/api/v1/endpoints') && candidate.request().method() === 'POST'
         ),
-        publishDialog.getByRole('button', { name: '发布' }).click(),
+        publishDialog.getByRole('button', { name: '发布服务' }).click(),
       ])
       if (!publishResponse.ok()) throw new Error(`Workspace publish failed: HTTP ${publishResponse.status()}`)
       const published = await publishResponse.json()
       endpointId = published.id || published.data?.id || ''
       if (!endpointId) throw new Error('Workspace publish response omitted endpoint id')
 
-      const handoff = page.getByRole('dialog', { name: '端点已发布' })
+      const handoff = page.getByRole('dialog', { name: '服务已发布' })
       await expect(handoff).toBeVisible()
       await expect(handoff.getByText('此 API Key 仅显示一次', { exact: false })).toBeVisible()
-      await expect(handoff.getByText('REST 调用地址', { exact: true })).toBeVisible()
-      await expect(handoff.getByText('MCP 客户端配置', { exact: true })).toBeVisible()
-      await handoff.getByRole('button', { name: '我已安全保存' }).click()
+      const savedCheckbox = handoff.getByRole('checkbox', { name: '我已将密钥保存到安全位置' })
+      await handoff.locator('.el-checkbox').click()
+      await expect(savedCheckbox).toBeChecked()
+      await handoff.getByRole('button', { name: '查看调用方式' }).click()
+      await expect(handoff.getByText('调用地址', { exact: true })).toBeVisible()
+      await expect(handoff.getByText('curl 示例', { exact: true })).toBeVisible()
+      await expect(handoff.getByText('MCP 客户端配置', { exact: true })).toHaveCount(0)
+      await handoff.getByRole('button', { name: '完成交付' }).click()
       await expect(page.getByText(endpointName, { exact: true })).toBeVisible()
     } finally {
       if (endpointId) {

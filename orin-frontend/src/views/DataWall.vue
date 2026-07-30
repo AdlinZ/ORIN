@@ -229,12 +229,11 @@ import { useRouter } from 'vue-router';
 import LineChart from '@/components/LineChart.vue';
 import BarChart from '@/components/BarChart.vue';
 import AnimatedNumber from '@/components/AnimatedNumber.vue';
-import { Monitor, Tickets, Cpu, Connection, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
+import { Monitor, Tickets, Cpu, Connection } from '@element-plus/icons-vue';
 import { getGlobalSummary, getAgentList, getServerHardware } from '@/api/monitor';
 import BrandingLogo from '@/components/BrandingLogo.vue';
 
 const router = useRouter();
-const loading = ref(false);
 const summary = ref({});
 const agents = ref([]);
 const currentTime = ref('');

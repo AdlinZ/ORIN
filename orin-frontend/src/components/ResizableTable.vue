@@ -54,15 +54,15 @@ const tableRef = ref(null);
 
 // Merge default header styles with custom ones
 const mergedHeaderCellStyle = computed(() => ({
-  background: 'var(--neutral-gray-50)',
-  color: 'var(--neutral-gray-900)',
+  background: 'var(--el-fill-color-light)',
+  color: 'var(--el-text-color-primary)',
   fontWeight: '600',
   fontSize: '14px',
   borderBottom: '2px solid var(--neutral-gray-200)',
   ...props.headerCellStyle
 }));
 
-const handleHeaderDragend = (newWidth, oldWidth, column, event) => {
+const handleHeaderDragend = (newWidth, _oldWidth, column, _event) => {
   // Store column widths in localStorage for persistence
   const columnKey = column.property || column.label;
   if (columnKey) {
@@ -80,7 +80,7 @@ onMounted(() => {
     if (!table) return;
 
     const headers = table.querySelectorAll('.el-table__header th');
-    headers.forEach((header, index) => {
+    headers.forEach((header) => {
       // Skip selection and expand columns
       if (header.classList.contains('el-table-column--selection') || 
           header.classList.contains('el-table__expand-column')) {
@@ -179,8 +179,8 @@ defineExpose({
 }
 
 .resizable-table :deep(.el-table__header th) {
-  background: var(--neutral-gray-50);
-  color: var(--neutral-gray-900);
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
   font-weight: 600;
   font-size: 14px;
   padding: 14px 0;
@@ -188,7 +188,7 @@ defineExpose({
 }
 
 .resizable-table :deep(.el-table__header th:hover) {
-  background: var(--neutral-gray-100);
+  background: var(--el-fill-color);
 }
 
 .resizable-table :deep(.el-table__body tr) {
@@ -196,18 +196,18 @@ defineExpose({
 }
 
 .resizable-table :deep(.el-table__body tr:hover) {
-  background-color: var(--neutral-gray-50) !important;
+  background-color: var(--el-fill-color-light) !important;
 }
 
 .resizable-table :deep(.el-table__body td) {
   padding: 12px 0;
-  color: var(--neutral-gray-700);
-  border-bottom: 1px solid var(--neutral-gray-100);
+  color: var(--el-text-color-regular);
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 /* Stripe styling */
 .resizable-table :deep(.el-table__body .el-table__row--striped) {
-  background-color: #fafafa;
+  background-color: var(--el-fill-color-lighter);
 }
 
 /* Selection column styling */

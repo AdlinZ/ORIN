@@ -32,22 +32,44 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     set +a
 fi
 
-# 数据库配置（优先级：.env > ORIN_DB_* 环境变量 > 硬编码默认值）
+# 数据库配置（优先级：.env > ORIN_DB_* 环境变量）。密码不得回退到
+# 示例值，否则本地启动失败会被误诊为数据库问题，生产更不能静默使用弱凭据。
 # manage.sh 使用 DB_USERNAME / DB_PASSWORD 与应用层 application.properties 对齐；
 # docker-compose 侧通过 MYSQL_* 映射到 DB_*，此处直接支持两套命名
 DB_HOST="${DB_HOST:-${ORIN_DB_HOST:-localhost}}"
 DB_PORT="${DB_PORT:-${ORIN_DB_PORT:-3306}}"
 DB_NAME="${DB_NAME:-${ORIN_DB_NAME:-orindb}}"
 DB_USERNAME="${DB_USERNAME:-${ORIN_DB_USER:-root}}"
-DB_PASSWORD="${DB_PASSWORD:-${ORIN_DB_PASS:-password}}"
+DB_PASSWORD="${DB_PASSWORD:-${ORIN_DB_PASS:-}}"
+
+function require_runtime_config() {
+    local missing=()
+    [ -n "${DB_PASSWORD:-}" ] || missing+=("DB_PASSWORD")
+    [ -n "${JWT_SECRET:-${ORIN_JWT_SECRET:-}}" ] || missing+=("JWT_SECRET")
+    if [ "${#missing[@]}" -gt 0 ]; then
+        echo -e "${RED}缺少启动配置: ${missing[*]}${NC}"
+        echo -e "${YELLOW}请从 .env.example 复制 .env 后填入非占位符值。${NC}"
+        return 1
+    fi
+}
+
+function find_backend_jar() {
+    if [ -f "$BACKEND_DIR/target/orin-backend.jar" ]; then
+        printf '%s\n' "$BACKEND_DIR/target/orin-backend.jar"
+        return 0
+    fi
+    # Compatibility for an older locally built artifact; new builds always use
+    # the stable name above.
+    find "$BACKEND_DIR/target" -maxdepth 1 -type f -name 'orin-backend-*.jar' -print 2>/dev/null | head -n 1
+}
 
 function flyway_runtime_props() {
-    local jwt_secret="${JWT_SECRET:-${ORIN_JWT_SECRET:-0123456789012345678901234567890123456789012345678901234567890123}}"
+    local jwt_secret="${JWT_SECRET:-${ORIN_JWT_SECRET:-}}"
     local datasource_url="jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-    echo "--spring.datasource.url=$datasource_url"
-    echo "--spring.datasource.username=$DB_USERNAME"
-    echo "--spring.datasource.password=$DB_PASSWORD"
-    echo "--jwt.secret=$jwt_secret"
+    printf '%s\n' "--spring.datasource.url=$datasource_url"
+    printf '%s\n' "--spring.datasource.username=$DB_USERNAME"
+    printf '%s\n' "--spring.datasource.password=$DB_PASSWORD"
+    printf '%s\n' "--jwt.secret=$jwt_secret"
 }
 
 function check_mysql() {
@@ -88,6 +110,14 @@ function check_mysql() {
 
     # 检查数据库是否存在（仅当有 mysql CLI 时）
     if command -v mysql &> /dev/null; then
+        # mysqladmin ping only proves the daemon is alive; it can succeed even
+        # when the configured credentials are rejected. Authenticate before
+        # deciding that a schema is missing or attempting CREATE DATABASE.
+        if ! mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "SELECT 1" > /dev/null 2>&1; then
+            echo -e "${RED}✗ MySQL 认证失败或账号无连接权限 (${DB_USERNAME}@${DB_HOST}:${DB_PORT})${NC}"
+            echo -e "${YELLOW}请检查 .env 中的 DB_USERNAME / DB_PASSWORD；现有服务不会被停止。${NC}"
+            return 1
+        fi
         if mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USERNAME" -p"$DB_PASSWORD" -e "USE $DB_NAME" 2>/dev/null; then
             echo -e "${GREEN}✓ 数据库 '$DB_NAME' 已就绪${NC}"
             return 0
@@ -198,7 +228,8 @@ function flyway_status() {
     fi
 
     # Show pending migrations
-    local jar_file=$(ls $BACKEND_DIR/target/orin-backend-*.jar 2>/dev/null | head -n 1)
+    local jar_file
+    jar_file="$(find_backend_jar)"
     if [ -n "$jar_file" ]; then
         echo -e "${BLUE}待执行的迁移检查:${NC}"
         java -jar "$jar_file" --spring.profiles.active=dev $(flyway_runtime_props) flyway:migrate -X 2>&1 | grep -E "Current version|Successfully applied|No migrations" || true
@@ -211,7 +242,8 @@ function flyway_status() {
 function flyway_repair() {
     echo -e "${YELLOW}执行 Flyway Repair...${NC}"
 
-    local jar_file=$(ls $BACKEND_DIR/target/orin-backend-*.jar 2>/dev/null | head -n 1)
+    local jar_file
+    jar_file="$(find_backend_jar)"
     if [ -z "$jar_file" ]; then
         echo -e "${RED}错误: 未找到后端 JAR 文件${NC}"
         return 1
@@ -225,7 +257,8 @@ function flyway_repair() {
 function flyway_migrate() {
     echo -e "${YELLOW}执行 Flyway Migrate...${NC}"
 
-    local jar_file=$(ls $BACKEND_DIR/target/orin-backend-*.jar 2>/dev/null | head -n 1)
+    local jar_file
+    jar_file="$(find_backend_jar)"
     if [ -z "$jar_file" ]; then
         echo -e "${RED}错误: 未找到后端 JAR 文件${NC}"
         return 1
@@ -238,6 +271,8 @@ function flyway_migrate() {
 function start() {
     echo -e "${YELLOW}正在启动 ORIN 系统...${NC}"
     mkdir -p "$LOG_DIR"
+
+    require_runtime_config || exit 1
 
     stop_existing_services
 
@@ -266,7 +301,7 @@ function start() {
     cd $BACKEND_DIR
     # 总是重新编译以获取最新代码
     echo -e "正在编译后端..."
-    mvn clean package -DskipTests -q
+    mvn clean package -q
     if [ $? -ne 0 ]; then
         echo -e "${RED}后端编译失败，启动中止${NC}"
         exit 1
@@ -274,7 +309,7 @@ function start() {
 
     # 启动后端（使用宽松模式避免历史 checksum 问题）
     local backend_jar
-    backend_jar=$(ls target/orin-backend-*.jar 2>/dev/null | head -n 1)
+    backend_jar="$(find_backend_jar)"
     if [ -z "$backend_jar" ]; then
         echo -e "${RED}未找到后端 JAR 文件，启动中止${NC}"
         exit 1
@@ -382,6 +417,16 @@ case "$1" in
         stop
         ;;
     restart)
+        if [ -n "${2:-}" ]; then
+            echo -e "${RED}不支持的 restart 参数: $2${NC}"
+            echo -e "${YELLOW}manage.sh 当前只支持全量重启；为避免误停服务，未识别参数会直接拒绝。${NC}"
+            exit 2
+        fi
+        # Preflight before stop: an invalid DB credential or missing runtime
+        # secret must never turn a healthy development environment into an
+        # avoidable outage.
+        require_runtime_config || exit 1
+        check_mysql || exit 1
         stop
         sleep 2
         start

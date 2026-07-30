@@ -5,6 +5,30 @@ All notable changes to ORIN will be documented in this file.
 
 This project follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses Semantic Versioning during the `v0.x` phase.
 
+## [Unreleased] — 0.3.0-rc.1 candidate
+
+### Release engineering
+
+- Unified the backend, frontend, AI Engine, Runner and MCP bridge source
+  versions under the release candidate `0.3.0-rc.1`.
+- Added `VERSION`, a CI-enforced release-version consistency check, a stable
+  backend artifact name (`target/orin-backend.jar`), and a release checklist.
+- Updated deployment, backup and rollback references to the stable backend
+  artifact name.
+
+### Security
+
+- Removed API Key values and prefixes from visual-analysis and mail-service
+  logs, and stopped writing OCR image base64 fragments to logs.
+- Removed startup-script fallback credentials; local startup now requires an
+  explicit database password and JWT secret.
+
+### Known release gates
+
+- `0.3.0-rc.1` remains a candidate until the release checklist is complete,
+  including CI/Docker smoke on the exact commit and a real desktop MCP client
+  acceptance run.
+
 ## [v0.1.0] - 2026-04-15
 
 ### Added

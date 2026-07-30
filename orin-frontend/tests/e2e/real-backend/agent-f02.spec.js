@@ -88,11 +88,14 @@ test.describe('F02 真实后端浏览器 E2E', () => {
         // v2 应自动成为 active
         // 切到版本列表
         await page.goto(`${BASE}/workspace/agents/${agentId}/versions`)
-        // 找到 v1 行点击"切到 active"
-        const v1Row = page.getByRole('row').filter({ hasText: /v1$/ }).first()
-        await v1Row.getByRole('button', { name: /切到 active/ }).click()
+        // 找到 v1 行，将它设为默认版本
+        const v1Row = page.getByRole('row').filter({ hasText: /v1/ }).first()
+        await v1Row.getByRole('button', { name: '版本管理' }).click()
+        await page.getByRole('menuitem', { name: '设为默认版本' }).click()
+        await page.getByRole('dialog', { name: '设为默认版本' })
+            .getByRole('button', { name: '设为默认' }).click()
         // 等待 AUDIT 写入提示
-        await expect(page.getByText(/已切到 v1/)).toBeVisible({ timeout: 5_000 })
+        await expect(page.getByText(/v1 已设为默认版本/)).toBeVisible({ timeout: 5_000 })
 
         // 试图修改 FROZEN 草稿应被拒
         // —— 但 F02 R3 设计：草稿始终可编辑（active_version_id 不再阻断）；

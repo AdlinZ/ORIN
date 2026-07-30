@@ -542,7 +542,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { Plus, CopyDocument } from '@element-plus/icons-vue';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import OrinStatusSummary from '@/components/orin/OrinStatusSummary.vue';
@@ -575,12 +575,20 @@ const props = defineProps({
   selfService: {
     type: Boolean,
     default: false
+  },
+  initialTab: {
+    type: String,
+    default: 'platform'
   }
 });
 
 const selfService = computed(() => props.selfService);
 
-const activeTab = ref('platform');
+const normalizeTab = (tab) => (!selfService.value && tab === 'provider' ? 'provider' : 'platform');
+const activeTab = ref(normalizeTab(props.initialTab));
+watch(() => props.initialTab, (tab) => {
+  activeTab.value = normalizeTab(tab);
+});
 const externalKeys = ref([]);
 const providerList = ref([]);
 const externalDialogVisible = ref(false);

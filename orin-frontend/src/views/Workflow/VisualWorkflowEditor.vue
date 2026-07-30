@@ -1335,29 +1335,26 @@ import { ROUTES } from '@/router/routes';
 import { VueFlow, Handle, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { MiniMap } from '@vue-flow/minimap';
-import { Controls } from '@vue-flow/controls';
-import { MarkerType } from '@vue-flow/core';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/minimap/dist/style.css';
 
 // 导入自定义边组件
 import DataFlowEdge from './components/DataFlowEdge.vue';
 import { 
-  VideoPlay, User, Tools, Share, CircleCheck, Search, Grid, Collection, 
-  CaretBottom, Connection, TrendCharts, Edit, Operation, VideoPause,
-  RefreshRight, MoreFilled, Loading, Plus, Close, Pointer, FullScreen, Aim,
-  Right, MapLocation, Delete, Clock, Cpu, ChatDotSquare, Monitor, DocumentCopy,
-  Files, EditPen, Link, Document, Scissor, Postcard, Sunny, Refresh,
-  CirclePlusFilled, DocumentAdd, MagicStick, Promotion, Remove, CircleClose, InfoFilled
+  VideoPlay, User, Tools, Share, CircleCheck, Grid, Collection,
+  Connection, TrendCharts, Edit, Operation,
+  RefreshRight, MoreFilled, Loading, Plus, Close,
+  Right, MapLocation, Delete, Cpu, ChatDotSquare, Monitor, DocumentCopy,
+  Files, EditPen, Link, Document, Scissor, Sunny, Refresh,
+  Promotion, Remove, CircleClose, InfoFilled
 } from '@element-plus/icons-vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { getAgentList } from '@/api/agent';
 import { createWorkflow, getWorkflow, runWorkflowPreview, generateAIWorkflow, publishWorkflow, getWorkflowCapabilities } from '@/api/workflow';
 import { getModelList } from '@/api/model';
 import { getKnowledgeList } from '@/api/knowledge';
 import WorkflowApiAccess from './WorkflowApiAccess.vue';
 import JsonViewer from '@/components/JsonViewer.vue';
-import { dump } from 'js-yaml';
 import { marked } from 'marked';
 import { useDark } from '@vueuse/core';
 import {
@@ -1368,9 +1365,6 @@ import {
 
 // Dark mode support
 const isDark = useDark();
-
-// HandIcon placeholder for Pointer (can use Pointer icon instead)
-const HandIcon = Pointer;
 
 const router = useRouter();
 const route = useRoute();
@@ -1444,19 +1438,6 @@ const finalOutputs = computed(() => {
     return null;
 });
 
-const finalOutputText = computed(() => {
-    return extractReadableExecutionOutput();
-});
-
-const displayFinalOutputText = computed(() => {
-    const result = executionResult.value;
-    const directAnswer = extractTextFromValue(result?.outputs?.answer)
-        || extractTextFromValue(result?.data?.outputs?.answer)
-        || extractTextFromValue(result?.output?.answer)
-        || extractTextFromValue(result?.result?.answer);
-    return directAnswer || result?.finalText || finalOutputText.value;
-});
-
 const normalizeOutputText = (value) => {
     if (typeof value !== 'string') return '';
     return value.replace(/\\n/g, '\n').trim();
@@ -1511,21 +1492,6 @@ const extractReadableWorkflowOutput = (outputs) => {
     for (const value of values) {
         const text = extractTextFromValue(value);
         if (text) return text;
-    }
-
-    return '';
-};
-
-const extractReadableExecutionOutput = () => {
-    const fromOutputs = extractReadableWorkflowOutput(finalOutputs.value);
-    if (fromOutputs) return fromOutputs;
-
-    const trace = executionResult.value?.trace;
-    if (Array.isArray(trace)) {
-        for (const item of [...trace].reverse()) {
-            const text = extractTextFromValue(item?.outputs);
-            if (text) return text;
-        }
     }
 
     return '';
@@ -1928,19 +1894,6 @@ const onGlobalKeyDown = async (event) => {
     }
 };
 
-const onDeleteWorkflow = () => {
-    ElMessageBox.confirm('确定要删除此工作流吗？此操作不可撤销。', '警告', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    }).then(() => {
-        // Implement actual deletion logic here
-        // API call to delete...
-        ElMessage.success('工作流已删除');
-        router.push(ROUTES.AGENTS.WORKFLOWS);
-    }).catch(() => {});
-};
-
 const goToWorkflowList = () => {
     router.push(ROUTES.AGENTS.WORKFLOWS);
 };
@@ -1951,9 +1904,7 @@ const getDifyWorkflowData = () => {
         // Clean up React Flow internal fields
         const { 
             position, id, type, data, 
-            width, height, measured, 
-            selected, dragging, resizing, initialized, isParent,
-            events, hover, zIndex, handleBounds
+            width, height, measured
         } = n;
 
         const cleanData = { ...data };
@@ -2040,34 +1991,6 @@ const getDifyWorkflowData = () => {
         outputs,
         variables: []
     };
-};
-
-const onExportWorkflow = () => {
-    try {
-        const data = getDifyWorkflowData();
-        
-        // Convert to YAML
-        const yamlStr = dump(data, {
-            indent: 2,
-            lineWidth: -1, 
-            noRefs: true
-        });
-
-        const blob = new Blob([yamlStr], { type: 'application/x-yaml' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${workflowName.value || 'workflow'}-${new Date().getTime()}.yml`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        ElMessage.success('工作流已导出为 YAML');
-    } catch (e) {
-        console.error(e);
-        ElMessage.error('导出失败');
-    }
 };
 
 const allNodeGroups = [

@@ -91,7 +91,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { User, Lock } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import Cookies from 'js-cookie';
@@ -102,6 +102,7 @@ import { ADMIN_MENU_ROLES, getDefaultHomeByRoles } from '@/router/topMenuConfig'
 import { login } from '@/api/auth';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 const appStore = useAppStore();
 const loading = ref(false);
@@ -119,6 +120,19 @@ const loginRules = {
 };
 
 const isAdminLike = (roles = []) => roles.some((role) => ADMIN_MENU_ROLES.includes(role));
+const normalizeRoles = (rawRoles) => {
+  if (Array.isArray(rawRoles)) return rawRoles.filter(Boolean);
+  if (typeof rawRoles === 'string' && rawRoles.trim()) return [rawRoles.trim()];
+  return [];
+};
+
+const resolveRedirect = (userRoles) => {
+  const queryRedirect = route.query?.redirect;
+  const target = typeof queryRedirect === 'string' && queryRedirect.startsWith('/') && !queryRedirect.startsWith('//')
+    ? queryRedirect
+    : getDefaultHomeByRoles(userRoles);
+  return target;
+};
 
 const handleLogin = async () => {
   if (!formRef.value) return;
@@ -134,7 +148,8 @@ const handleLogin = async () => {
         const res = await login(loginData);
         const token = res.token || (res.data && res.data.token);
         const user = res.user || (res.data && res.data.user);
-        const roles = res.roles || (res.data && res.data.roles);
+        const roles = normalizeRoles(res.roles || (res.data && res.data.roles));
+        const userRoles = roles.length > 0 ? roles : ['ROLE_USER'];
 
         if (!token) throw new Error('Invalid login response');
 
@@ -145,13 +160,14 @@ const handleLogin = async () => {
         // 如果不记住我：仅存储到 sessionStorage（浏览器关闭后清除）
         if (rememberMe.value) {
           localStorage.setItem('orin_token', token);
-          localStorage.setItem('orin_user', JSON.stringify(user));
+          localStorage.setItem('orin_userInfo', JSON.stringify(user));
+          localStorage.setItem('orin_roles', JSON.stringify(userRoles));
         } else {
           sessionStorage.setItem('orin_token', token);
-          sessionStorage.setItem('orin_user', JSON.stringify(user));
+          sessionStorage.setItem('orin_userInfo', JSON.stringify(user));
+          sessionStorage.setItem('orin_roles', JSON.stringify(userRoles));
         }
 
-        const userRoles = roles || ['ROLE_USER'];
         userStore.login(token, user, userRoles);
 
         if (isAdminLike(userRoles)) {
@@ -164,8 +180,8 @@ const handleLogin = async () => {
         Cookies.set('orin_userInfo', JSON.stringify(user), { expires: cookieExpires });
         Cookies.set('orin_roles', JSON.stringify(userRoles), { expires: cookieExpires });
 
-        const targetRoute = getDefaultHomeByRoles(userRoles);
-        setTimeout(() => router.push(targetRoute), 500);
+        const targetRoute = resolveRedirect(userRoles);
+        await router.push(targetRoute);
       } catch (error) {
         ElMessage.error('登录失败: ' + (error.response?.data?.message || '请检查账号密码'));
       } finally {

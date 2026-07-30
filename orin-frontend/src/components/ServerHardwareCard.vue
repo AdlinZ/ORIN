@@ -203,10 +203,8 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  Setting, Cpu, Memo, FolderOpened, Connection,
-  SuccessFilled, CircleCloseFilled, Top, Bottom, Refresh, VideoPlay
+  Setting, Cpu, Memo, FolderOpened, Connection, Top, Bottom, Refresh, VideoPlay
 } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
 import { ROUTES } from '@/router/routes';
 import { getPrometheusConfig, getServerHardware } from '@/api/monitor';
 

@@ -8,13 +8,13 @@ import com.adlin.orin.modules.endpoint.entity.AgentEndpoint;
 import com.adlin.orin.modules.endpoint.entity.EndpointStatus;
 import com.adlin.orin.modules.endpoint.repository.AgentEndpointRepository;
 import com.adlin.orin.modules.endpoint.service.EndpointExecutionService;
+import com.adlin.orin.modules.endpoint.service.EndpointConfigParser;
 import com.adlin.orin.modules.task.entity.TaskEntity;
 import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
 import com.adlin.orin.modules.workflow.dto.WorkflowExecutionSubmissionResponse;
 import com.adlin.orin.modules.workflow.entity.WorkflowEntity;
 import com.adlin.orin.modules.workflow.repository.WorkflowRepository;
 import com.adlin.orin.modules.workflow.service.WorkflowService;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -199,8 +199,7 @@ public class McpJsonRpcService {
     private boolean isKeyAllowedByConfig(String configJson, GatewaySecret secret) {
         if (configJson == null || configJson.isBlank()) return false;
         try {
-            Map<String, Object> config = objectMapper.readValue(configJson,
-                    new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> config = EndpointConfigParser.parse(objectMapper, configJson);
             @SuppressWarnings("unchecked")
             List<String> allowed = (List<String>) config.get("allowedApiKeyIds");
             return allowed != null && allowed.contains(secret.getSecretId());
