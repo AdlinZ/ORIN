@@ -530,7 +530,7 @@ export function generateBreadcrumbs(path) {
     // 查找匹配的菜单项
     for (const menu of SIDEBAR_MENU_CONFIG) {
         // 检查是否是该一级菜单的子路径
-        const isInMenu = path.startsWith(menu.path.replace('/dashboard/', '/dashboard/')) ||
+        const isInMenu = path.startsWith(menu.path) ||
             menu.children?.some(child => {
                 // 二级菜单（直接子节点）
                 if (child.path && path.startsWith(child.path)) return true

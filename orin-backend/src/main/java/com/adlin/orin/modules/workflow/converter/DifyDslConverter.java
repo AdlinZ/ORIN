@@ -1,8 +1,10 @@
 package com.adlin.orin.modules.workflow.converter;
 
 import com.adlin.orin.modules.workflow.dsl.OrinWorkflowDslNormalizer;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,7 +18,12 @@ public class DifyDslConverter {
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> convert(String yamlContent) {
-        Yaml yaml = new Yaml();
+        LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setAllowDuplicateKeys(false);
+        loaderOptions.setMaxAliasesForCollections(50);
+        loaderOptions.setNestingDepthLimit(100);
+        loaderOptions.setCodePointLimit(3_000_000);
+        Yaml yaml = new Yaml(new SafeConstructor(loaderOptions));
         Object loaded = yaml.load(yamlContent);
         if (!(loaded instanceof Map<?, ?> rawDifyData)) {
             throw new IllegalArgumentException("Invalid Dify DSL: root object is required");

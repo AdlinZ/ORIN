@@ -34,8 +34,10 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     @Bean
+    @SuppressWarnings("java/spring-disabled-csrf-protection")
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // ORIN authenticates stateless API requests with Authorization headers, not cookies.
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
