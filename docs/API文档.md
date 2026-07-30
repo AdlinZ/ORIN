@@ -23,7 +23,7 @@
 | `/api/v1/*` | JWT | 内部业务接口，需先调用 `/api/v1/auth/login` 获取 token |
 | `/v1/health` · `/api/v1/health` | 无 | 健康检查公开 |
 
-API Key 创建：管理员在管理台 `/dashboard/control/gateway` 的访问凭据区域创建；普通用户 / 运维在 `/portal/api-keys` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
+API Key 创建：管理员在管理台 → 系统设置 → 统一网关 → 访问凭据；普通用户 / 运维在 `/portal/api-keys` 自助创建。平台访问密钥统一为 `CLIENT_ACCESS` 类型、`sk-orin-*` 前缀；`PROVIDER_CREDENTIAL` 与 `MCP_ENV` 仅用于上游凭据或 MCP env，不可作为 `/v1/*` 调用密钥。
 
 API Key 生命周期接口：
 
@@ -74,10 +74,9 @@ API Key 生命周期接口：
 ### 4.1 登录
 
 ```bash
-ORIN_ADMIN_PASSWORD=<由本地配置或初始化向导创建的管理员密码>
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"admin\",\"password\":\"${ORIN_ADMIN_PASSWORD}\"}"
+  -d '{"username":"admin","password":"admin123"}'
 # → { "token": "...", "refreshToken": "..." }
 ```
 
@@ -119,159 +118,6 @@ curl -X POST http://localhost:8080/v1/embeddings \
 ORIN_API_KEY=<CLIENT_ACCESS_KEY>
 curl http://localhost:8080/v1/models \
   --header "$(printf 'Authorization: Bearer %s' "$ORIN_API_KEY")"
-```
-
-### 4.4.1 网关端点 Public Demo 开放范围
-
-| Endpoint | Public Demo | 说明 |
-|----------|------------|------|
-| `/v1/chat/completions` | ✅ 开放 | auth + rate limit + audit + quota |
-| `/v1/models` | ✅ 开放 | API Key 鉴权后的可用模型列表 |
-| `/v1/embeddings` | ❌ 默认关闭 | 需 `orin.gateway.endpoints.embeddings-enabled=true` |
-| `/v1/health` | ✅ 公开 | 健康检查 |
-| `/v1/capabilities` | ✅ 公开 | 能力清单 |
-
-### 4.4.2 OpenAI SDK 集成
-
-ORIN 统一网关兼容 OpenAI SDK，只需替换 `base_url` 和 `api_key`。
-
-**Python:**
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="sk-orin-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    base_url="https://your-orin-instance/v1",
-)
-
-completion = client.chat.completions.create(
-    model="gpt-4",
-    messages=[{"role": "user", "content": "Hello, ORIN!"}],
-)
-print(completion.choices[0].message.content)
-```
-
-**Node.js:**
-```javascript
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: "sk-orin-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  baseURL: "https://your-orin-instance/v1",
-});
-
-const completion = await client.chat.completions.create({
-  model: "gpt-4",
-  messages: [{ role: "user", content: "Hello, ORIN!" }],
-});
-console.log(completion.choices[0].message.content);
-```
-
-> **注意:** `base_url` / `baseURL` 必须以 `/v1` 结尾，与 OpenAI 官方 API 路径约定一致。
-
-### 4.4.3 Public Demo 错误语义
-
-ORIN Gateway 统一错误响应格式：
-
-```json
-{
-  "code": "AUTH_API_KEY_INVALID",
-  "message": "Invalid API key",
-  "traceId": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-| HTTP Status | 语义码 | 含义 | 处理建议 |
-|-------------|--------|------|----------|
-| `200` | — | 成功 | 正常消费响应 |
-| `401` | `AUTH_API_KEY_INVALID` | 缺少或无效 API Key；或 Key 已被禁用 | 检查 `Authorization: Bearer sk-orin-xxx` 头是否正确；确认 Key 未被禁用或删除 |
-| `413` | `payload_too_large` | 请求体超过 1 MiB 上限 | 减小请求体（`messages` 总长度） |
-| `429` | —（HTTP 标准） | 命中限流（超出 `rateLimitPerMinute` 或 `rateLimitPerDay`）；或超出 `monthlyTokenQuota` | 降低请求频率；联系管理员提升配额 |
-| `501` | `not_implemented` | `/v1/embeddings` 端点已关闭 | Embeddings 默认关闭，如需使用联系管理员开启 |
-| `503` | `service_unavailable` | 当前无可用 provider（provider 凭据未配置或全部不可达） | 稍后重试；联系管理员确认 provider 配置 |
-| `500` | `internal_error` | 网关内部错误（provider 异常、超时等），响应不包含 provider 原始错误 | 记录 `traceId`，联系管理员排查 |
-
-### 4.4.4 如何理解 traceId
-
-每次 `/v1/chat/completions` 和 `/v1/embeddings` 请求都会在响应头 `X-Trace-Id` 中返回一个唯一标识。
-
-**traceId 的用途：**
-
-- **排查错误**：遇到 `500` 或 `503` 时，记录 `X-Trace-Id` 响应头中的值，管理员可通过 `GET /api/v1/traces/{traceId}/summary`（JWT 鉴权）查看该次调用的完整链路
-- **审计追溯**：`audit_logs` 表中每条记录都有 `traceId` 字段，可关联到具体请求
-- **自定义 traceId**：客户端可在请求头 `X-Trace-Id` 中传入自己的 trace ID，Gateway 会透传并使用（便于对接客户端已有的追踪系统）。若不传，Gateway 自动生成 UUID
-
-**OpenAI SDK 示例（获取 traceId）：**
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="sk-orin-xxx",
-    base_url="https://your-orin-instance/v1",
-)
-
-# OpenAI SDK 不直接暴露响应头。如需获取 X-Trace-Id，
-# 可改用 httpx 或 requests 直接调用，或通过 SDK 的 response 对象获取
-response = client.chat.completions.with_raw_response.create(
-    model="gpt-4",
-    messages=[{"role": "user", "content": "Hello"}],
-)
-trace_id = response.headers.get("X-Trace-Id")
-print(f"Trace ID: {trace_id}")
-completion = response.parse()
-print(completion.choices[0].message.content)
-```
-
-### 4.4.5 curl 快速接入
-
-**获取模型列表：**
-
-```bash
-ORIN_API_KEY="sk-orin-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-ORIN_BASE="https://your-orin-instance"
-
-curl -sS "${ORIN_BASE}/v1/models" \
-  -H "Authorization: Bearer ${ORIN_API_KEY}" | jq .
-```
-
-**发送聊天请求：**
-
-```bash
-curl -sS "${ORIN_BASE}/v1/chat/completions" \
-  -H "Authorization: Bearer ${ORIN_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -H "X-Trace-Id: my-trace-$(date +%s)" \
-  -d '{
-    "model": "deepseek-ai/DeepSeek-V3",
-    "messages": [{"role": "user", "content": "Hello, ORIN!"}],
-    "max_tokens": 256,
-    "temperature": 0.7
-  }' | jq .
-```
-
-**查看响应头获取 traceId：**
-
-```bash
-curl -i -sS "${ORIN_BASE}/v1/chat/completions" \
-  -H "Authorization: Bearer ${ORIN_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "deepseek-ai/DeepSeek-V3",
-    "messages": [{"role": "user", "content": "Hi"}],
-    "max_tokens": 16
-  }' 2>&1 | grep -i 'x-trace-id'
-```
-
-**验证 embeddings 已关闭（Public Demo 预期 501）：**
-
-```bash
-curl -i -sS "${ORIN_BASE}/v1/embeddings" \
-  -H "Authorization: Bearer ${ORIN_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{"model": "text-embedding-3-small", "input": "test"}'
-# 期望：HTTP/1.1 501 Not Implemented
-# {"code": "not_implemented", "message": "Embeddings endpoint is disabled...", ...}
 ```
 
 ### 4.5 智能体管理

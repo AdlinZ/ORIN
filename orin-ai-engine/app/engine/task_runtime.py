@@ -14,7 +14,6 @@ from typing import Any, Dict, Optional
 import httpx
 
 from app.core.config import settings
-from app.core.trace_httpx import httpx_client
 from app.engine.executor import GraphExecutor
 from app.engine.handlers.llm import RealLLMNodeHandler
 from app.engine.mcp_client_manager import mcp_client_manager
@@ -85,11 +84,11 @@ class TaskRuntime:
             }
             trace_id = context.get("_trace_id")
             headers = {"Content-Type": "application/json"}
-            # trace_id 由 `app.core.trace_httpx.httpx_client` 注入 W3C
-            # `traceparent` header，无需手动设 `X-Trace-Id` legacy。
+            if trace_id:
+                headers["X-Trace-Id"] = str(trace_id)
 
             timeout_seconds = float(getattr(settings, "PLAYGROUND_AGENT_CHAT_TIMEOUT_SECONDS", 90.0))
-            async with httpx_client(timeout=timeout_seconds) as client:
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
                 data = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
@@ -115,11 +114,11 @@ class TaskRuntime:
             }
             trace_id = context.get("_trace_id")
             headers = {"Content-Type": "application/json"}
-            # trace_id 由 `app.core.trace_httpx.httpx_client` 注入 W3C
-            # `traceparent` header，无需手动设 `X-Trace-Id` legacy。
+            if trace_id:
+                headers["X-Trace-Id"] = str(trace_id)
 
             timeout_seconds = float(getattr(settings, "PLAYGROUND_AGENT_CHAT_TIMEOUT_SECONDS", 90.0))
-            async with httpx_client(timeout=timeout_seconds) as client:
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
                 data = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
@@ -202,12 +201,12 @@ class TaskRuntime:
 
         headers = {"Content-Type": "application/json"}
         headers["Authorization"] = _resolve_backend_authorization(context)
-        # trace_id 由 `app.core.trace_httpx.httpx_client` 注入 W3C
-        # `traceparent` header，无需手动设 `X-Trace-Id` legacy。
+        if trace_id:
+            headers["X-Trace-Id"] = trace_id
 
         params = {"triggeredBy": triggered_by}
 
-        async with httpx_client(timeout=timeout_seconds) as client:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             response = await client.post(url, json=workflow_inputs, params=params, headers=headers)
             response.raise_for_status()
             payload = response.json()

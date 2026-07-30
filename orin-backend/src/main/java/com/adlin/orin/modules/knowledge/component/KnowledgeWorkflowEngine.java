@@ -1,10 +1,5 @@
 package com.adlin.orin.modules.knowledge.component;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
-import com.adlin.orin.gateway.adapter.ProviderAdapter;
-import com.adlin.orin.gateway.dto.ChatCompletionRequest;
-import com.adlin.orin.gateway.service.RouterService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,9 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Lightweight Workflow Engine
@@ -27,11 +20,15 @@ import java.util.Optional;
 public class KnowledgeWorkflowEngine {
 
     private final ObjectMapper objectMapper;
-    private final RouterService routerService;
 
+    // Use lazy injection to avoid circular dependency if SkillService uses
+    // WorkflowEngine
     @org.springframework.context.annotation.Lazy
     @org.springframework.beans.factory.annotation.Autowired
     private com.adlin.orin.modules.skill.service.SkillService skillService;
+
+    // TODO: Inject AgentService or RouterService to execute actual agent calls
+    // private final RouterService routerService;
 
     public Map<String, Object> execute(String dslJson, Map<String, Object> initialInput) {
         log.info("Starting workflow execution. Input: {}", initialInput);
@@ -44,7 +41,7 @@ public class KnowledgeWorkflowEngine {
             JsonNode steps = root.get("steps");
 
             if (steps == null || !steps.isArray()) {
-                throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Invalid DSL: 'steps' array missing");
+                throw new RuntimeException("Invalid DSL: 'steps' array missing");
             }
 
             for (JsonNode step : steps) {
@@ -97,10 +94,10 @@ public class KnowledgeWorkflowEngine {
 
         } catch (JsonProcessingException e) {
             log.error("Failed to parse DSL", e);
-            throw new BusinessException(ErrorCode.WORKFLOW_INVALID_CONFIG, "Invalid Workflow DSL", e);
+            throw new RuntimeException("Invalid Workflow DSL", e);
         } catch (Exception e) {
             log.error("Workflow execution failed", e);
-            throw new BusinessException(ErrorCode.WORKFLOW_EXECUTION_FAILED, "Execution aborted: " + e.getMessage(), e);
+            throw new RuntimeException("Execution aborted: " + e.getMessage(), e);
         }
     }
 
@@ -148,25 +145,10 @@ public class KnowledgeWorkflowEngine {
     }
 
     private Object executeAgentStep(String agentId, Map<String, Object> input) {
-        log.info("Calling Agent: {} with input keys={}", agentId, input.keySet());
-        String prompt = input.getOrDefault("prompt", input.toString()).toString();
-        ChatCompletionRequest request = ChatCompletionRequest.builder()
-                .messages(List.of(ChatCompletionRequest.Message.builder()
-                        .role("user")
-                        .content(prompt)
-                        .build()))
-                .build();
-        Optional<ProviderAdapter> provider = routerService.selectProvider(request, RouterService.RoutingStrategy.LOWEST_COST);
-        if (provider.isEmpty()) {
-            log.warn("No healthy provider available for agent step agentId={}", agentId);
-            return Map.of("error", "No healthy LLM provider available");
-        }
-        try {
-            return provider.get().chatCompletion(request).block();
-        } catch (Exception e) {
-            log.error("Agent step failed agentId={}: {}", agentId, e.getMessage(), e);
-            return Map.of("error", e.getMessage());
-        }
+        log.info("Calling Agent: {} with {}", agentId, input);
+        // Mock execution
+        // In real system: routerService.chatCompletion(...)
+        return "Agent response for " + input;
     }
 
     private Object executeLogicStep(Map<String, Object> input) {

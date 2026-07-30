@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.integrationsync.connector;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.integrationsync.adapter.DifyWorkflowAdapter;
 import com.adlin.orin.modules.integrationsync.model.*;
 import com.adlin.orin.modules.knowledge.service.sync.DifyFullApiClient;
@@ -256,7 +254,7 @@ public class DifySyncConnector extends AbstractHttpPlatformConnector {
     private PushResult.PushResultItem pushDocument(IntegrationConnection connection, ExternalResource resource) {
         String apiKey = apiKey(connection);
         if (apiKey == null) {
-            throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "Dify apiKey missing");
+            throw new IllegalStateException("Dify apiKey missing");
         }
         Map<String, Object> snapshot = resource.getCanonicalSnapshot() == null ? Map.of() : resource.getCanonicalSnapshot();
         String datasetId = firstNonBlank(
@@ -264,7 +262,7 @@ public class DifySyncConnector extends AbstractHttpPlatformConnector {
                 string(snapshot.get("datasetId")),
                 configValue(connection, "datasetId"));
         if (datasetId == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_REQUIRED_FIELD, "Dify datasetId missing for document push");
+            throw new IllegalStateException("Dify datasetId missing for document push");
         }
         String changeType = string(snapshot.get("changeType"));
         String name = firstNonBlank(resource.getName(), string(snapshot.get("fileName")), string(snapshot.get("name")), "ORIN Document");

@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.skill.service.impl;
 
-import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.common.exception.ValidationException;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
@@ -124,7 +123,7 @@ class McpServiceServiceImplTest {
     @Test
     void resolveEnvVars_unresolvedRef_throws() {
         when(gatewaySecretService.findBySecretId("gsec_mcp_x")).thenReturn(Optional.empty());
-        assertThrows(BusinessException.class,
+        assertThrows(IllegalStateException.class,
                 () -> service.resolveEnvVars("GITHUB_TOKEN=${secret:gsec_mcp_x}"));
     }
 
@@ -132,7 +131,7 @@ class McpServiceServiceImplTest {
     void resolveEnvVars_disabledRef_throws() {
         when(gatewaySecretService.findBySecretId("gsec_mcp_x"))
                 .thenReturn(Optional.of(secret(GatewaySecret.SecretType.MCP_ENV, GatewaySecret.SecretStatus.DISABLED)));
-        assertThrows(BusinessException.class,
+        assertThrows(IllegalStateException.class,
                 () -> service.resolveEnvVars("GITHUB_TOKEN=${secret:gsec_mcp_x}"));
     }
 }

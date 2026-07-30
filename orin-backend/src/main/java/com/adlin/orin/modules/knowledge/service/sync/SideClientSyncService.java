@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.knowledge.service.sync;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.knowledge.entity.*;
 import com.adlin.orin.modules.knowledge.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -165,7 +163,7 @@ public class SideClientSyncService {
         Optional<KnowledgeDocument> docOpt = documentRepository.findById(documentId);
 
         if (docOpt.isEmpty()) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Document not found: " + documentId);
+            throw new RuntimeException("Document not found: " + documentId);
         }
 
         KnowledgeDocument doc = docOpt.get();

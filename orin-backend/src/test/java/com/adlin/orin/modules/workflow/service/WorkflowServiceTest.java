@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.workflow.service;
 
-import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.workflow.dto.WorkflowRequest;
 import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
@@ -56,8 +55,6 @@ class WorkflowServiceTest {
         private TaskService taskService;
         @Mock
         private AgentOwnershipResolver ownershipResolver;
-        @Mock
-        private WorkflowOwnershipResolver workflowOwnershipResolver;
 
         @InjectMocks
         private WorkflowService workflowService;
@@ -65,8 +62,6 @@ class WorkflowServiceTest {
         @BeforeEach
         void setUp() {
                 MockitoAnnotations.openMocks(this);
-                // Default: pass ACL assertion unless the test specifically overrides it
-                org.mockito.Mockito.doNothing().when(workflowOwnershipResolver).assertCanManage(any());
         }
 
         @Test
@@ -340,7 +335,7 @@ class WorkflowServiceTest {
                                 Map.of("query", "hello"),
                                 TaskEntity.TaskPriority.NORMAL,
                                 "tester"))
-                                .isInstanceOf(BusinessException.class)
+                                .isInstanceOf(IllegalStateException.class)
                                 .hasMessageContaining("must be published");
 
                 verifyNoInteractions(taskService);

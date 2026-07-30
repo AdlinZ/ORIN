@@ -181,7 +181,7 @@
               <span>当前没有可用的</span>
               <span class="home-title-accent">智能体服务</span>
             </h1>
-            <p>请联系管理员完成智能体、模型资源与参考资料配置。</p>
+            <p>请联系平台管理员完成智能体、模型资源与参考资料配置。</p>
           </div>
         </template>
 

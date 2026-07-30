@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.knowledge.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
@@ -51,19 +49,10 @@ public class KnowledgeManageService {
         private final com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository documentRepository;
         private final ModelConfigService modelConfigService;
         private final SiliconFlowIntegrationService siliconFlowIntegrationService;
-        private final KnowledgeOwnershipResolver ownershipResolver;
         private final ObjectMapper objectMapper = new ObjectMapper();
 
         public List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> getAllKnowledgeBases() {
-                List<KnowledgeBase> bases;
-                if (ownershipResolver.isCurrentUserPrivileged()) {
-                        // admin / operator: 看全部(含 NULL owner 的系统级 KB)
-                        bases = knowledgeBaseRepository.findAll();
-                } else {
-                        // 普通用户: 仅看 owner = currentUserId 的 KB, NULL owner 视为系统级不可见
-                        Long currentUserId = ownershipResolver.resolveFromCurrentRequest();
-                        bases = knowledgeBaseRepository.findByOwnerUserId(currentUserId);
-                }
+                List<KnowledgeBase> bases = knowledgeBaseRepository.findAll();
                 List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> dtoList = new ArrayList<>();
                 for (KnowledgeBase kb : bases) {
                         dtoList.add(mapToDTO(kb, null, false));
@@ -310,9 +299,7 @@ public class KnowledgeManageService {
          */
         public KnowledgeBase updateStatus(String kbId, boolean enabled) {
                 KnowledgeBase kb = knowledgeBaseRepository.findById(kbId)
-                                .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
-                                                "KnowledgeBase", kbId));
-                ownershipResolver.assertCanManage(kb);
+                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + kbId));
 
                 kb.setStatus(enabled ? "ENABLED" : "DISABLED");
                 // In a real scenario, we might also want to call Dify API to disable it there
@@ -331,8 +318,6 @@ public class KnowledgeManageService {
                 if (kb.getCreatedAt() == null) {
                         kb.setCreatedAt(LocalDateTime.now());
                 }
-                // 资源级 ACL: 强制覆盖 owner 为当前请求用户, 不信任请求体里传入的 owner_user_id
-                kb.setOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
                 kb.setSyncTime(LocalDateTime.now());
                 if (kb.getStatus() == null) {
                         kb.setStatus("ENABLED");
@@ -356,9 +341,7 @@ public class KnowledgeManageService {
          */
         public KnowledgeBase updateKnowledgeBase(String id, KnowledgeBase updates) {
                 KnowledgeBase kb = knowledgeBaseRepository.findById(id)
-                                .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
-                                                "KnowledgeBase", id));
-                ownershipResolver.assertCanManage(kb);
+                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + id));
                 if (updates.getName() != null)
                         kb.setName(updates.getName());
                 if (updates.getType() != null)
@@ -413,7 +396,6 @@ public class KnowledgeManageService {
                 KnowledgeBase kb = knowledgeBaseRepository.findById(id)
                                 .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
                                                 "KnowledgeBase", id));
-                ownershipResolver.assertCanManage(kb);
 
                 // 1. Delete all documents associated with this KB (Bulk Optimized)
                 documentService.deleteByKnowledgeBaseId(id);
@@ -549,7 +531,7 @@ public class KnowledgeManageService {
                                 documentService.getDocuments(knowledgeBaseId);
 
                         if (docs == null || docs.isEmpty()) {
-                                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "知识库中没有文档，无法生成描述");
+                                throw new RuntimeException("知识库中没有文档，无法生成描述");
                         }
 
                         log.info("Generating description for KB: {}, found {} documents", knowledgeBaseId, docs.size());
@@ -646,7 +628,7 @@ public class KnowledgeManageService {
                         }
 
                         if (contentBuilder.length() == 0) {
-                                throw new BusinessException(ErrorCode.OPERATION_FAILED, "无法读取文档内容");
+                                throw new RuntimeException("无法读取文档内容");
                         }
 
                         String documentContent = contentBuilder.toString();
@@ -656,7 +638,7 @@ public class KnowledgeManageService {
 
                 } catch (Exception e) {
                         log.error("生成知识库描述失败: {}", e.getMessage(), e);
-                        throw new BusinessException(ErrorCode.OPERATION_FAILED, "生成描述失败: " + e.getMessage());
+                        throw new RuntimeException("生成描述失败: " + e.getMessage());
                 }
         }
 
@@ -697,7 +679,7 @@ public class KnowledgeManageService {
                                 endpoint = "https://api.siliconflow.cn/v1";
                         }
                         if (apiKey == null || apiKey.isEmpty()) {
-                                throw new BusinessException(ErrorCode.MODEL_CONFIG_INVALID, "未配置 SiliconFlow API Key");
+                                throw new RuntimeException("未配置 SiliconFlow API Key");
                         }
                         if (model == null || model.isEmpty()) {
                                 model = "Qwen/Qwen2-7B-Instruct";
@@ -745,26 +727,26 @@ public class KnowledgeManageService {
                                 });
 
                         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM API调用失败");
+                                throw new RuntimeException("LLM API调用失败");
                         }
 
                         @SuppressWarnings("unchecked")
                         List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
                         if (choices == null || choices.isEmpty()) {
-                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM未返回有效响应");
+                                throw new RuntimeException("LLM未返回有效响应");
                         }
 
                         @SuppressWarnings("unchecked")
                         Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                         if (message == null) {
-                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM响应格式错误");
+                                throw new RuntimeException("LLM响应格式错误");
                         }
 
                         String content = (String) message.get("content");
                         log.info("LLM原始响应: {}", content);
 
                         if (content == null || content.isEmpty()) {
-                                throw new BusinessException(ErrorCode.MODEL_API_ERROR, "LLM返回内容为空");
+                                throw new RuntimeException("LLM返回内容为空");
                         }
 
                         // 解析JSON响应
@@ -790,7 +772,7 @@ public class KnowledgeManageService {
 
                 } catch (Exception e) {
                         log.error("调用LLM失败: {}", e.getMessage(), e);
-                        throw new BusinessException(ErrorCode.MODEL_API_ERROR, "调用LLM失败: " + e.getMessage());
+                        throw new RuntimeException("调用LLM失败: " + e.getMessage());
                 }
         }
 

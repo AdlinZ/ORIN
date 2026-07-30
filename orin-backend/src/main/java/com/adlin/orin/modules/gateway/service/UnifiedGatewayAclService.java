@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.gateway.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayAclRuleRequest;
 import com.adlin.orin.modules.gateway.dto.UnifiedGatewayAclRuleResponse;
 import com.adlin.orin.modules.gateway.entity.UnifiedGatewayAclRule;
@@ -72,7 +70,7 @@ public class UnifiedGatewayAclService {
     @Transactional
     public void deleteRule(Long id) {
         if (!aclRepository.existsById(id)) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "ACL rule not found: " + id);
+            throw new RuntimeException("ACL rule not found: " + id);
         }
         aclRepository.deleteById(id);
         log.info("Deleted ACL rule: {}", id);

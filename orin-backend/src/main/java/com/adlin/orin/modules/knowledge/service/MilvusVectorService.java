@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.knowledge.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.exception.VectorizationException;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
@@ -113,7 +111,7 @@ public class MilvusVectorService implements VectorStoreProvider {
                     .build());
 
             if (response.getStatus() != R.Status.Success.getCode()) {
-                throw new BusinessException(ErrorCode.MILVUS_ERROR, "Milvus hasCollection failed: " + response.getMessage());
+                throw new IllegalStateException("Milvus hasCollection failed: " + response.getMessage());
             }
 
             if (response.getData() != null && response.getData()) {
@@ -876,7 +874,7 @@ public class MilvusVectorService implements VectorStoreProvider {
             }
 
             SearchResults searchResults = response.getData();
-            log.debug("searchResults = {}", searchResults);
+            log.warn("DEBUG: searchResults = {}", searchResults);
 
             io.milvus.response.SearchResultsWrapper wrapper = new io.milvus.response.SearchResultsWrapper(
                     searchResults.getResults());
@@ -886,7 +884,7 @@ public class MilvusVectorService implements VectorStoreProvider {
 
             // Debug: print raw results
             if (scores.size() > 0) {
-                log.debug("Got {} search results, first score: {}", scores.size(), scores.get(0).getScore());
+                log.warn("DEBUG: Got {} search results, first score: {}", scores.size(), scores.get(0).getScore());
             }
 
             // Debug: Query actual data count in partition
@@ -901,7 +899,7 @@ public class MilvusVectorService implements VectorStoreProvider {
                             .withVectorFieldName("embedding")
                             .build();
                     R<SearchResults> debugResponse = client.search(debugSearchParam);
-                    log.debug("Search entire collection (no partition) status: {}, results: {}",
+                    log.warn("DEBUG: Search entire collection (no partition) status: {}, results: {}",
                             debugResponse.getStatus(),
                             debugResponse.getData() != null ? "got data" : "no data");
                 } catch (Exception e) {

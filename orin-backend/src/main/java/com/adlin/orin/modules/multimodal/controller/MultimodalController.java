@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.multimodal.controller;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.multimodal.entity.MultimodalFile;
 import com.adlin.orin.modules.multimodal.service.MultimodalFileService;
 import com.adlin.orin.modules.multimodal.service.VisualAnalysisService;
@@ -47,7 +45,7 @@ public class MultimodalController {
         try {
             return fileService.uploadFile(file, uploadedBy);
         } catch (IOException e) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to upload file: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to upload file: " + e.getMessage(), e);
         }
     }
 
@@ -109,7 +107,7 @@ public class MultimodalController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "File content not available", "fileId", fileId));
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to download file: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to download file: " + e.getMessage(), e);
         }
     }
 
@@ -119,7 +117,7 @@ public class MultimodalController {
         try {
             MultimodalFile file = fileService.getFile(fileId);
             if (file.getThumbnailPath() == null) {
-                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Thumbnail not available");
+                throw new RuntimeException("Thumbnail not available");
             }
             String signedUrl = fileService.getThumbnailUrl(fileId, Duration.ofMinutes(10));
             if (signedUrl != null) {
@@ -129,7 +127,7 @@ public class MultimodalController {
                 return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).body(resource);
             }
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "Failed to get thumbnail: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to get thumbnail: " + e.getMessage(), e);
         }
     }
 

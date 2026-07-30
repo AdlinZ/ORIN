@@ -8,15 +8,15 @@
               <el-icon><Connection /></el-icon>
             </div>
             <div class="gateway-title-block">
-              <h1>AI API 中转站</h1>
-              <p>OpenAI 兼容 API 中转、多模型路由、API Key 治理、限流配额、调用审计 — 统一模型网关控制台</p>
+              <h1>统一网关</h1>
+              <p>模型 API、后台控制面、服务代理、访问凭据与流量保护的统一网关控制台。</p>
             </div>
           </div>
 
           <div class="gateway-hero-actions">
             <el-button
               :icon="Refresh"
-              :loading="consoleLoading"
+              :loading="workbenchState.status === 'loading'"
               @click="refreshCurrentWorkspace"
             >
               刷新
@@ -24,30 +24,6 @@
             <el-button type="primary" :icon="Connection" @click="openRouteTest">
               入口测试
             </el-button>
-          </div>
-        </div>
-
-        <div class="gateway-baseurl-bar">
-          <div class="baseurl-main">
-            <span class="baseurl-label">Base URL</span>
-            <code class="baseurl-value">{{ baseUrl }}/v1</code>
-            <el-button size="small" text :icon="CopyDocument" @click="copyText(baseUrl + '/v1')">
-              复制
-            </el-button>
-          </div>
-          <div class="endpoint-chips">
-            <span
-              v-for="ep in endpointChips"
-              :key="ep.path"
-              class="endpoint-chip"
-              :class="ep.status"
-            >
-              <span class="chip-method">{{ ep.method }}</span>
-              <span class="chip-path">{{ ep.path }}</span>
-              <el-tag size="small" :type="ep.status === 'open' ? 'success' : 'info'">
-                {{ ep.label }}
-              </el-tag>
-            </span>
           </div>
         </div>
 
@@ -70,164 +46,202 @@
 
       <section class="gateway-content-panel">
         <section v-show="activeWorkspace === 'overview'" class="workspace-panel">
-          <OrinMetricStrip :metrics="gatewayOverviewMetrics" class="block-gap" />
-
-          <el-row :gutter="16" class="block-gap">
-            <el-col :xs="24" :lg="12">
-              <el-card shadow="never" class="panel-card">
-                <template #header>
-                  <div class="panel-header">
-                    <span>快速接入</span>
-                    <span class="panel-header-meta">curl / OpenAI SDK</span>
+          <OrinAsyncState
+            :status="workbenchState.status"
+            empty-text="暂无统一网关运行数据，请先创建入口或验证入口流量"
+            empty-action-label="刷新"
+            @retry="loadWorkbench"
+            @empty-action="loadWorkbench"
+          >
+            <section class="runtime-hero">
+              <div class="runtime-hero-main">
+                <div class="runtime-hero-head">
+                  <div>
+                    <span class="command-eyebrow">运行总览</span>
+                    <h2>统一网关运行态</h2>
                   </div>
-                </template>
-                <div class="quickstart-tabs">
-                  <button
-                    v-for="tab in quickstartTabs"
-                    :key="tab.key"
-                    type="button"
-                    :class="['qs-tab-btn', { active: activeQuickstartTab === tab.key }]"
-                    @click="activeQuickstartTab = tab.key"
-                  >
-                    {{ tab.label }}
-                  </button>
+                  <span class="hero-updated">实时工作台数据</span>
                 </div>
-                <div class="code-block-wrapper">
-                  <pre class="code-block"><code>{{ quickstartCodeSnippets[activeQuickstartTab] }}</code></pre>
-                  <el-button
-                    size="small"
-                    text
-                    :icon="CopyDocument"
-                    class="copy-code-btn"
-                    @click="copyText(quickstartCodeSnippets[activeQuickstartTab])"
+
+                <div class="hero-metric-grid" aria-label="统一网关核心运行指标">
+                  <article
+                    v-for="metric in heroMetrics"
+                    :key="metric.key"
+                    class="hero-metric-card"
+                    :class="metric.intent ? `intent-${metric.intent}` : ''"
                   >
-                    复制
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value }}</strong>
+                    <small>{{ metric.meta }}</small>
+                  </article>
+                </div>
+              </div>
+
+              <aside class="operations-card" :class="`intent-${operationsSummary.intent}`">
+                <span class="command-eyebrow">运行结论</span>
+                <h3>{{ operationsSummary.title }}</h3>
+                <p>{{ operationsSummary.description }}</p>
+                <div class="operation-facts">
+                  <span>{{ operationsSummary.badge }}</span>
+                  <strong>{{ operationsSummary.summary }}</strong>
+                </div>
+                <div class="command-actions">
+                  <el-button
+                    v-for="action in primaryActions"
+                    :key="action.key"
+                    size="small"
+                    :type="action.type"
+                    @click="action.handler"
+                  >
+                    {{ action.label }}
                   </el-button>
                 </div>
-              </el-card>
-            </el-col>
-            <el-col :xs="24" :lg="12">
-              <el-card shadow="never" class="panel-card">
+              </aside>
+            </section>
+
+            <div class="overview-secondary-grid block-gap">
+              <OrinDetailPanel title="入口状态" eyebrow="链路分布">
+                <div class="entry-map compact" aria-label="统一网关入口状态">
+                  <article
+                    v-for="lane in entryLanes"
+                    :key="lane.key"
+                    class="entry-lane"
+                    :class="`lane-${lane.intent}`"
+                  >
+                    <div class="lane-head">
+                      <span>{{ lane.label }}</span>
+                      <strong>{{ lane.value }}</strong>
+                    </div>
+                    <p>{{ lane.meta }}</p>
+                  </article>
+                </div>
+              </OrinDetailPanel>
+
+              <OrinDetailPanel title="快速操作" eyebrow="入口动作">
+                <div class="quick-action-grid">
+                  <button
+                    v-for="action in quickActions"
+                    :key="action.key"
+                    type="button"
+                    @click="action.handler"
+                  >
+                    <span>{{ action.label }}</span>
+                    <small>{{ action.description }}</small>
+                  </button>
+                </div>
+              </OrinDetailPanel>
+            </div>
+
+            <div class="overview-grid block-gap">
+              <OrinDataTable>
                 <template #header>
-                  <div class="panel-header">
-                    <span>模型与端点状态</span>
+                  <div class="table-head">
+                    <span>最近失败</span>
+                    <el-button
+                      size="small"
+                      text
+                      type="primary"
+                      @click="activeWorkspace = 'api'"
+                    >
+                      定位入口
+                    </el-button>
                   </div>
                 </template>
-                <div class="endpoint-status-list">
-                  <div
-                    v-for="ep in endpointStatusList"
-                    :key="ep.path"
-                    class="endpoint-status-item"
-                  >
-                    <div class="ep-info">
-                      <span class="ep-method-tag" :class="ep.methodClass">{{ ep.method }}</span>
-                      <code class="ep-path">{{ ep.path }}</code>
-                    </div>
-                    <el-tag size="small" :type="ep.statusType">{{ ep.statusLabel }}</el-tag>
-                  </div>
-                </div>
-                <el-divider />
-                <div class="model-list-section">
-                  <div class="section-subhead">
-                    <span>可用模型</span>
-                    <span v-if="modelsState.status === 'success'" class="model-count">{{ models.length }} 个</span>
-                  </div>
-                  <OrinAsyncState
-                    :status="modelsState.status"
-                    empty-text="暂无已配置模型，请在模型管理中配置 provider 和模型映射"
-                    @retry="loadModels"
-                  >
-                    <div class="model-tags">
-                      <el-tag
-                        v-for="m in models"
-                        :key="m.id || m.name"
-                        size="small"
-                        effect="plain"
-                        class="model-tag"
-                      >
-                        {{ m.name || m.model || m.id }}
-                      </el-tag>
-                    </div>
-                  </OrinAsyncState>
-                </div>
-              </el-card>
-            </el-col>
-          </el-row>
+                <el-table :data="workbench.recentFailures || []" stripe>
+                  <el-table-column prop="method" label="方法" width="82" />
+                  <el-table-column
+                    prop="path"
+                    label="路径"
+                    min-width="180"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column prop="statusCode" label="状态码" width="90" />
+                  <el-table-column
+                    prop="errorMessage"
+                    label="错误"
+                    min-width="180"
+                    show-overflow-tooltip
+                  />
+                  <template #empty>
+                    <OrinEmptyState description="暂无失败请求，当前网关没有需要优先处理的异常" />
+                  </template>
+                </el-table>
+              </OrinDataTable>
 
-          <OrinDataTable class="block-gap">
-            <template #header>
-              <div class="table-head">
-                <span>最近调用</span>
-                <span>Gateway 审计日志</span>
+              <OrinDataTable>
+                <template #header>
+                  <div class="table-head">
+                    <span>需要处理的入口</span>
+                    <span>{{ attentionEndpointCount }} 个入口需要处理</span>
+                  </div>
+                </template>
+                <el-table :data="controlPlaneEndpointPreview" stripe>
+                  <el-table-column label="状态" width="130">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="coverageStatusType(row.status)">
+                        {{ coverageStatusLabel(row.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column
+                    prop="pathPattern"
+                    label="入口路径"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <el-table-column label="方法" width="120">
+                    <template #default="{ row }">
+                      {{ formatMethods(row.methods) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column
+                    prop="reason"
+                    label="说明"
+                    min-width="220"
+                    show-overflow-tooltip
+                  />
+                  <template #empty>
+                    <OrinEmptyState description="当前没有需要处理的入口异常" />
+                  </template>
+                </el-table>
+              </OrinDataTable>
+            </div>
+
+            <section class="runtime-section block-gap">
+              <div class="section-title">
+                <span>巡检指标</span>
+                <small>用于补充判断，不抢占首屏核心指标</small>
               </div>
-            </template>
-            <OrinAsyncState
-              :status="recentCallsState.status"
-              empty-text="暂无 Gateway 调用记录，启动客户端调用后将在审计日志中展示"
-              @retry="loadRecentCalls"
-            >
-              <el-table :data="recentCalls" stripe size="small">
-                <el-table-column label="Trace ID" min-width="180" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <div class="trace-id-cell">
-                      <span class="trace-id-text">{{ row.traceId }}</span>
-                      <el-button
-                        size="small"
-                        text
-                        :icon="CopyDocument"
-                        @click="copyText(row.traceId)"
-                      />
-                    </div>
-                  </template>
-                </el-table-column>
+              <OrinMetricStrip :metrics="secondaryRuntimeMetrics" />
+              <OrinStatusSummary :items="statusItems" class="block-gap" />
+            </section>
+
+            <OrinDataTable class="block-gap">
+              <template #header>
+                <div class="table-head">
+                  <span>热门入口 TOP 5</span>
+                  <span>{{ workbench.overview?.activeRoutes || 0 }} 个活跃入口</span>
+                </div>
+              </template>
+              <el-table :data="workbench.overview?.topRoutes || []" stripe>
+                <el-table-column prop="routeName" label="入口" min-width="180" />
                 <el-table-column
-                  prop="modelAlias"
-                  label="模型别名"
-                  min-width="130"
-                  show-overflow-tooltip
+                  prop="requestCount"
+                  label="请求数"
+                  width="120"
+                  align="right"
                 />
-                <el-table-column
-                  prop="providerModel"
-                  label="Provider 模型"
-                  min-width="130"
-                  show-overflow-tooltip
-                />
-                <el-table-column
-                  prop="endpoint"
-                  label="端点"
-                  min-width="150"
-                  show-overflow-tooltip
-                />
-                <el-table-column label="状态" width="80">
+                <el-table-column label="平均延迟" width="140" align="right">
                   <template #default="{ row }">
-                    <el-tag size="small" :type="row.success ? 'success' : 'danger'">
-                      {{ row.success ? '成功' : '失败' }}
-                    </el-tag>
+                    {{ row.avgLatencyMs || 0 }}ms
                   </template>
                 </el-table-column>
-                <el-table-column prop="errorCode" label="错误码" width="100">
-                  <template #default="{ row }">
-                    {{ row.errorCode || '--' }}
-                  </template>
-                </el-table-column>
-                <el-table-column label="延迟" width="90" align="right">
-                  <template #default="{ row }">
-                    {{ row.responseTime != null ? row.responseTime + 'ms' : '--' }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="totalTokens" label="Tokens" width="80" align="right">
-                  <template #default="{ row }">
-                    {{ row.totalTokens != null ? row.totalTokens : '--' }}
-                  </template>
-                </el-table-column>
-                <el-table-column label="时间" width="170">
-                  <template #default="{ row }">
-                    {{ formatTime(row.createdAt) }}
-                  </template>
-                </el-table-column>
+                <template #empty>
+                  <OrinEmptyState description="暂无入口流量，请先通过入口测试或客户端发起请求" />
+                </template>
               </el-table>
-            </OrinAsyncState>
-          </OrinDataTable>
+            </OrinDataTable>
+          </OrinAsyncState>
         </section>
 
         <section v-if="activeWorkspace === 'api'" class="workspace-panel">
@@ -490,7 +504,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Connection,
-  CopyDocument,
   Key,
   Operation,
   Refresh,
@@ -512,17 +525,11 @@ import ApiKeyManagement from './ApiKeyManagement.vue'
 import { useUnifiedGatewayWorkbench } from './composables/useUnifiedGatewayWorkbench'
 import { useUnifiedGatewayRoutes } from './composables/useUnifiedGatewayRoutes'
 import { useUnifiedGatewayPolicies } from './composables/useUnifiedGatewayPolicies'
-import { getAllApiKeys } from '@/api/apiKey'
-import { getGatewayAuditLogs } from '@/api/audit'
-import { getModelList } from '@/api/model'
-import { getAllProviders } from '@/api/system'
-import { createAsyncState, markLoading, markSuccess, markEmpty, markError } from '@/viewmodels'
-import dayjs from 'dayjs'
 
 const workspaces = [
-  { key: 'overview', label: '总览', icon: TrendCharts },
+  { key: 'overview', label: '运行态', icon: TrendCharts },
   { key: 'api', label: '统一入口', icon: Share },
-  { key: 'access', label: 'API Keys', icon: Key },
+  { key: 'access', label: '访问控制', icon: Key },
   { key: 'traffic', label: '流量策略', icon: Operation }
 ]
 
@@ -553,211 +560,6 @@ const setActiveWorkspace = (workspace) => {
   }
 
   router.replace({ query: nextQuery }).catch(() => {})
-}
-
-const consoleLoading = ref(false)
-
-const baseUrl = computed(() => window.location.origin)
-
-const endpointChips = [
-  { method: 'POST', path: '/v1/chat/completions', status: 'open', label: '开放' },
-  { method: 'GET', path: '/v1/models', status: 'open', label: '开放' },
-  { method: 'POST', path: '/v1/embeddings', status: 'closed', label: '默认关闭' }
-]
-
-const gatewayOverviewMetrics = computed(() => {
-  const keyCount = apiKeys.value.length
-  const enabledCount = apiKeys.value.filter((k) => {
-    const s = (k.status || '').toUpperCase()
-    return s === 'ACTIVE' || s === 'ENABLED'
-  }).length
-  const usedTokens = apiKeys.value.reduce((sum, k) => sum + (Number(k.usedTokens) || 0), 0)
-  const failedCount = overviewStats.value.failedCalls
-  const avgLatency = overviewStats.value.avgLatency
-
-  return [
-    { key: 'keyCount', label: 'API Key 总数', value: keyCount, meta: `${enabledCount} 个已启用` },
-    { key: 'enabledKeys', label: '已启用 Key', value: enabledCount, meta: keyCount > 0 ? `共 ${keyCount} 个` : '暂无 Key' },
-    { key: 'recentCalls', label: '近期调用', value: formatNumber(overviewStats.value.totalCalls), meta: '审计日志记录' },
-    { key: 'tokenUsage', label: 'Token 用量', value: formatNumber(usedTokens), meta: '所有 Key 累计' },
-    { key: 'failedCalls', label: '失败次数', value: failedCount, meta: '审计日志记录', intent: failedCount > 0 ? 'danger' : 'success' },
-    { key: 'avgLatency', label: '平均延迟', value: avgLatency != null ? `${avgLatency}ms` : '--', meta: '审计日志记录' }
-  ]
-})
-
-const apiKeys = ref([])
-const overviewStats = ref({ totalCalls: 0, failedCalls: 0, avgLatency: null })
-
-const modelsState = reactive(createAsyncState())
-const models = ref([])
-
-const recentCallsState = reactive(createAsyncState())
-const recentCalls = ref([])
-
-const activeQuickstartTab = ref('curl')
-const quickstartTabs = [
-  { key: 'curl', label: 'curl' },
-  { key: 'nodejs', label: 'Node.js SDK' },
-  { key: 'python', label: 'Python SDK' }
-]
-
-const quickstartCodeSnippets = computed(() => {
-  const origin = baseUrl.value
-  return {
-    curl: `curl -sS "${origin}/v1/chat/completions" \\\\
-  -H "Authorization: Bearer sk-orin-..." \\\\
-  -H "Content-Type: application/json" \\\\
-  -d '{
-    "model": "deepseek-ai/DeepSeek-V3",
-    "messages": [{"role": "user", "content": "Hello, ORIN!"}],
-    "max_tokens": 256
-  }'`,
-    nodejs: `import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: "sk-orin-...",
-  baseURL: "${origin}/v1",
-});
-
-const completion = await client.chat.completions.create({
-  model: "deepseek-ai/DeepSeek-V3",
-  messages: [{ role: "user", content: "Hello, ORIN!" }],
-});
-// → completion.choices[0].message.content`,
-    python: `from openai import OpenAI
-
-client = OpenAI(
-    api_key="sk-orin-...",
-    base_url="${origin}/v1",
-)
-
-completion = client.chat.completions.create(
-    model="deepseek-ai/DeepSeek-V3",
-    messages=[{"role": "user", "content": "Hello, ORIN!"}],
-)
-print(completion.choices[0].message.content)`
-  }
-})
-
-const endpointStatusList = [
-  {
-    path: '/v1/chat/completions',
-    method: 'POST',
-    methodClass: 'method-post',
-    statusLabel: '已开放',
-    statusType: 'success'
-  },
-  {
-    path: '/v1/models',
-    method: 'GET',
-    methodClass: 'method-get',
-    statusLabel: '已开放',
-    statusType: 'success'
-  },
-  {
-    path: '/v1/embeddings',
-    method: 'POST',
-    methodClass: 'method-post',
-    statusLabel: '默认关闭',
-    statusType: 'info'
-  }
-]
-
-function copyText(text) {
-  if (!text) return
-  navigator.clipboard.writeText(text).then(() => {
-    ElMessage.success('已复制到剪贴板')
-  }).catch(() => {
-    ElMessage.error('复制失败')
-  })
-}
-
-function formatTime(val) {
-  if (!val) return '--'
-  return dayjs(val).format('YYYY-MM-DD HH:mm:ss')
-}
-
-async function loadModels() {
-  markLoading(modelsState)
-  try {
-    const data = await getModelList()
-    if (Array.isArray(data)) {
-      models.value = data
-      markSuccess(modelsState)
-    } else if (data && Array.isArray(data.content)) {
-      models.value = data.content
-      markSuccess(modelsState)
-    } else if (data && Array.isArray(data.data)) {
-      models.value = data.data
-      markSuccess(modelsState)
-    } else {
-      models.value = []
-      markEmpty(modelsState)
-    }
-  } catch {
-    models.value = []
-    markError(modelsState)
-  }
-}
-
-async function loadRecentCalls() {
-  markLoading(recentCallsState)
-  try {
-    const data = await getGatewayAuditLogs({ type: 'BUSINESS', size: 20 })
-    const content = data?.content || data?.data || data
-    if (Array.isArray(content)) {
-      recentCalls.value = content
-      content.length > 0 ? markSuccess(recentCallsState) : markEmpty(recentCallsState)
-    } else {
-      recentCalls.value = []
-      markEmpty(recentCallsState)
-    }
-  } catch {
-    recentCalls.value = []
-    markError(recentCallsState)
-  }
-}
-
-async function loadOverviewStats() {
-  try {
-    const data = await getGatewayAuditLogs({ type: 'BUSINESS', size: 1000 })
-    const content = data?.content || data?.data || data
-    if (Array.isArray(content) && content.length > 0) {
-      const total = content.length
-      const failed = content.filter((r) => !r.success).length
-      const latencies = content.map((r) => r.responseTime).filter((v) => v != null)
-      const avgLat = latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : null
-      overviewStats.value = { totalCalls: total, failedCalls: failed, avgLatency: avgLat }
-    }
-  } catch {
-    // Silently fail — overview stats are best-effort
-  }
-}
-
-async function loadApiKeys() {
-  try {
-    const data = await getAllApiKeys()
-    if (Array.isArray(data)) {
-      apiKeys.value = data
-    } else if (data && Array.isArray(data.content)) {
-      apiKeys.value = data.content
-    } else if (data && Array.isArray(data.data)) {
-      apiKeys.value = data.data
-    }
-  } catch {
-    apiKeys.value = []
-  }
-}
-
-async function loadGatewayConsole() {
-  consoleLoading.value = true
-  await Promise.all([
-    loadApiKeys(),
-    loadOverviewStats(),
-    loadModels(),
-    loadRecentCalls()
-  ])
-  consoleLoading.value = false
 }
 
 const {
@@ -804,15 +606,13 @@ const coverageSummary = computed(() => workbench.value.controlPlaneCoverage?.sum
 const attentionEndpointCount = computed(() => coverageSummary.value.attentionRequiredEndpoints || 0)
 
 const workspaceSummaryMap = computed(() => {
-  const keyCount = apiKeys.value.length
-  const enabledCount = apiKeys.value.filter((k) => {
-    const s = (k.status || '').toUpperCase()
-    return s === 'ACTIVE' || s === 'ENABLED'
-  }).length
+  const overview = workbench.value.overview || {}
+  const activeRoutes = overview.activeRoutes || 0
+  const attention = attentionEndpointCount.value
   return {
-    overview: `${keyCount} 个 Key · ${formatNumber(overviewStats.value.totalCalls)} 次调用`,
-    api: '路由、服务与入口管理',
-    access: `API Key 生命周期 · ${enabledCount} 启用`,
+    overview: `${formatNumber(overview.totalRequests)} 请求 · ${overview.avgLatencyMs ?? 0}ms`,
+    api: `${activeRoutes} 个活跃入口 · ${attention} 个待处理`,
+    access: 'API Key、ACL 与凭据要求',
     traffic: '限流、熔断、重试与默认防线'
   }
 })
@@ -957,19 +757,19 @@ watch(
 )
 
 watch(activeWorkspace, (workspace) => {
-  if (workspace === 'overview') loadGatewayConsole()
+  if (workspace === 'overview') loadWorkbench()
   if (workspace === 'api') loadRoutes()
   if (workspace === 'traffic') loadPolicies()
 })
 
 onMounted(() => {
-  loadGatewayConsole()
+  loadWorkbench()
   if (activeWorkspace.value === 'api') loadRoutes()
   if (activeWorkspace.value === 'traffic') loadPolicies()
 })
 
 const refreshCurrentWorkspace = () => {
-  if (activeWorkspace.value === 'overview') loadGatewayConsole()
+  if (activeWorkspace.value === 'overview') loadWorkbench()
   if (activeWorkspace.value === 'api') loadRoutes()
   if (activeWorkspace.value === 'traffic') loadPolicies()
 }
@@ -1898,366 +1698,5 @@ html.dark .gateway-summary-card strong {
 html.dark .gateway-title-block p,
 html.dark .gateway-summary-card small {
   color: #94a3b8;
-}
-
-/* ---- Gateway Console: Base URL & Endpoint bar ---- */
-.gateway-baseurl-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 14px;
-  padding: 10px 14px;
-  border: 1px solid rgba(15, 118, 110, 0.14);
-  border-radius: 8px;
-  background: rgba(240, 253, 250, 0.32);
-}
-
-html.dark .gateway-baseurl-bar {
-  border-color: rgba(45, 212, 191, 0.16);
-  background: rgba(15, 118, 110, 0.08);
-}
-
-.baseurl-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.baseurl-label {
-  color: #0f766e;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-html.dark .baseurl-label {
-  color: #5eead4;
-}
-
-.baseurl-value {
-  padding: 3px 10px;
-  border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 4px;
-  background: #ffffff;
-  color: #0f172a;
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-html.dark .baseurl-value {
-  border-color: rgba(45, 212, 191, 0.22);
-  background: #0f172a;
-  color: #f8fafc;
-}
-
-.endpoint-chips {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.endpoint-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid #d8e0e8;
-  border-radius: 6px;
-  background: #ffffff;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-html.dark .endpoint-chip {
-  border-color: #334155;
-  background: #1e293b;
-}
-
-.endpoint-chip.open {
-  border-color: #b6ead6;
-  background: #f0fdf7;
-}
-
-html.dark .endpoint-chip.open {
-  border-color: #065f46;
-  background: #022c22;
-}
-
-.endpoint-chip.closed {
-  border-color: #e2e8f0;
-  background: #f8fafc;
-}
-
-html.dark .endpoint-chip.closed {
-  border-color: #334155;
-  background: #1e293b;
-}
-
-.chip-method {
-  color: #0f766e;
-  font-weight: 800;
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-}
-
-.chip-path {
-  color: #334155;
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-}
-
-html.dark .chip-method {
-  color: #5eead4;
-}
-
-html.dark .chip-path {
-  color: #cbd5e1;
-}
-
-/* ---- Panel card ---- */
-.panel-card {
-  border: 1px solid #d8e0e8 !important;
-  border-radius: 8px;
-  box-shadow: none !important;
-}
-
-html.dark .panel-card {
-  border-color: #334155 !important;
-  background: #0f172a;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #172033;
-  font-size: 15px;
-  font-weight: 800;
-}
-
-html.dark .panel-header {
-  color: #f8fafc;
-}
-
-.panel-header-meta {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-html.dark .panel-header-meta {
-  color: #94a3b8;
-}
-
-/* ---- Quickstart tabs ---- */
-.quickstart-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  padding: 4px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #f8fafc;
-}
-
-html.dark .quickstart-tabs {
-  border-color: #334155;
-  background: #1e293b;
-}
-
-.qs-tab-btn {
-  flex: 1;
-  padding: 6px 10px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.qs-tab-btn:hover {
-  color: #0f766e;
-  background: rgba(15, 118, 110, 0.06);
-}
-
-.qs-tab-btn.active {
-  border-color: #0d9488;
-  background: #ffffff;
-  color: #0f172a;
-}
-
-html.dark .qs-tab-btn.active {
-  border-color: #5eead4;
-  background: #0f172a;
-  color: #f8fafc;
-}
-
-/* ---- Code block ---- */
-.code-block-wrapper {
-  position: relative;
-  border: 1px solid #d8e0e8;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-html.dark .code-block-wrapper {
-  border-color: #334155;
-}
-
-.code-block {
-  margin: 0;
-  padding: 14px;
-  background: #f8fafc;
-  color: #334155;
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-x: auto;
-  max-height: 280px;
-}
-
-html.dark .code-block {
-  background: #020617;
-  color: #cbd5e1;
-}
-
-.copy-code-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: #ffffff;
-  border-radius: 4px;
-}
-
-html.dark .copy-code-btn {
-  background: #0f172a;
-}
-
-/* ---- Endpoint status list ---- */
-.endpoint-status-list {
-  display: grid;
-  gap: 8px;
-}
-
-.endpoint-status-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #fbfdff;
-}
-
-html.dark .endpoint-status-item {
-  border-color: #1e293b;
-  background: #0f172a;
-}
-
-.ep-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.ep-method-tag {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 800;
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-  color: #ffffff;
-}
-
-.ep-method-tag.method-post {
-  background: #0d9488;
-}
-
-.ep-method-tag.method-get {
-  background: #2563eb;
-}
-
-.ep-path {
-  color: #334155;
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-html.dark .ep-path {
-  color: #cbd5e1;
-}
-
-/* ---- Model list ---- */
-.model-list-section {
-  min-height: 48px;
-}
-
-.section-subhead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  color: #172033;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-html.dark .section-subhead {
-  color: #f8fafc;
-}
-
-.model-count {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-html.dark .model-count {
-  color: #94a3b8;
-}
-
-.model-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.model-tag {
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-  font-size: 11px;
-}
-
-/* ---- Trace ID cell ---- */
-.trace-id-cell {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.trace-id-text {
-  font-family: 'Fira Code', Monaco, Consolas, monospace;
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #0f766e;
-}
-
-html.dark .trace-id-text {
-  color: #5eead4;
 }
 </style>

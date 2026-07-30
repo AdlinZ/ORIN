@@ -1,6 +1,5 @@
 package com.adlin.orin.modules.apikey.service;
 
-import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.apikey.entity.GatewaySecret;
 import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
 import com.adlin.orin.security.EncryptionUtil;
@@ -53,7 +52,7 @@ class GatewaySecretServiceTest {
     void createMcpEnvSecret_encryptionDisabled_hardRejects() {
         when(encryptionUtil.isEncryptionEnabled()).thenReturn(false);
 
-        assertThrows(BusinessException.class,
+        assertThrows(IllegalStateException.class,
                 () -> service.createMcpEnvSecret("gh token", "ghp_realtoken", "desc", "admin"));
         verify(gatewaySecretRepository, never()).save(any());
     }

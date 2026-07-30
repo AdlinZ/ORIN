@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.playground.controller;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
@@ -178,11 +176,11 @@ public class PlaygroundController {
                             emitter.send(SseEmitter.event().name("error").data(data));
                         }
                     } catch (IOException ioException) {
-                        throw new BusinessException(ErrorCode.OPERATION_FAILED, "SSE send failed: " + ioException.getMessage(), ioException);
+                        throw new RuntimeException(ioException);
                     }
                 });
                 if (result == null) {
-                    throw new BusinessException(ErrorCode.OPERATION_FAILED, "Playground runtime returned empty result.");
+                    throw new IllegalStateException("Playground runtime returned empty result.");
                 }
                 emitter.send(SseEmitter.event().name("final").data(result));
                 emitter.complete();

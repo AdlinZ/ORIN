@@ -3,7 +3,6 @@ package com.adlin.orin.gateway.service;
 import com.adlin.orin.gateway.adapter.impl.DifyProviderAdapter;
 import com.adlin.orin.gateway.adapter.impl.OllamaProviderAdapter;
 import com.adlin.orin.gateway.adapter.impl.OpenAIProviderAdapter;
-import com.adlin.orin.gateway.adapter.impl.SiliconFlowTranscriptionAdapter;
 import com.adlin.orin.modules.apikey.service.GatewaySecretService;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.model.entity.ModelConfig;
@@ -23,24 +22,13 @@ public class GatewayProviderRefreshService {
 
     private static final String PROVIDER_OLLAMA = "local-ollama";
     private static final String PROVIDER_SILICONFLOW = "siliconflow";
-    private static final String PROVIDER_SILICONFLOW_ASR = "siliconflow-asr";
     private static final String PROVIDER_DIFY = "dify";
     private static final String DEFAULT_SILICONFLOW_ENDPOINT = "https://api.siliconflow.cn/v1";
 
     private final ProviderRegistry providerRegistry;
     private final DifyIntegrationService difyIntegrationService;
     private final GatewaySecretService gatewaySecretService;
-    // Gateway-1c: sync chatCompletion 路径的 RestTemplate 需要合理超时
-    // connect 30s / read 300s，避免上游 provider 阻塞时无限等待
-    private static RestTemplate createProviderRestTemplate() {
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(30_000);
-        factory.setReadTimeout(300_000);
-        return new RestTemplate(factory);
-    }
-
-    private final RestTemplate restTemplate = createProviderRestTemplate();
+    private final RestTemplate restTemplate = new RestTemplate();
 
     public void refreshFromConfig(ModelConfig config) {
         if (config == null) {
@@ -51,12 +39,10 @@ public class GatewayProviderRefreshService {
         // 清理由统一网关托管的 provider，再按新配置重建
         providerRegistry.unregisterProvider(PROVIDER_OLLAMA);
         providerRegistry.unregisterProvider(PROVIDER_SILICONFLOW);
-        providerRegistry.unregisterProvider(PROVIDER_SILICONFLOW_ASR);
         providerRegistry.unregisterProvider(PROVIDER_DIFY);
 
         registerOllama(config);
         registerSiliconFlow(config);
-        registerSiliconFlowAsr(config);
         registerDify(config);
 
         log.info("UnifiedGateway providers refreshed, total={}", providerRegistry.getAllProviders().size());
@@ -100,32 +86,6 @@ public class GatewayProviderRefreshService {
                 restTemplate);
         providerRegistry.registerProvider(PROVIDER_SILICONFLOW, siliconFlowAdapter);
         log.info("Registered OpenAI-compatible provider: {} at {}", PROVIDER_SILICONFLOW, endpoint);
-    }
-
-    /**
-     * 注册 SiliconFlow ASR 转写 adapter（与 chat adapter 共享 siliconflow 凭据，
-     * 但 provider id / type 独立为 siliconflow-asr，避免抢同一注册键）
-     */
-    private void registerSiliconFlowAsr(ModelConfig config) {
-        var credentialOpt = gatewaySecretService.resolveProviderCredential(PROVIDER_SILICONFLOW);
-        if (credentialOpt.isEmpty() || !isConfigured(credentialOpt.get().getApiKey())) {
-            log.warn("Skip siliconflow-asr provider registration: missing siliconflow credential");
-            return;
-        }
-        String apiKey = credentialOpt.get().getApiKey().trim();
-        String endpoint = isConfigured(credentialOpt.get().getBaseUrl())
-                ? credentialOpt.get().getBaseUrl().trim()
-                : isConfigured(config.getSiliconFlowEndpoint())
-                        ? config.getSiliconFlowEndpoint().trim()
-                        : DEFAULT_SILICONFLOW_ENDPOINT;
-
-        SiliconFlowTranscriptionAdapter asrAdapter = new SiliconFlowTranscriptionAdapter(
-                PROVIDER_SILICONFLOW_ASR,
-                apiKey,
-                endpoint,
-                restTemplate);
-        providerRegistry.registerProvider(PROVIDER_SILICONFLOW_ASR, asrAdapter);
-        log.info("Registered SiliconFlow ASR provider: {} at {}", PROVIDER_SILICONFLOW_ASR, endpoint);
     }
 
     private void registerDify(ModelConfig config) {

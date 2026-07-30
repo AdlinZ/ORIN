@@ -1,7 +1,5 @@
 package com.adlin.orin.security;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 
@@ -40,10 +38,10 @@ public class JwtService {
     @PostConstruct
     public void validateSecret() {
         if (secret == null || secret.isBlank()) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED, "JWT secret must be configured via jwt.secret property");
+            throw new IllegalStateException("JWT secret must be configured via jwt.secret property");
         }
         if (secret.length() < MIN_SECRET_LENGTH) {
-            throw new BusinessException(ErrorCode.OPERATION_FAILED,
+            throw new IllegalStateException(
                 String.format("JWT secret must be at least %d characters long for security", MIN_SECRET_LENGTH));
         }
         // Warn about weak secrets
@@ -207,7 +205,7 @@ public class JwtService {
             return generateToken(userId, username, claims);
         } catch (Exception e) {
             log.error("Token refresh failed: {}", e.getMessage());
-            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "Invalid token for refresh");
+            throw new RuntimeException("Invalid token for refresh");
         }
     }
 }

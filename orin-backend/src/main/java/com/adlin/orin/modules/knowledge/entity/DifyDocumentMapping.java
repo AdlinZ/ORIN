@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Table(name = "knowledge_dify_document_mapping", indexes = {
         @Index(name = "idx_local_doc_id", columnList = "local_doc_id"),
         @Index(name = "idx_dify_dataset_doc", columnList = "dify_dataset_id, dify_doc_id"),
-        @Index(name = "idx_dify_document_integration_id", columnList = "integration_id")
+        @Index(name = "idx_integration_id", columnList = "integration_id")
 })
 @Data
 @Builder

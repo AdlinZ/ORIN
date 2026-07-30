@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.runtime.service.impl;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
@@ -58,7 +56,7 @@ public class RuntimeManageServiceImpl implements RuntimeManageService {
                 log.info("Restarting agent: {}", agentId);
                 break;
             default:
-                throw new BusinessException(ErrorCode.VALIDATION_INVALID_FORMAT, "Unknown action: " + action);
+                throw new IllegalArgumentException("Unknown action: " + action);
         }
 
         healthStatusRepository.save(status);

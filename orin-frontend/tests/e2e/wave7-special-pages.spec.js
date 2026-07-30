@@ -25,7 +25,7 @@ const agents = [{
 
 async function authenticate(page) {
   await page.addInitScript(({ tokenValue }) => {
-    const roles = ['ROLE_ADMIN', 'ROLE_USER']
+    const roles = ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_USER']
     window.localStorage.setItem('orin_token', tokenValue)
     window.sessionStorage.setItem('orin_setup_completed', 'true')
     document.cookie = `orin_token=${tokenValue}; path=/`

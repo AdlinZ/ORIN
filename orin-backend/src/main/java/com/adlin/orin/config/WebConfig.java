@@ -1,7 +1,5 @@
 package com.adlin.orin.config;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.security.ApiKeyAuthInterceptor;
 import com.adlin.orin.security.ApiRateLimitInterceptor;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +40,7 @@ public class WebConfig implements WebMvcConfigurer {
         // Remove wildcards - CORS with * is not allowed for credentials
         for (String origin : origins) {
             if (origin.trim().equals("*")) {
-                throw new BusinessException(ErrorCode.OPERATION_FAILED,
+                throw new IllegalStateException(
                     "CORS wildcard '*' is not allowed. Please specify explicit origins in orin.security.cors.allowed-origins");
             }
         }
@@ -63,8 +61,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         // 添加API密钥验证拦截器
         registry.addInterceptor(apiKeyAuthInterceptor)
-                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
-                        "/v1/chat/completions", "/v1/embeddings", "/v1/models")
+                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**")
                 .excludePathPatterns(
                         // 公开端点
                         "/v1",
@@ -90,8 +87,7 @@ public class WebConfig implements WebMvcConfigurer {
 
         // 添加速率限制拦截器(在API密钥验证之后)
         registry.addInterceptor(apiRateLimitInterceptor)
-                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**",
-                        "/v1/chat/completions", "/v1/embeddings", "/v1/models")
+                .addPathPatterns("/api/v1/**", "/v1/mcp", "/v1/mcp/**")
                 .excludePathPatterns(
                         // 公开端点
                         "/v1",

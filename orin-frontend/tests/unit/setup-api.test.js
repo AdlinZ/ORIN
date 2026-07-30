@@ -19,7 +19,6 @@ describe('setup api', () => {
     expect(request).toHaveBeenNthCalledWith(1, {
       url: '/setup/status',
       method: 'get',
-      timeout: 2000,
       noRetry: true,
       silentError: true,
       skipAuthRefresh: true

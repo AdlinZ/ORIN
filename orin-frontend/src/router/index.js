@@ -7,29 +7,25 @@ import { ROUTES, LEGACY_ROUTE_REDIRECTS } from './routes'
 import { getSetupStatus } from '@/api/setup'
 import {
     ADMIN_MENU_ROLES,
-    DASHBOARD_ADMIN_ROLES,
+    DASHBOARD_OPERATOR_ROLES,
     MONITOR_MENU_ROLES,
     ORGANIZATION_MENU_ROLES,
+    OPERATOR_MENU_ROLES,
     USER_MENU_ROLES,
     canAccessAnyRole,
     getDefaultHomeByRoles
 } from './topMenuConfig'
 
 const ADMIN_ROUTE_ROLES = [...ADMIN_MENU_ROLES]
-const DASHBOARD_ROUTE_ROLES = [...DASHBOARD_ADMIN_ROLES]
+const OPERATOR_ROUTE_ROLES = [...DASHBOARD_OPERATOR_ROLES]
 const MONITOR_ROUTE_ROLES = [...MONITOR_MENU_ROLES]
 const ORGANIZATION_ROUTE_ROLES = [...ORGANIZATION_MENU_ROLES]
-const API_KEY_SELF_SERVICE_ROUTE_ROLES = [...USER_MENU_ROLES]
+const API_KEY_SELF_SERVICE_ROUTE_ROLES = [...OPERATOR_MENU_ROLES, ...USER_MENU_ROLES]
 const SETUP_COMPLETED_SESSION_KEY = 'orin_setup_completed'
 
 let setupStatusCache = null
 let setupStatusFetchedAt = 0
 let setupStatusPromise = null
-
-const hasCompletedSetupSession = () => {
-    return typeof window !== 'undefined'
-        && window.sessionStorage.getItem(SETUP_COMPLETED_SESSION_KEY) === 'true'
-}
 
 const getStoredToken = () => {
     return Cookies.get('orin_token')
@@ -51,13 +47,6 @@ const getUnauthorizedFallback = (from, userRoles = []) => {
 
 const getSetupStatusCached = async (force = false) => {
     const now = Date.now()
-    if (!force && hasCompletedSetupSession()) {
-        if (!setupStatusCache) {
-            setupStatusCache = { completed: true, canInitialize: false }
-            setupStatusFetchedAt = now
-        }
-        return setupStatusCache
-    }
     if (!force && setupStatusCache && now - setupStatusFetchedAt < 10000) {
         return setupStatusCache
     }
@@ -113,7 +102,7 @@ const routes = [
         name: 'PortalApiKeys',
         component: () => import('@/views/System/ApiKeyManagement.vue'),
         props: { selfService: true },
-        meta: { title: 'API 中转站', roles: API_KEY_SELF_SERVICE_ROUTE_ROLES }
+        meta: { title: 'API Key 自助', roles: API_KEY_SELF_SERVICE_ROUTE_ROLES }
     },
 
     // 数据大屏
@@ -135,11 +124,7 @@ const routes = [
     {
         path: '/dashboard',
         component: MainLayout,
-        redirect: () => {
-            const userStore = useUserStore()
-            userStore.restoreFromCookies()
-            return getDefaultHomeByRoles(userStore.roles || [])
-        },
+        redirect: ROUTES.HOME,
         children: [
             // ==================== 个人中心 ====================
             {
@@ -164,7 +149,7 @@ const routes = [
             // ==================== 智能体管理模块 ====================
             {
                 path: 'applications',
-                meta: { title: '智能体管理', category: 'applications', roles: DASHBOARD_ROUTE_ROLES },
+                meta: { title: '智能体管理', category: 'applications', roles: OPERATOR_ROUTE_ROLES },
                 children: [
                     // 应用列表（智能体）
                     {
@@ -172,12 +157,6 @@ const routes = [
                         name: 'ApplicationAgents',
                         component: () => import('@/views/revamp/agents/AgentListV2.vue'),
                         meta: { title: '智能体列表', icon: 'Grid' }
-                    },
-                    {
-                        path: 'developer',
-                        name: 'ApplicationDeveloper',
-                        component: () => import('@/views/revamp/agents/DeveloperDashboard.vue'),
-                        meta: { title: '开发者工作台', icon: 'Monitor', roles: DASHBOARD_ROUTE_ROLES }
                     },
                     {
                         path: 'agents/console',
@@ -273,8 +252,8 @@ const routes = [
                     {
                         path: 'skills',
                         name: 'ApplicationSkills',
-                        redirect: ROUTES.AGENTS.SKILLS,
-                        meta: { title: 'Skills', icon: 'MagicStick', hidden: true }
+                        component: () => import('@/views/Skill/SkillManagement.vue'),
+                        meta: { title: '技能绑定', icon: 'MagicStick' }
                     },
                     {
                         path: 'mcp',
@@ -445,17 +424,17 @@ const routes = [
                         meta: { title: '审计日志', icon: 'List', roles: ADMIN_ROUTE_ROLES }
                     },
 
-                    // Runner 服务器（F01 接入并监控服务器 — replaces old Server Monitor）
+                    // 服务器监控
                     {
                         path: 'server/:serverId',
                         name: 'RuntimeServerNode',
-                        component: () => import('@/views/revamp/runners/RunnerDetailView.vue'),
-                        meta: { title: 'Runner 详情', hidden: true }
+                        component: () => import('@/views/Monitor/ServerNodeDetail.vue'),
+                        meta: { title: '节点监控详情', hidden: true }
                     },
                     {
                         path: 'server',
                         name: 'RuntimeServer',
-                        component: () => import('@/views/revamp/runners/RunnerListView.vue'),
+                        component: () => import('@/views/Monitor/ServerMonitor.vue'),
                         meta: { title: '服务器监控', icon: 'Monitor' }
                     },
 
@@ -496,7 +475,7 @@ const routes = [
             // ==================== 知识库管理模块 ====================
             {
                 path: 'resources',
-                meta: { title: '知识库管理', category: 'resources', roles: DASHBOARD_ROUTE_ROLES },
+                meta: { title: '知识库管理', category: 'resources', roles: OPERATOR_ROUTE_ROLES },
                 children: [
                     {
                         path: '',
@@ -603,13 +582,6 @@ const routes = [
                 path: 'control',
                 meta: { title: '系统设置', category: 'control', requiresAdmin: true, roles: ADMIN_ROUTE_ROLES },
                 children: [
-                    // 平台总览
-                    {
-                        path: 'admin-overview',
-                        name: 'ControlAdminDashboard',
-                        component: () => import('@/views/revamp/system/AdminDashboard.vue'),
-                        meta: { title: '平台总览', icon: 'DataBoard', roles: ADMIN_ROUTE_ROLES }
-                    },
                     // 用户权限
                     {
                         path: 'users',
@@ -772,48 +744,6 @@ const routes = [
         ]
     },
 
-    // ==================== F02 Workspace vNext 入口（Agents / Runners / Runs / Endpoints 四一级） ====================
-    {
-        path: '/workspace',
-        component: MainLayout,
-        redirect: () => ROUTES.AGENTS.WORKSPACE_LIST,
-        children: [
-            // F02 暂时只暴露 Agents；Runners / Runs / Endpoints 留待 F03~F05 实施时再添加
-            {
-                path: 'agents',
-                name: 'WorkspaceAgents',
-                component: () => import('@/views/workspace/agents/AgentListPage.vue'),
-                meta: { title: 'Agents（vNext）', icon: 'User' }
-            },
-            {
-                path: 'agents/:agentId',
-                name: 'WorkspaceAgentDraft',
-                component: () => import('@/views/workspace/agents/AgentDraftPage.vue'),
-                meta: { title: 'Agent 草稿', hidden: true }
-            },
-            {
-                path: 'agents/:agentId/versions',
-                name: 'WorkspaceAgentVersions',
-                component: () => import('@/views/workspace/agents/AgentVersionListPage.vue'),
-                meta: { title: 'Agent 版本', hidden: true }
-            },
-            {
-                path: 'agents/:agentId/versions/:versionId',
-                name: 'WorkspaceAgentVersionDetail',
-                component: () => import('@/views/workspace/agents/AgentVersionDetailPage.vue'),
-                meta: { title: 'AgentVersion 详情', hidden: true }
-            },
-            {
-                path: 'agents/:agentId/versions/:versionId/deprecate',
-                redirect: (to) => ({
-                    path: `/workspace/agents/${to.params.agentId}/versions/${to.params.versionId}`,
-                    query: { ...to.query, deprecate: '1' }
-                }),
-                meta: { hidden: true }
-            }
-        ]
-    },
-
     // 404 页面 - 全局捕获（必须放在最后）
     {
         path: '/:pathMatch(.*)*',
@@ -923,9 +853,8 @@ router.beforeEach(async (to, from, next) => {
         userStore.restoreFromCookies()
     }
 
-    // 统一使用角色默认首页，避免所有角色都落到同一入口。
-    // 只处理 /dashboard 根路径，保留用户显式访问运行总览等具体页面的能力。
-    if (to.path === '/dashboard') {
+    // 统一使用角色默认首页，避免所有角色都落到同一入口
+    if (to.path === '/dashboard' || to.path === ROUTES.HOME) {
         const defaultHome = getDefaultHomeByRoles(userStore.roles || [])
         if (to.path !== defaultHome) {
             return next(defaultHome)

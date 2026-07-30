@@ -83,13 +83,13 @@ export const getLatencyTrend = (period = 'daily', config = {}) => {
 // Pricing Config API — re-exported from dedicated module for backward compatibility
 export { getPricingConfig, getPricingByProvider, savePricingConfig, deletePricingConfig } from '@/api/pricing';
 
-export const getServerHardware = (config = {}) => {
-    return request.get('/monitor/server-hardware', config);
+export const getServerHardware = () => {
+    return request.get('/monitor/server-hardware');
 };
 
 // Server Hardware History APIs
-export const getServerNodes = (config = {}) => {
-    return request.get('/monitor/server-hardware/nodes', config);
+export const getServerNodes = () => {
+    return request.get('/monitor/server-hardware/nodes');
 };
 
 export const getServerHardwareHistory = (params = {}) => {

@@ -1,7 +1,5 @@
 package com.adlin.orin.modules.collaboration.service;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.service.AgentManageService;
 import com.adlin.orin.modules.collaboration.entity.CollaborationTask;
 import com.adlin.orin.modules.collaboration.repository.CollaborationTaskRepository;
@@ -89,7 +87,7 @@ public class CollaborationService {
             return taskRepository.save(task);
         }
         
-        throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Task not found: " + id);
+        throw new RuntimeException("Task not found: " + id);
     }
 
     /**
@@ -145,7 +143,7 @@ public class CollaborationService {
             return task;
         }
         
-        throw new BusinessException(ErrorCode.COLLABORATION_NOT_FOUND, "Task not found: " + id);
+        throw new RuntimeException("Task not found: " + id);
     }
 
     /**

@@ -126,6 +126,11 @@
     </aside>
 
     <main class="workspace-main custom-scrollbar">
+      <div v-if="isOfflineMode" class="offline-banner">
+        <el-icon><Warning /></el-icon>
+        <span>离线模式 — 显示最近保存的数据，部分节点数据可能不是最新的</span>
+      </div>
+
       <div class="messages-container" v-loading="loading">
         <div class="dashboard-content">
           <section class="runtime-command-panel">
@@ -1206,6 +1211,12 @@ const configuredNodeCount = computed(
   () => normalizedNodes.value.filter(node => node.configured).length
 )
 
+const isOfflineMode = computed(() =>
+  overviewNodes.value.some(
+    node => node.snapshot.online === false && (node.snapshot.recordedAt || node.snapshot.timestamp)
+  )
+)
+
 const fetchNodes = async () => {
   nodesLoading.value = true
   try {
@@ -1739,6 +1750,17 @@ onUnmounted(() => {
 
 <style scoped>
 @import './server-monitor-shared.css';
+
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #fef3cd;
+  border-bottom: 1px solid #ffc107;
+  color: #856404;
+  font-size: 13px;
+}
 
 .node-dialog-header {
   display: flex;

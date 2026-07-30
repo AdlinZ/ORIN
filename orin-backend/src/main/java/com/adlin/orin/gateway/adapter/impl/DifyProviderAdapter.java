@@ -1,7 +1,5 @@
 package com.adlin.orin.gateway.adapter.impl;
 
-import com.adlin.orin.common.exception.BusinessException;
-import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.gateway.adapter.ProviderAdapter;
 import com.adlin.orin.gateway.dto.ChatCompletionRequest;
 import com.adlin.orin.gateway.dto.ChatCompletionResponse;
@@ -60,7 +58,7 @@ public class DifyProviderAdapter implements ProviderAdapter {
             Optional<Object> response = difyService.sendMessage(endpointUrl, apiKey, providerId, lastUserMessage);
 
             if (response.isEmpty()) {
-                throw new BusinessException(ErrorCode.DIFY_API_ERROR, "Dify API call failed");
+                throw new RuntimeException("Dify API call failed");
             }
 
             // 转换为OpenAI兼容格式
