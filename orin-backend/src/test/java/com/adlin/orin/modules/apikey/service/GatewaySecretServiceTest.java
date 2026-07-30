@@ -56,4 +56,32 @@ class GatewaySecretServiceTest {
                 () -> service.createMcpEnvSecret("gh token", "ghp_realtoken", "desc", "admin"));
         verify(gatewaySecretRepository, never()).save(any());
     }
+
+    @Test
+    void upsertProviderCredential_encryptionDisabled_hardRejectsProviderKey() {
+        when(encryptionUtil.isEncryptionEnabled()).thenReturn(false);
+
+        assertThrows(IllegalStateException.class, () -> service.upsertProviderCredential(
+                "siliconflow", "SiliconFlow", "provider-secret", "https://api.example.com",
+                "desc", true, "admin"));
+
+        verify(gatewaySecretRepository, never()).save(any());
+        verify(encryptionUtil, never()).encrypt(anyString());
+    }
+
+    @Test
+    void rotateProviderCredential_encryptionDisabled_hardRejectsProviderKey() {
+        GatewaySecret secret = GatewaySecret.builder()
+                .secretId("gsec_provider_test")
+                .secretType(GatewaySecret.SecretType.PROVIDER_CREDENTIAL)
+                .build();
+        when(gatewaySecretRepository.findBySecretId("gsec_provider_test")).thenReturn(java.util.Optional.of(secret));
+        when(encryptionUtil.isEncryptionEnabled()).thenReturn(false);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.rotateProviderCredential("gsec_provider_test", "rotated-secret", "admin"));
+
+        verify(gatewaySecretRepository, never()).save(any());
+        verify(encryptionUtil, never()).encrypt(anyString());
+    }
 }
