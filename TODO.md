@@ -13,24 +13,37 @@
   - `P1` 重要增强，核心闭环后完成
   - `P2` 体验和治理优化
 
-## 当前推进口径（2026-05-21）
+## 当前推进口径（2026-07-31）
 
-当前 TODO 不再表示“从零补骨架”。Phase 0 基线、MCP 主干、Workflow / Collaboration / API Key 的 API 级 smoke 已建立，后续开发按以下顺序推进：
+当前 `main` 是 2026-07-30 恢复后的 v0.2 产品基线。已从该基线删除的 Runner、Agent draft/freeze/不可变版本、备份恢复、审计导出、覆盖率 gate、扩展 OTel 实现和部分复杂 Workflow 节点不计为已交付；恢复它们必须作为新的独立闭环任务。后续按以下顺序推进：
 
-1. `P0` Phase 1 收口：真实后端联调下的浏览器 E2E、协作人工干预验收、真实 provider-backed Agent 对话与 MCP `tools/call`、FALLBACK 真重派闭环与 Codex Workflow tool 客户端验收已具备入口；外部客户端展示资产继续后续。
-2. `P1` Phase 1.5：首版角色矩阵、权限同源、角色默认页、高风险管理接口收口与 API Key 自助边界已落地；后续补角色专属视图与资源级权限。
-3. `P1/P2` Phase 2：错误码、`traceparent`、JSON 日志、OTel / Jaeger、覆盖率红线。
-4. `P2` Phase 3/4：安全运维、备份恢复、v0.1.0 release、README 展示资产。
+1. `P0` 知识库闭环：创建、上传、解析、向量化、检索验证和失败诊断。
+2. `P0` 智能体闭环：模型接入、创建、绑定知识库、调试回答与引用、发布、Trace 与审计。
+3. `P1` AI 应用管理员体验：收敛重复入口，补资源归属、权限、状态和真实浏览器 E2E。
+4. `P1` Workflow、MCP、协作：作为高级能力按核心流程需要维护，不继续以菜单或节点数量扩张。
+5. `P2` 质量与发布：错误码、`traceparent`、结构化日志、覆盖率红线、安全运维与最终 `v0.2.0` release。
 
-完成度判断仍以“前端入口 + Java service + Python AI Engine + smoke / E2E 验收”同时成立为准。
+完成度判断以“前端入口 + Java service + 必需执行依赖 + 真实 smoke/E2E”同时成立为准。知识管理链不需要 AI Engine 时，不为了形式强行引入 Python 层。
+
+---
+
+## P0：智能体与知识库产品闭环
+
+- [ ] `P0` 固化知识库黄金流程：创建 → 上传 → 解析 → 向量化 → 检索验证
+- [ ] `P0` 固化智能体黄金流程：接入模型 → 创建 → 绑定知识库 → 调试 → 发布
+- [ ] `P0` 回答结果展示可核对的知识依据，错误结果保留 `traceId`
+- [ ] `P0` 为 Provider、Milvus 和文档处理依赖补明确的可用性诊断
+- [ ] `P0` 用真实后端和真实依赖完成两条黄金流程 E2E
+- [ ] `P1` 统一智能体、知识库的归属、状态、权限与审计语义
+- [ ] `P1` 收敛智能体列表/接入/工作台和知识中心/资产/检索实验室的重复入口
 
 ---
 
 ## Phase 1.5：角色化体验与权限闭环
 
-- [x] `P1` 新增 [docs/角色矩阵.md](docs/角色矩阵.md)，固定现有五类角色、默认入口、菜单可见性和后端权限口径
+- [x] `P1` 新增 [docs/角色矩阵.md](docs/角色矩阵.md)，明确企业 AI 应用管理员核心人物，并映射到现有五类系统角色
 - [x] `P1` 前端菜单与路由守卫同源使用角色常量，一级菜单、子菜单和直接 URL 访问按同一矩阵过滤
-- [x] `P1` 普通用户默认进入 `/portal`，运维默认进入智能体列表，管理员默认进入监控总览
+- [x] `P1` 普通用户默认进入 `/portal`，AI 应用管理员（`ROLE_OPERATOR`）默认进入智能体列表，平台管理员默认进入监控总览
 - [x] `P1` 用户、部门、角色管理接口移出匿名放行，并补 JWT / 角色边界测试
 - [x] `P1` 新增 Playwright 角色导航 smoke，覆盖运维菜单过滤和普通用户管理台重定向
 - [x] `P1` API Key 自助治理边界：普通用户 / 运维可以管理自己的访问密钥，管理员保留全局治理能力
@@ -61,7 +74,9 @@
 
 ---
 
-## 阶段 1：多智能体协作闭环
+## 阶段 1：多智能体协作闭环（历史阶段 / 当前高级能力）
+
+> 保留既有实现与验收记录，但不再作为当前产品开发第一优先级。新增协作能力必须由智能体或知识库核心流程的真实需求驱动。
 
 ### 审查结论（2026-05-21）
 
@@ -419,7 +434,7 @@
 
 ### 开源演示版安全与 MCP 基线
 
-- [x] `P1` README 增加 MCP-Native、CodeQL、gitleaks 状态入口
+- [x] `P1` README 增加 MCP 可选扩展、CodeQL、gitleaks 状态入口（历史曾使用 MCP-Native 主定位）
 - [x] `P1` 增加 CodeQL 与 gitleaks GitHub Actions 基线
 - [x] `P1` 增加 `scripts/mcp-open-demo-smoke.sh`，覆盖 `/v1/mcp initialize`、`tools/list` 与可选 Agent / Workflow `tools/call`
 - [x] `P1` 强化 Codex / Claude Desktop / Cursor / Windsurf MCP 客户端接入文档与排障清单
@@ -458,7 +473,7 @@
 ### 里程碑 M4
 
 - [~] 完成 Phase 3/4 安全运维与社区化
-- [ ] 备份恢复、生产 SOP、v0.1.0 release、README 展示资产完成
+- [ ] 备份恢复、生产 SOP、最终 `v0.2.0` release、README 展示资产完成
 
 ---
 
@@ -492,7 +507,7 @@
 - [x] 协作链后端单元测试
 - [x] 外部集成页面与后端能力一一对应
 - [~] 前端协作页和任务页交互测试（Vitest 单元测试）
-- [x] 开源演示版基线（MCP-Native README 入口、Codex / Claude Desktop / Cursor / Windsurf 文档、MCP smoke 脚本、CodeQL/gitleaks workflow、DSL 非法图校验）
+- [x] 开源演示版基线（MCP 可选扩展入口、Codex / Claude Desktop / Cursor / Windsurf 文档、MCP smoke 脚本、CodeQL/gitleaks workflow、DSL 非法图校验）
 - [x] open demo acceptance 记录同步：Workflow MCP `tools/call`、trace metadata、临时资源清理与 Collaboration Workflow 子任务强验收已记录
 - [x] 协作看板 Playwright E2E：覆盖包级 pause/resume/manual-complete、子任务 retry/skip/manual-complete、事件流与 runtime/diagnostics 刷新
 - [~] 后续开发顺序同步：Phase 1 收口 → Phase 1.5 角色化体验 → Phase 2 质量与可观测 → Phase 3/4 安全运维与社区化

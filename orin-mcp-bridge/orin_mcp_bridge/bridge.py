@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
+import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 from mcp.server import NotificationOptions, Server
@@ -15,7 +16,7 @@ from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 import mcp.types as types
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 class ConfigError(ValueError):
@@ -80,7 +81,7 @@ def error_result(message: str) -> types.CallToolResult:
 
 @asynccontextmanager
 async def remote_session(config: BridgeConfig):
-    async with create_mcp_http_client(headers=build_headers(config)) as http_client:
+    async with _http_client(config) as http_client:
         async with streamable_http_client(config.endpoint, http_client=http_client) as (
             read_stream,
             write_stream,
@@ -89,6 +90,23 @@ async def remote_session(config: BridgeConfig):
             async with ClientSession(read_stream, write_stream) as session:
                 await session.initialize()
                 yield session
+
+
+@asynccontextmanager
+async def _http_client(config: BridgeConfig):
+    hostname = urlparse(config.base_url).hostname
+    if hostname in {"localhost", "127.0.0.1", "::1"}:
+        async with httpx.AsyncClient(
+            headers=build_headers(config),
+            follow_redirects=True,
+            timeout=httpx.Timeout(30.0, read=300.0),
+            trust_env=False,
+        ) as client:
+            yield client
+        return
+
+    async with create_mcp_http_client(headers=build_headers(config)) as client:
+        yield client
 
 
 def create_server(config: BridgeConfig) -> Server:

@@ -25,9 +25,11 @@ defineProps({
 <style scoped>
 .orin-detail-panel {
   min-width: 0;
-  border: 1px solid var(--orin-border-strong, #d8e0e8);
-  border-radius: var(--radius-base, 8px);
+  overflow: hidden;
+  border: 1px solid var(--orin-border, #dfe6e4);
+  border-radius: var(--orin-radius-lg, 12px);
   background: var(--orin-surface, #ffffff);
+  box-shadow: var(--orin-shadow-xs, 0 1px 2px rgba(15, 35, 31, 0.04));
 }
 
 .detail-header {
@@ -36,20 +38,20 @@ defineProps({
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
+  border-bottom: 1px solid var(--orin-border-soft, #edf1f0);
 }
 
 .detail-eyebrow {
   display: block;
   margin-bottom: 4px;
-  color: var(--text-secondary, #64748b);
+  color: var(--orin-muted, #66736f);
   font-size: 12px;
   font-weight: 700;
 }
 
 h3 {
   margin: 0;
-  color: var(--text-primary, #1e293b);
+  color: var(--orin-ink, #17211f);
   font-size: 15px;
 }
 

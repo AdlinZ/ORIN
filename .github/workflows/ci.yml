@@ -27,6 +27,9 @@ jobs:
       - name: Check schema snapshot baseline
         run: bash scripts/check-schema-baseline.sh
 
+      - name: Check version consistency
+        run: bash scripts/check-version-consistency.sh
+
   backend:
     name: Backend
     runs-on: ubuntu-latest

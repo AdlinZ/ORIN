@@ -1,258 +1,249 @@
 <template>
-  <div class="bsod-container">
-    <div class="bsod-content">
-      <div class="sad-face">
-        :(
-      </div>
-      <div class="message-section">
-        <h2 class="main-msg">
-          您的页面遇到问题，需要重新寻找。
-        </h2>
-        <p class="secondary-msg">
-          我们已记录异常信息，请尝试返回首页或上一页继续操作。
-        </p>
-      </div>
+  <main class="bsod-container">
+    <section class="not-found-card" aria-labelledby="not-found-title">
+      <header class="not-found-brand">
+        <BrandingLogo :height="36" />
+        <span>ORIN Enterprise AI Hub</span>
+      </header>
 
-      <div class="qr-section">
-        <div class="qr-placeholder">
-          <!-- Simplified QR SVG for aesthetic -->
-          <svg
-            width="120"
-            height="120"
-            viewBox="0 0 100 100"
-            fill="currentColor"
-          >
-            <rect
-              x="0"
-              y="0"
-              width="30"
-              height="30"
-            />
-            <rect
-              x="70"
-              y="0"
-              width="30"
-              height="30"
-            />
-            <rect
-              x="0"
-              y="70"
-              width="30"
-              height="30"
-            />
-            <rect
-              x="10"
-              y="10"
-              width="10"
-              height="10"
-              fill="white"
-            />
-            <rect
-              x="80"
-              y="10"
-              width="10"
-              height="10"
-              fill="white"
-            />
-            <rect
-              x="10"
-              y="80"
-              width="10"
-              height="10"
-              fill="white"
-            />
-            <rect
-              x="40"
-              y="40"
-              width="20"
-              height="20"
-            />
-            <rect
-              x="70"
-              y="70"
-              width="10"
-              height="10"
-            />
-            <rect
-              x="90"
-              y="90"
-              width="10"
-              height="10"
-            />
-          </svg>
+      <div class="not-found-body">
+        <div class="error-code" aria-hidden="true">
+          404
         </div>
-        <div class="info-details">
-          <p>有关此问题的详细说明和处理建议，请访问：</p>
-          <p><a href="/unified-docs" target="_blank" class="link">统一文档中心</a></p>
-          <div class="stop-code">
-            <span>终止代码: </span>
-            <span class="bold">PAGE_NOT_FOUND_404</span>
+        <div class="error-copy">
+          <span class="error-kicker">PAGE NOT FOUND</span>
+          <h1 id="not-found-title">
+            这个页面不在当前工作区
+          </h1>
+          <p>
+            链接可能已经调整、被移除，或当前账号没有对应入口。你可以返回上一页，或从 ORIN
+            首页重新进入。
+          </p>
+
+          <div class="error-meta">
+            <span>错误代码</span>
+            <code>PAGE_NOT_FOUND_404</code>
+          </div>
+
+          <div class="actions">
+            <el-button size="large" @click="$router.go(-1)">
+              返回上一页
+            </el-button>
+            <el-button type="primary" size="large" @click="$router.push('/')">
+              返回首页
+            </el-button>
           </div>
         </div>
       </div>
 
-      <div class="actions">
-        <el-button size="large" class="bsod-btn" @click="$router.go(-1)">
-          返回上一页
-        </el-button>
-        <el-button size="large" class="bsod-btn" @click="$router.push('/')">
-          返回首页
-        </el-button>
-      </div>
-    </div>
-  </div>
+      <footer class="not-found-footer">
+        <span>需要了解接口或路由？</span>
+        <router-link to="/unified-docs">
+          查看统一文档中心
+        </router-link>
+      </footer>
+    </section>
+  </main>
 </template>
 
 <script setup>
+import BrandingLogo from '@/components/BrandingLogo.vue'
 </script>
 
 <style scoped>
 .bsod-container {
   min-height: 100vh;
-  background-color: var(--bg-color, var(--el-bg-color-page, #f8fafc));
-  color: var(--text-primary, #1e293b);
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: #f5f8f7;
+  color: #17211f;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.not-found-card {
+  width: min(100%, 980px);
+  overflow: hidden;
+  border: 1px solid #dfe6e4;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(15, 35, 31, 0.08);
+}
+
+.not-found-brand,
+.not-found-footer {
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  padding: 0 10%;
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  transition: background-color 0.3s, color 0.3s;
-  cursor: default;
-  user-select: none;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
 }
 
-.bsod-content {
-  max-width: 900px;
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
+.not-found-brand {
+  border-bottom: 1px solid #edf1f0;
 }
 
-.sad-face {
-  font-size: 120px;
+.not-found-brand span {
+  color: #71807c;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.not-found-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  min-height: 440px;
+}
+
+.error-code {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid #edf1f0;
+  background: #f8faf9;
+  color: #d4e8e3;
+  font-size: clamp(92px, 14vw, 176px);
+  font-weight: 750;
   line-height: 1;
-  margin-bottom: 10px;
-  color: var(--orin-primary, #10b981);
+  letter-spacing: -0.08em;
 }
 
-.main-msg {
-  font-size: 32px;
-  font-weight: 500;
-  line-height: 1.3;
-  margin: 0 0 20px 0;
-  color: var(--text-primary, #1e293b);
+.error-copy {
+  align-self: center;
+  padding: 48px;
 }
 
-.secondary-msg {
-  font-size: 20px;
-  font-weight: 400;
-  color: var(--text-secondary, #64748b);
-  margin-bottom: 40px;
+.error-kicker {
+  color: #3f9388;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
 
-.qr-section {
-  display: flex;
-  gap: 25px;
-  align-items: flex-start;
+h1 {
+  margin: 14px 0 12px;
+  color: #17211f;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
-.qr-placeholder {
-  background: white;
-  padding: 10px;
-  color: #0f172a; /* Keep QR dark for scanning contrast */
-  flex-shrink: 0;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--el-border-color-lighter, #f1f5f9);
-}
-
-.info-details {
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.6;
-  color: var(--text-secondary, #64748b);
-}
-
-.info-details p {
+p {
+  max-width: 520px;
   margin: 0;
+  color: #66736f;
+  font-size: 15px;
+  line-height: 1.75;
 }
 
-.info-details .link {
-  margin-bottom: 10px;
-  color: var(--orin-primary, #10b981);
-  font-weight: 500;
-  text-decoration: none;
-  display: inline-block;
+.error-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 8px 10px;
+  border: 1px solid #dfe6e4;
+  border-radius: 7px;
+  background: #f8faf9;
+  color: #71807c;
+  font-size: 12px;
 }
 
-.info-details .link:hover {
-  text-decoration: underline;
-}
-
-.stop-code {
-  font-size: 13px;
-  margin-top: 5px;
-}
-
-.stop-code .bold {
-  font-weight: 600;
-  color: var(--text-primary, #1e293b);
+.error-meta code {
+  color: #35413e;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .actions {
-  margin-top: 40px;
   display: flex;
-  gap: 20px;
+  gap: 10px;
+  margin-top: 28px;
 }
 
-.bsod-btn {
-  background: transparent !important;
-  border: 1px solid var(--el-border-color, #dcdfe6) !important;
-  color: var(--text-primary, #1e293b) !important;
-  border-radius: 8px !important;
-  padding: 12px 30px !important;
-  font-family: inherit;
-  font-size: 15px;
-  transition: all 0.3s;
+.actions :deep(.el-button) {
+  min-width: 118px;
+  border-radius: 8px;
+  font-weight: 600;
 }
 
-.bsod-btn:hover {
-  background: var(--el-color-primary-light-9, #ecfdf5) !important;
-  border-color: var(--orin-primary, #10b981) !important;
-  color: var(--orin-primary, #10b981) !important;
-  transform: translateY(-2px);
+.actions :deep(.el-button--primary) {
+  border-color: #3f9388;
+  background: #3f9388;
 }
 
-/* Light/Dark mode responsiveness is handled automatically by CSS variables */
-html.dark .qr-placeholder {
-  background: #f8fafc; /* Keep QR area bright in dark mode for scannability */
-  border-color: transparent;
+.not-found-footer {
+  justify-content: flex-end;
+  border-top: 1px solid #edf1f0;
+  color: #8c9894;
+  font-size: 12px;
+}
+
+.not-found-footer a {
+  color: #347f75;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .bsod-container {
+    padding: 16px;
+  }
+
+  .not-found-body {
+    grid-template-columns: 1fr;
+  }
+
+  .error-code {
+    min-height: 180px;
+    border-right: 0;
+    border-bottom: 1px solid #edf1f0;
+  }
+
+  .error-copy {
+    padding: 32px 24px;
+  }
+
+  .not-found-brand span {
+    display: none;
+  }
+
+  .not-found-footer {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 html.dark .bsod-container {
-  background: var(--orin-bg, #0b1118);
-  color: var(--el-text-color-primary, #f1f5f9);
+  background: #0d1514;
 }
 
-html.dark .main-msg {
-  color: var(--el-text-color-primary, #f1f5f9);
+html.dark .not-found-card,
+html.dark .not-found-brand,
+html.dark .not-found-footer {
+  border-color: #293936;
+  background: #131d1b;
 }
 
-html.dark .secondary-msg,
-html.dark .info-details {
-  color: var(--el-text-color-secondary, #94a3b8);
+html.dark .error-code,
+html.dark .error-meta {
+  border-color: #293936;
+  background: #182421;
 }
 
-html.dark .stop-code .bold {
-  color: var(--el-text-color-primary, #f1f5f9);
+html.dark .error-code {
+  color: #29413c;
 }
 
-html.dark .bsod-btn {
-  color: var(--el-text-color-primary, #f1f5f9) !important;
-  border-color: var(--el-border-color-dark, #334155) !important;
+html.dark h1 {
+  color: #eef5f3;
 }
 
-html.dark .bsod-btn:hover {
-  background: rgba(45, 212, 191, 0.12) !important;
+html.dark p,
+html.dark .not-found-brand span,
+html.dark .not-found-footer {
+  color: #9baca7;
 }
 </style>

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "orin-ai-engine"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python AI Microservice for ORIN Workflow Execution"
 authors = ["Adlin <adlin@example.com>"]
 packages = [{ include = "app" }]

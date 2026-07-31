@@ -21,11 +21,10 @@
     "filters filters";
   gap: 12px 16px;
   padding: 14px 16px;
-  border: 1px solid var(--orin-border-strong, #d8e0e8);
-  border-radius: var(--radius-base, 8px);
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  border: 1px solid var(--orin-border, #dfe6e4);
+  border-radius: var(--orin-radius-lg, 12px);
+  background: var(--orin-surface, #ffffff);
+  box-shadow: var(--orin-shadow-xs, 0 1px 2px rgba(15, 35, 31, 0.04));
 }
 
 .action-context {
@@ -62,7 +61,7 @@
 }
 
 html.dark .orin-action-bar {
-  background: rgba(15, 23, 42, 0.78);
-  border-color: rgba(148, 163, 184, 0.22);
+  background: var(--orin-surface, #131d1b);
+  border-color: var(--orin-border, #293936);
 }
 </style>

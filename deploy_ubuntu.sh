@@ -134,7 +134,7 @@ After=network.target mysql.service redis-server.service
 Type=simple
 User=$REAL_USER
 WorkingDirectory=$PROJECT_DIR/orin-backend
-ExecStart=/usr/bin/java -jar $PROJECT_DIR/orin-backend/target/orin-backend-1.0.0-SNAPSHOT.jar
+ExecStart=/usr/bin/java -jar $PROJECT_DIR/orin-backend/target/orin-backend-0.2.0.jar
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:$PROJECT_DIR/backend.log
@@ -199,7 +199,7 @@ systemctl restart nginx
 
 # 10. Flyway 数据库迁移 (阶段 A - 必须在应用启动前执行)
 echo -e "${YELLOW}[10/12] 执行 Flyway 数据库迁移...${NC}"
-JAR_FILE="$PROJECT_DIR/orin-backend/target/orin-backend-1.0.0-SNAPSHOT.jar"
+JAR_FILE="$PROJECT_DIR/orin-backend/target/orin-backend-0.2.0.jar"
 
 if [ -f "$JAR_FILE" ]; then
     # 检查迁移状态

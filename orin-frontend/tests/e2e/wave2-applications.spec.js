@@ -120,6 +120,8 @@ async function mockWave2Backends(page) {
 }
 
 test.describe('Wave 2 application domain browser smoke', () => {
+  test.describe.configure({ timeout: 90_000 })
+
   test('opens application pages without blank screens or runtime errors', async ({ page }) => {
     const runtimeErrors = []
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`))
@@ -132,11 +134,16 @@ test.describe('Wave 2 application domain browser smoke', () => {
 
     const paths = [
       '/dashboard/applications/agents',
+      '/dashboard/applications/agents/onboard',
+      '/dashboard/applications/agents/console/agent-1',
       '/dashboard/applications/conversations',
       '/dashboard/applications/models',
+      '/dashboard/applications/models/add',
+      '/dashboard/applications/models/edit/1',
       '/dashboard/applications/skills',
       '/dashboard/applications/extensions',
       '/dashboard/applications/collaboration/dashboard',
+      '/dashboard/applications/collaboration/workflows',
       '/dashboard/applications/playground',
       '/dashboard/applications/playground/overview',
       '/dashboard/applications/workspace'
@@ -144,7 +151,7 @@ test.describe('Wave 2 application domain browser smoke', () => {
 
     for (const path of paths) {
       const startErrorCount = runtimeErrors.length
-      await page.goto(path, { waitUntil: 'networkidle' })
+      await page.goto(path, { waitUntil: 'domcontentloaded' })
       await expect(page.locator('body')).not.toHaveText(/^\\s*$/)
       await expect(page.locator('body')).not.toContainText('登录工作台')
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])

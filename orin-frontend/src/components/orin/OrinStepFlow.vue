@@ -35,9 +35,9 @@ defineProps({
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1px;
   overflow: hidden;
-  border: 1px solid var(--orin-border-strong, #d8e0e8);
-  border-radius: var(--radius-base, 8px);
-  background: var(--orin-border-strong, #d8e0e8);
+  border: 1px solid var(--orin-border, #dfe6e4);
+  border-radius: var(--orin-radius-lg, 12px);
+  background: var(--orin-border-soft, #edf1f0);
 }
 
 .step-item {
@@ -50,7 +50,7 @@ defineProps({
 .step-index,
 .step-description {
   display: block;
-  color: var(--text-secondary, #64748b);
+  color: var(--orin-muted, #66736f);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -62,7 +62,7 @@ defineProps({
 
 .step-title {
   display: block;
-  color: var(--text-primary, #1e293b);
+  color: var(--orin-ink, #17211f);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.35;
@@ -83,6 +83,6 @@ defineProps({
 }
 
 html.dark .step-item {
-  background: var(--neutral-gray-50, #0f1c1c);
+  background: var(--orin-surface, #131d1b);
 }
 </style>

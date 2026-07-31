@@ -120,7 +120,7 @@ cp $WORK_DIR/.env .
 export MAVEN_OPTS='-Xms128m -Xmx512m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m'
 mvn clean package -DskipTests -q
 
-if [ ! -f "target/orin-backend-1.0.0-SNAPSHOT.jar" ]; then
+if [ ! -f "target/orin-backend-0.2.0.jar" ]; then
   echo -e "${RED}后端编译失败${NC}"
   exit 1
 fi
@@ -132,7 +132,7 @@ pkill -f "orin-backend" 2>/dev/null || true
 sleep 2
 
 source $WORK_DIR/.env
-nohup java -Xms128m -Xmx512m -jar target/orin-backend-1.0.0-SNAPSHOT.jar > $LOG_DIR/backend.log 2>&1 &
+nohup java -Xms128m -Xmx512m -jar target/orin-backend-0.2.0.jar > $LOG_DIR/backend.log 2>&1 &
 sleep 5
 
 # 检查后端是否启动

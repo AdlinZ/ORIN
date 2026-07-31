@@ -332,9 +332,9 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await authenticate(page)
     await page.route('**/api/v1/**', backend.route)
 
-    await page.goto('/dashboard/applications/collaboration/dashboard')
+    await page.goto('/dashboard/applications/collaboration/dashboard', { waitUntil: 'domcontentloaded' })
 
-    await expect(page.getByText('多智能体协作').first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: '多智能体协作', level: 1 })).toBeVisible()
     await expect(page.getByText('3 个结果')).toBeVisible()
     await expect(page.getByText('pkg-exec').first()).toBeVisible()
     await expect(page.getByText('EXECUTING').first()).toBeVisible()
@@ -399,17 +399,17 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_OPERATOR'])
-    await page.goto('/dashboard')
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
 
     await expect(page).toHaveURL(/\/dashboard\/applications\/agents/)
     const operatorNav = page.locator('.navbar-menu')
-    await expect(operatorNav.getByText('智能体管理')).toBeVisible()
-    await expect(operatorNav.getByText('工作流管理')).toBeVisible()
-    await expect(operatorNav.getByText('知识库管理')).toBeVisible()
+    await expect(operatorNav.getByText('智能体', { exact: true })).toBeVisible()
+    await expect(operatorNav.getByText('知识库', { exact: true })).toBeVisible()
+    await expect(operatorNav.getByText('高级能力', { exact: true })).toBeVisible()
     await expect(operatorNav.getByText('运行监控')).toHaveCount(0)
     await expect(operatorNav.getByText('系统设置')).toHaveCount(0)
 
-    await page.goto('/dashboard/control/users')
+    await page.goto('/dashboard/control/users', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/dashboard\/applications\/agents/)
   })
 
@@ -417,10 +417,10 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await page.route('**/api/v1/**', async (route) => route.fulfill(json([])))
 
     await authenticate(page, ['ROLE_USER'])
-    await page.goto('/dashboard')
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
 
     await expect(page).toHaveURL(/\/portal/)
-    await page.goto('/dashboard/applications/agents')
+    await page.goto('/dashboard/applications/agents', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/portal/)
   })
 
@@ -429,7 +429,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await page.route('**/api/v1/**', backend.route)
 
     await authenticate(page, ['ROLE_USER'])
-    await page.goto('/portal/api-keys')
+    await page.goto('/portal/api-keys', { waitUntil: 'domcontentloaded' })
 
     await expect(page.getByText('API Key 自助').first()).toBeVisible()
     await expect(page.getByText('个人 MCP Key')).toBeVisible()

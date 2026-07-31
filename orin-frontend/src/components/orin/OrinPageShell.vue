@@ -1,5 +1,5 @@
 <template>
-  <div class="orin-page-shell">
+  <div class="orin-page-shell" :data-domain="domain || undefined">
     <PageHeader :title="title" :description="description" :icon="icon">
       <template #tag-content>
         <div class="tag-row">
@@ -41,7 +41,13 @@ defineProps({
 
 <style scoped>
 .orin-page-shell {
-  display: block;
+  display: grid;
+  gap: var(--orin-section-gap, 16px);
+  min-width: 0;
+}
+
+.orin-page-shell > :deep(.page-header-wrapper) {
+  margin-bottom: 0;
 }
 
 .tag-row {

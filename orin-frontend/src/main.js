@@ -11,6 +11,8 @@ import './assets/css/main.css' // Import Global CSS
 import './assets/styles/theme.css' // Import Amber Energy Theme
 import './assets/styles/global.css' // Import ORIN Global Styles
 import './assets/styles/arco-orin.css'
+import './assets/styles/dashboard.css'
+import './assets/styles/public.css'
 import App from './App.vue'
 import router from './router'
 import permission from './utils/permission' // Import permission directive

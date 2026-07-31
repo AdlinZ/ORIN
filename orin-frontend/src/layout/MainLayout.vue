@@ -1,5 +1,8 @@
 <template>
-  <div class="main-layout">
+  <div
+    class="main-layout dashboard-redesign"
+    :class="{ 'is-reference-canvas': isReferenceCanvasRoute }"
+  >
     <!-- 顶部导航栏 -->
     <TopNavbar v-if="appStore.menuMode === 'topbar'" />
 
@@ -13,6 +16,7 @@
         'with-sidebar': appStore.menuMode === 'sidebar',
         'collapsed': appStore.menuMode === 'sidebar' && appStore.isCollapse,
         'is-workspace-page': isWorkspaceRoute,
+        'is-reference-page': isReferenceCanvasRoute,
         'has-topbar': appStore.menuMode === 'topbar',
         'is-notification-channels-page': isNotificationChannelsRoute
       }"
@@ -58,6 +62,12 @@ const WORKSPACE_ROUTE_NAMES = new Set([
   'PlaygroundRun'
 ])
 const isWorkspaceRoute = computed(() => WORKSPACE_ROUTE_NAMES.has(String($route.name || '')))
+const REFERENCE_CANVAS_ROUTE_NAMES = new Set([
+  'ApplicationWorkspace',
+  'VisualWorkflowCreate',
+  'VisualWorkflowEdit'
+])
+const isReferenceCanvasRoute = computed(() => REFERENCE_CANVAS_ROUTE_NAMES.has(String($route.name || '')))
 const isNotificationChannelsRoute = computed(() => String($route.path || '') === '/dashboard/control/notification-channels')
 </script>
 
