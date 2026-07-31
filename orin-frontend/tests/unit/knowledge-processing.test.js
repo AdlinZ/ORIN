@@ -25,6 +25,18 @@ describe('knowledge processing state', () => {
     })
   })
 
+  it('shows the persisted vectorization failure reason', () => {
+    expect(getDocumentProcessingState({
+      parseStatus: 'PARSED',
+      vectorStatus: 'FAILED',
+      vectorError: 'Embedding Provider 配置无效或不可用',
+    })).toMatchObject({
+      stage: 'vector',
+      label: '向量化失败',
+      detail: 'Embedding Provider 配置无效或不可用',
+    })
+  })
+
   it('marks a successfully indexed document as retrievable', () => {
     expect(getDocumentProcessingState({ parseStatus: 'PARSED', vectorStatus: 'SUCCESS' })).toMatchObject({
       stage: 'ready',

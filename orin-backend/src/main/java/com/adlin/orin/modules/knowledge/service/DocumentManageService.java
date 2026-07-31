@@ -393,6 +393,7 @@ public class DocumentManageService {
         
         // 更新状态为 INDEXING
         doc.setVectorStatus("INDEXING");
+        doc.setVectorError(null);
         documentRepository.save(doc);
         
         org.springframework.transaction.support.TransactionTemplate transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(
@@ -402,7 +403,8 @@ public class DocumentManageService {
             if (content == null || content.isEmpty()) {
                 log.error("Vectorization: FAILED - content is null or empty for document: {}", documentIdFinal);
                 transactionTemplate.executeWithoutResult(status -> {
-                    documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                    documentRepository.updateVectorStatusAndError(
+                            documentIdFinal, "FAILED", "文档解析内容为空，无法向量化");
                 });
                 return;
             }
@@ -474,7 +476,7 @@ public class DocumentManageService {
             final int childChunkCount = hierarchicalChunks.getChildren().size();
             final int totalCharCount = content.length();
             transactionTemplate.executeWithoutResult(status -> {
-                documentRepository.updateVectorStatus(documentIdFinal, "SUCCESS");
+                documentRepository.updateVectorStatusAndError(documentIdFinal, "SUCCESS", null);
                 KnowledgeDocument finalDoc = documentRepository.findById(documentIdFinal).orElse(null);
                 if (finalDoc != null) {
                     finalDoc.setChunkCount(childChunkCount);
@@ -488,10 +490,12 @@ public class DocumentManageService {
                     documentIdFinal, hierarchicalChunks.getParents().size(), childChunkCount);
 
         } catch (Throwable e) {
-            log.error("Vectorization CRITICAL FAILURE for document: " + documentIdFinal, e);
+            String safeError = toSafeVectorError(e);
+            log.error("Vectorization failed for document {}: {}", documentIdFinal, safeError);
             try {
                 transactionTemplate.executeWithoutResult(status -> {
-                    documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                    documentRepository.updateVectorStatusAndError(
+                            documentIdFinal, "FAILED", safeError);
                 });
             } catch (Exception ex) {
                 log.error("Failed to update status to FAILED for document: " + documentIdFinal, ex);
@@ -527,6 +531,7 @@ public class DocumentManageService {
 
         // 更新状态为 INDEXING
         document.setVectorStatus("INDEXING");
+        document.setVectorError(null);
         document = documentRepository.save(document);
 
         final String documentIdFinal = documentId;
@@ -552,7 +557,8 @@ public class DocumentManageService {
                 if (content == null || content.isEmpty()) {
                     log.error("Vectorization: FAILED - content is null or empty for document: {}", documentIdFinal);
                     transactionTemplate.executeWithoutResult(status -> {
-                        documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                        documentRepository.updateVectorStatusAndError(
+                                documentIdFinal, "FAILED", "文档解析内容为空，无法向量化");
                     });
                     return;
                 }
@@ -629,7 +635,7 @@ public class DocumentManageService {
                 final int childChunkCount = hierarchicalChunks.getChildren().size();
                 final int totalCharCount = content != null ? content.length() : 0;
                 transactionTemplate.executeWithoutResult(status -> {
-                    documentRepository.updateVectorStatus(documentIdFinal, "SUCCESS");
+                    documentRepository.updateVectorStatusAndError(documentIdFinal, "SUCCESS", null);
                     KnowledgeDocument finalDoc = documentRepository.findById(documentIdFinal).orElse(null);
                     if (finalDoc != null) {
                         finalDoc.setChunkCount(childChunkCount); // Report child chunk count as actual vectors
@@ -643,10 +649,12 @@ public class DocumentManageService {
                         documentIdFinal, hierarchicalChunks.getParents().size(), childChunkCount);
 
             } catch (Throwable e) {
-                log.error("Vectorization CRITICAL FAILURE for document: " + documentIdFinal, e);
+                String safeError = toSafeVectorError(e);
+                log.error("Vectorization failed for document {}: {}", documentIdFinal, safeError);
                 try {
                     transactionTemplate.executeWithoutResult(status -> {
-                        documentRepository.updateVectorStatus(documentIdFinal, "FAILED");
+                        documentRepository.updateVectorStatusAndError(
+                                documentIdFinal, "FAILED", safeError);
                     });
                 } catch (Exception ex) {
                     log.error("Failed to update status to FAILED for document: " + documentIdFinal, ex);
@@ -671,12 +679,39 @@ public class DocumentManageService {
 
         KnowledgeDocument document = getDocument(documentId);
         document.setVectorStatus(status);
+        document.setVectorError("FAILED".equalsIgnoreCase(status)
+                ? "向量化处理失败，请检查 Embedding 与 Milvus 配置"
+                : null);
         document.setVectorIndexId(vectorIndexId);
         if (chunkCount != null) {
             document.setChunkCount(chunkCount);
         }
 
         return documentRepository.save(document);
+    }
+
+    /**
+     * 将底层异常归类为可持久化、不会泄漏 Provider 响应或凭据的失败原因。
+     */
+    public static String toSafeVectorError(Throwable error) {
+        String message = error != null && error.getMessage() != null
+                ? error.getMessage().toLowerCase(java.util.Locale.ROOT)
+                : "";
+        if (message.contains("dimension") || message.contains("维度")) {
+            return "Embedding 向量维度与 Milvus Collection 不匹配";
+        }
+        if (message.contains("embedding") || message.contains("api key")
+                || message.contains("unauthorized") || message.contains("401")) {
+            return "Embedding Provider 配置无效或不可用";
+        }
+        if (message.contains("milvus") || message.contains("connection")
+                || message.contains("refused") || message.contains("timeout")) {
+            return "Milvus 向量服务不可用或连接超时";
+        }
+        if (message.contains("empty") || message.contains("为空")) {
+            return "文档解析内容为空，无法向量化";
+        }
+        return "向量化处理失败，请根据 Trace ID 查看服务日志";
     }
 
     /**

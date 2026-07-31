@@ -134,11 +134,17 @@ public class KnowledgeDocument {
     private String fileCategory = "DOCUMENT";
 
     /**
-     * 向量化状态: PENDING, INDEXING, INDEXED, FAILED
+     * 向量化状态: PENDING, INDEXING, SUCCESS/COMPLETED, FAILED
      */
     @Column(name = "vector_status", length = 20)
     @Builder.Default
     private String vectorStatus = "PENDING";
+
+    /**
+     * 脱敏后的向量化失败原因。
+     */
+    @Column(name = "vector_error", columnDefinition = "TEXT")
+    private String vectorError;
 
     /**
      * 向量索引 ID (Dify 或其他向量数据库返回的 ID)

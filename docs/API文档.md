@@ -162,6 +162,8 @@ curl http://localhost:8080/api/v1/knowledge/sync/client/{agentId}/changes \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+文档响应中的 `parseStatus / parseError` 表示解析阶段，`vectorStatus / vectorError` 表示向量化阶段。`vectorError` 自 V91 起只保存分类后的安全原因，不返回 Provider 原始响应、API Key 或凭据内容；重新开始或成功完成向量化会清除旧错误。
+
 ### 4.7 工作流
 
 ```bash
