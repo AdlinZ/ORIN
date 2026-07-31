@@ -24,6 +24,17 @@
       </template>
     </OrinPageShell>
 
+    <section class="readiness-strip" :class="`is-${readinessState.type}`">
+      <div>
+        <span class="readiness-label">向量链路</span>
+        <strong>{{ readinessState.title }}</strong>
+        <p>{{ readinessState.description }}</p>
+      </div>
+      <el-button :icon="Refresh" :loading="readinessLoading" @click="loadReadiness">
+        刷新诊断
+      </el-button>
+    </section>
+
     <div class="workbench-hero">
       <div class="hero-main">
         <div class="title-row">
@@ -136,9 +147,10 @@
                     </div>
 
                     <div class="doc-state">
-                      <el-tooltip :content="statusText(doc.vectorStatus || doc.parseStatus)">
-                        <span class="state-dot" :class="statusClass(doc.vectorStatus || doc.parseStatus)" />
+                      <el-tooltip :content="documentState(doc).detail">
+                        <span class="state-dot" :class="documentState(doc).tone" />
                       </el-tooltip>
+                      <span>{{ documentState(doc).label }}</span>
                     </div>
 
                     <el-dropdown trigger="click" @command="(command) => handleDocCommand(command, doc)">
@@ -146,6 +158,12 @@
                       <template #dropdown>
                         <el-dropdown-menu>
                           <el-dropdown-item command="open">查看详情</el-dropdown-item>
+                          <el-dropdown-item
+                            v-if="documentState(doc).stage === 'parse' && documentState(doc).status === 'FAILED'"
+                            command="parse"
+                          >
+                            重新解析
+                          </el-dropdown-item>
                           <el-dropdown-item command="vectorize">重新向量化</el-dropdown-item>
                           <el-dropdown-item command="delete" divided class="danger-item">删除</el-dropdown-item>
                         </el-dropdown-menu>
@@ -222,6 +240,15 @@
             </div>
 
             <div v-loading="retrievalLoading" class="result-panel">
+              <el-alert
+                v-if="retrievalDiagnostics"
+                class="retrieval-diagnostics"
+                :type="retrievalDiagnostics.type"
+                :title="retrievalDiagnostics.title"
+                :description="retrievalDiagnostics.description"
+                :closable="false"
+                show-icon
+              />
               <div v-if="filteredResults.length > 0" class="result-list">
                 <div v-for="(item, idx) in filteredResults" :key="idx" class="result-item">
                   <div class="result-top">
@@ -400,11 +427,13 @@ import dayjs from 'dayjs';
 import {
   deleteDocument,
   deleteKnowledge,
+  diagnoseMilvus,
   getEvaluationBenchmarks,
   getDocuments,
   getKnowledge,
   getKnowledgeList,
   testRetrieval,
+  triggerParsing,
   triggerVectorization,
   updateKnowledge,
   uploadDocument
@@ -416,6 +445,7 @@ import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import { toKnowledgeDocumentListViewModel, toRetrievalResultViewModel } from '@/viewmodels';
+import { getDocumentProcessingState, getRetrievalDiagnostics } from '@/utils/knowledgeProcessing';
 
 const route = useRoute();
 const router = useRouter();
@@ -427,14 +457,18 @@ const documentsLoading = ref(false);
 const selectedDocId = ref('');
 const docKeyword = ref('');
 const expandedFolders = reactive({});
+const readiness = ref(null);
+const readinessLoading = ref(false);
+const readinessError = ref(false);
 
-const activeTab = ref('graph');
+const activeTab = ref('retrieve');
 const query = ref('');
 const topK = ref(5);
 const threshold = ref(0.3);
 const searched = ref(false);
 const retrievalLoading = ref(false);
 const retrievalResults = ref([]);
+const retrievalDiagnostics = ref(null);
 const savingSettings = ref(false);
 const deletingKb = ref(false);
 const settingsForm = reactive({
@@ -579,29 +613,31 @@ const getTypeName = (type) => {
   return 'CommonRAG';
 };
 
-const statusClass = (status) => {
-  const value = String(status || '').toUpperCase();
-  if (['SUCCESS', 'COMPLETED'].includes(value)) return 'ok';
-  if (['FAILED', 'ERROR'].includes(value)) return 'fail';
-  if (['PENDING', 'PARSING', 'CHUNKING', 'VECTORIZING', 'QUEUED'].includes(value)) return 'processing';
-  return 'idle';
-};
+const documentState = (document) => getDocumentProcessingState(document);
 
-const statusText = (status) => {
-  const value = String(status || '').toUpperCase();
-  const map = {
-    SUCCESS: '可用',
-    COMPLETED: '可用',
-    FAILED: '失败',
-    ERROR: '失败',
-    PENDING: '等待',
-    PARSING: '解析中',
-    CHUNKING: '分块中',
-    VECTORIZING: '向量化中',
-    QUEUED: '排队中'
-  };
-  return map[value] || '未知';
-};
+const readinessState = computed(() => {
+  if (readinessLoading.value && !readiness.value) {
+    return { type: 'info', title: '正在检查', description: '正在验证 Milvus 与 Embedding 服务。' };
+  }
+  if (readinessError.value || !readiness.value) {
+    return { type: 'warning', title: '诊断不可用', description: '暂时无法获取向量依赖状态，上传仍可继续，检索前请重新诊断。' };
+  }
+
+  const vectorHealthy = readiness.value.vectorServiceHealthy === true;
+  const embeddingHealthy = readiness.value.embedding?.status === 'ok';
+  const dimensionMismatch = readiness.value.dimensionMismatch === true;
+  if (vectorHealthy && embeddingHealthy && !dimensionMismatch) {
+    const provider = readiness.value.embedding?.provider || 'Embedding';
+    const model = readiness.value.embedding?.model || '默认模型';
+    return { type: 'success', title: '可以向量化', description: `Milvus 已连接，${provider} / ${model} 可用。` };
+  }
+
+  const issues = [];
+  if (!vectorHealthy) issues.push('Milvus 未连接');
+  if (!embeddingHealthy) issues.push('Embedding 不可用');
+  if (dimensionMismatch) issues.push('向量维度不匹配');
+  return { type: 'warning', title: '向量链路需要处理', description: `${issues.join('；')}。文档可能无法向量化，检索可能降级。` };
+});
 
 const toPercent = (score) => `${(Number(score || 0) * 100).toFixed(1)}%`;
 const formatUpdatedAt = (kb) => dayjs(
@@ -699,8 +735,26 @@ const loadKb = async () => {
   }
 };
 
-const loadDocuments = async () => {
-  documentsLoading.value = true;
+let documentPollTimer = null;
+
+const clearDocumentPolling = () => {
+  if (documentPollTimer) {
+    window.clearTimeout(documentPollTimer);
+    documentPollTimer = null;
+  }
+};
+
+const scheduleDocumentPolling = () => {
+  clearDocumentPolling();
+  if (!documents.value.some(document => documentState(document).active)) return;
+
+  documentPollTimer = window.setTimeout(() => {
+    loadDocuments({ background: true });
+  }, 3000);
+};
+
+const loadDocuments = async ({ background = false } = {}) => {
+  if (!background) documentsLoading.value = true;
   try {
     const rows = await getDocuments(kbId.value);
     documents.value = normalizeDocuments(toKnowledgeDocumentListViewModel(rows));
@@ -716,9 +770,22 @@ const loadDocuments = async () => {
     await nextTick();
     if (activeTab.value === 'graph') renderMindMap();
   } catch (error) {
-    ElMessage.error(`加载文档失败: ${error.message}`);
+    if (!background) ElMessage.error(`加载文档失败: ${error.message}`);
   } finally {
-    documentsLoading.value = false;
+    if (!background) documentsLoading.value = false;
+    scheduleDocumentPolling();
+  }
+};
+
+const loadReadiness = async () => {
+  readinessLoading.value = true;
+  readinessError.value = false;
+  try {
+    readiness.value = await diagnoseMilvus();
+  } catch {
+    readinessError.value = true;
+  } finally {
+    readinessLoading.value = false;
   }
 };
 
@@ -726,7 +793,7 @@ const handleUpload = async (options) => {
   try {
     await uploadDocument(kbId.value, options.file);
     ElMessage.success(`已上传 ${options.file.name}`);
-    loadDocuments();
+    await loadDocuments();
   } catch (error) {
     ElMessage.error(`上传失败: ${error.message}`);
   }
@@ -743,6 +810,17 @@ const handleDocCommand = async (command, doc) => {
       await triggerVectorization(doc.id);
       ElMessage.success('已触发向量化任务');
       loadDocuments();
+    } catch (error) {
+      ElMessage.error(`触发失败: ${error.message}`);
+    }
+    return;
+  }
+
+  if (command === 'parse') {
+    try {
+      await triggerParsing(doc.id);
+      ElMessage.success('已重新触发解析任务');
+      await loadDocuments();
     } catch (error) {
       ElMessage.error(`触发失败: ${error.message}`);
     }
@@ -799,7 +877,9 @@ const runRetrieval = async () => {
     };
     const res = await testRetrieval(payload);
     retrievalResults.value = toRetrievalResultViewModel(res);
+    retrievalDiagnostics.value = getRetrievalDiagnostics(res);
   } catch (error) {
+    retrievalDiagnostics.value = null;
     ElMessage.error(`检索失败: ${error.message}`);
   } finally {
     retrievalLoading.value = false;
@@ -1032,11 +1112,13 @@ onMounted(async () => {
     allModels.value = [];
   }
   await loadDocuments();
+  loadReadiness();
   refreshBenchmarks();
   window.addEventListener('resize', handleResize);
 });
 
 onUnmounted(() => {
+  clearDocumentPolling();
   window.removeEventListener('resize', handleResize);
   if (mindMapChart) {
     mindMapChart.dispose();
@@ -1050,6 +1132,46 @@ onUnmounted(() => {
   min-height: 100vh;
   padding: 16px;
   background: #f3f6f8;
+}
+
+.readiness-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--neutral-gray-200);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+}
+
+.readiness-strip.is-success {
+  border-color: var(--success-200);
+  background: var(--success-50);
+}
+
+.readiness-strip.is-warning {
+  border-color: var(--warning-200);
+  background: var(--warning-50);
+}
+
+.readiness-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--neutral-gray-500);
+  font-size: 12px;
+}
+
+.readiness-strip strong {
+  color: var(--neutral-gray-900);
+  font-size: 14px;
+}
+
+.readiness-strip p {
+  margin: 3px 0 0;
+  color: var(--neutral-gray-600);
+  font-size: 12px;
 }
 
 .workbench-hero {
@@ -1401,6 +1523,15 @@ onUnmounted(() => {
   color: #111827;
 }
 
+.doc-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--neutral-gray-600);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .state-dot {
   width: 8px;
   height: 8px;
@@ -1563,6 +1694,10 @@ onUnmounted(() => {
   border-radius: var(--radius-lg);
   padding: 12px;
   background: var(--neutral-gray-50);
+}
+
+.retrieval-diagnostics {
+  margin-bottom: 12px;
 }
 
 .result-list {
