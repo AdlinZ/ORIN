@@ -193,7 +193,7 @@
         <template #header>
           <div class="panel-header">
             <span>最近 Trace</span>
-            <span class="panel-sub">可复制 Trace ID</span>
+            <span class="panel-sub">查看详情或复制 ID</span>
           </div>
         </template>
         <OrinAsyncState :status="traceState.status" empty-text="暂无 Trace" @retry="loadTraces">
@@ -209,6 +209,13 @@
                   link
                   type="primary"
                   @click="openTrace(trace)"
+                >
+                  查看
+                </el-button>
+                <el-button
+                  v-if="trace.traceId || trace.id"
+                  link
+                  @click="copyTraceId(trace)"
                 >
                   复制 ID
                 </el-button>
@@ -464,7 +471,13 @@ const openKbDetail = (kb) => {
   router.push(ROUTES.KNOWLEDGE.DETAIL.replace(':id', kb.id))
 }
 
-const openTrace = async (trace) => {
+const openTrace = (trace) => {
+  const traceId = trace?.traceId || trace?.id
+  if (!traceId) return
+  router.push(ROUTES.MONITOR.TRACE_DETAIL.replace(':traceId', encodeURIComponent(String(traceId))))
+}
+
+const copyTraceId = async (trace) => {
   const traceId = trace?.traceId || trace?.id
   if (!traceId) return
   try {

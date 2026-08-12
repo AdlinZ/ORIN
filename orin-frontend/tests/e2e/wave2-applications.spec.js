@@ -20,7 +20,9 @@ const agents = [
     status: 'RUNNING',
     providerType: 'OpenAI',
     modelName: 'gpt-4o-mini',
-    viewType: 'CHAT'
+    viewType: 'CHAT',
+    mcpExposed: true,
+    ownerUserId: 1
   }
 ]
 
@@ -94,7 +96,41 @@ async function mockWave2Backends(page) {
   })))
   await page.route('**/api/playground/api/**', async (route) => route.fulfill(json([])))
   await page.route('**/api/v1/agents', async (route) => route.fulfill(json(agents)))
+  await page.route('**/api/v1/agent-tools/bindings/agents/**', async (route) => route.fulfill(json({
+    kbIds: ['kb-1'],
+    toolIds: [],
+    skillIds: [],
+    mcpIds: []
+  })))
+  await page.route('**/api/v1/agents/chat/sessions**', async (route) => route.fulfill(json([
+    {
+      id: 'session-1',
+      sessionId: 'session-1',
+      agentId: 'agent-1',
+      title: '调试会话',
+      createdAt: '2026-05-22T10:00:00',
+      updatedAt: '2026-05-22T10:30:00'
+    }
+  ])))
   await page.route('**/api/v1/agents/**', async (route) => route.fulfill(json({})))
+  await page.route('**/api/v1/knowledge/documents/pending', async (route) => route.fulfill(json([])))
+  await page.route('**/api/v1/knowledge**', async (route) => route.fulfill(json([
+    { id: 'kb-1', name: '产品知识库', type: 'DOCUMENT', status: 'ENABLED', ownerUserId: 1 }
+  ])))
+  await page.route('**/api/v1/traces/recent**', async (route) => route.fulfill(json([
+    { traceId: 'trace-operator-1', createdAt: '2026-05-22T10:40:00' }
+  ])))
+  await page.route('**/api/v1/dashboard/summary**', async (route) => route.fulfill(json({
+    quickLinks: [{ title: '智能体列表', path: '/dashboard/applications/agents' }]
+  })))
+  await page.route('**/api/v1/api-keys/*/usage**', async (route) => route.fulfill(json({
+    totalCalls: 3,
+    failureRate: 0,
+    lastUsedAt: '2026-05-22T10:35:00'
+  })))
+  await page.route('**/api/v1/api-keys**', async (route) => route.fulfill(json([
+    { id: 'key-1', name: '运维 Key', enabled: true, lastUsedAt: '2026-05-22T10:35:00' }
+  ])))
   await page.route('**/api/v1/conversation-logs/grouped**', async (route) => route.fulfill(json({
     content: [{
       conversationId: 'conv-1',
@@ -133,6 +169,7 @@ test.describe('Wave 2 application domain browser smoke', () => {
     await mockWave2Backends(page)
 
     const paths = [
+      '/dashboard/applications/home',
       '/dashboard/applications/agents',
       '/dashboard/applications/agents/onboard',
       '/dashboard/applications/agents/console/agent-1',
