@@ -1,6 +1,10 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.common.service.FileStorageService;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +18,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.time.Duration;
 
 /**
@@ -35,6 +41,7 @@ public class DocumentManageService {
     private final MultimodalContentParserService multimodalParserService;
     private final com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository knowledgeBaseRepository;
     private final FileStorageService fileStorageService;
+    private final AgentOwnershipResolver ownershipResolver;
 
     /**
      * 上传文档
@@ -44,6 +51,7 @@ public class DocumentManageService {
             String knowledgeBaseId,
             MultipartFile file,
             String uploadedBy) throws IOException {
+        assertCanAccessKnowledgeBase(knowledgeBaseId);
 
         // 验证文件
         if (file.isEmpty()) {
@@ -131,6 +139,7 @@ public class DocumentManageService {
      * 获取知识库的所有文档
      */
     public List<KnowledgeDocument> getDocuments(String knowledgeBaseId) {
+        assertCanAccessKnowledgeBase(knowledgeBaseId);
         return documentRepository.findByKnowledgeBaseIdOrderByUploadTimeDesc(knowledgeBaseId);
     }
 
@@ -145,8 +154,10 @@ public class DocumentManageService {
      * 获取文档详情
      */
     public KnowledgeDocument getDocument(String documentId) {
-        return documentRepository.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found: " + documentId));
+        KnowledgeDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "文档不存在或无权限"));
+        assertCanAccessKnowledgeBase(document.getKnowledgeBaseId());
+        return document;
     }
 
     /**
@@ -802,7 +813,30 @@ public class DocumentManageService {
      * 获取待向量化的文档列表
      */
     public List<KnowledgeDocument> getPendingDocuments() {
-        return documentRepository.findByVectorStatusIn(List.of("PENDING", "FAILED"));
+        List<KnowledgeDocument> pending = documentRepository.findByVectorStatusIn(List.of("PENDING", "FAILED"));
+        if (ownershipResolver.isCurrentUserAdmin()) {
+            return pending;
+        }
+        Set<String> visibleKbIds = knowledgeBaseRepository
+                .findByOwnerUserId(ownershipResolver.resolveFromCurrentRequest())
+                .stream()
+                .map(KnowledgeBase::getId)
+                .collect(Collectors.toCollection(HashSet::new));
+        return pending.stream()
+                .filter(doc -> doc.getKnowledgeBaseId() != null && visibleKbIds.contains(doc.getKnowledgeBaseId()))
+                .toList();
+    }
+
+    public void assertCanAccessKnowledgeBase(String knowledgeBaseId) {
+        KnowledgeBase kb = knowledgeBaseRepository.findById(knowledgeBaseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "知识库不存在或无权限"));
+        ownershipResolver.assertCanAccessOwnedResource(kb.getOwnerUserId(), "知识库");
+    }
+
+    public void assertCanAccessDocument(String documentId) {
+        KnowledgeDocument doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "文档不存在或无权限"));
+        assertCanAccessKnowledgeBase(doc.getKnowledgeBaseId());
     }
 
     /**

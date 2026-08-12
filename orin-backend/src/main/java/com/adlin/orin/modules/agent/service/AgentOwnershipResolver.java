@@ -48,10 +48,38 @@ public class AgentOwnershipResolver {
                 .anyMatch(authority -> ADMIN_ROLES.contains(authority.getAuthority()));
     }
 
-    public void assertCanManageMcpExposure(AgentMetadata metadata) {
-        Long currentUserId = resolveFromCurrentRequest();
-        if (!isCurrentUserAdmin() && !currentUserId.equals(metadata.getOwnerUserId())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权修改该智能体的 MCP 暴露设置");
+    /**
+     * Admin sees all; non-admin only own resources. Missing owner is admin-only.
+     */
+    public boolean canAccessOwnedResource(Long ownerUserId) {
+        if (isCurrentUserAdmin()) {
+            return true;
         }
+        if (ownerUserId == null) {
+            return false;
+        }
+        try {
+            return resolveFromCurrentRequest().equals(ownerUserId);
+        } catch (BusinessException ex) {
+            return false;
+        }
+    }
+
+    public void assertCanAccessOwnedResource(Long ownerUserId, String resourceLabel) {
+        if (!canAccessOwnedResource(ownerUserId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN,
+                    (resourceLabel == null || resourceLabel.isBlank() ? "资源" : resourceLabel) + "不存在或无权限");
+        }
+    }
+
+    public void assertCanAccessAgent(AgentMetadata metadata) {
+        if (metadata == null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "智能体不存在或无权限");
+        }
+        assertCanAccessOwnedResource(metadata.getOwnerUserId(), "智能体");
+    }
+
+    public void assertCanManageMcpExposure(AgentMetadata metadata) {
+        assertCanAccessAgent(metadata);
     }
 }

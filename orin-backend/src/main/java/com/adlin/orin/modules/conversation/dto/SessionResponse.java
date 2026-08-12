@@ -8,4 +8,5 @@ public class SessionResponse {
     private String agentId;
     private String title;
     private String createdAt;
+    private String updatedAt;
 }

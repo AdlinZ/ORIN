@@ -1,7 +1,9 @@
 package com.adlin.orin.modules.knowledge.service;
 
 import com.adlin.orin.common.service.FileStorageService;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentChunkRepository;
@@ -64,6 +66,9 @@ class KnowledgeSmokeTest {
     @Mock
     private FileStorageService fileStorageService;
 
+    @Mock
+    private AgentOwnershipResolver ownershipResolver;
+
     // RetrievalService dependencies
     @Mock
     private MilvusVectorService milvusVectorService;
@@ -90,6 +95,8 @@ class KnowledgeSmokeTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(ownershipResolver.isCurrentUserAdmin()).thenReturn(true);
+
         // Build DocumentManageService with mocked dependencies
         documentManageService = new DocumentManageService(
                 documentRepository,
@@ -98,7 +105,8 @@ class KnowledgeSmokeTest {
                 transactionManager,
                 multimodalParserService,
                 knowledgeBaseRepository,
-                fileStorageService
+                fileStorageService,
+                ownershipResolver
         );
 
         // Build RetrievalService with mocked dependencies
@@ -212,6 +220,12 @@ class KnowledgeSmokeTest {
         doc.setChunkCount(5);
 
         when(documentRepository.findById(docId)).thenReturn(Optional.of(doc));
+        when(knowledgeBaseRepository.findById("kb-001")).thenReturn(Optional.of(
+                KnowledgeBase.builder()
+                        .id("kb-001")
+                        .ownerUserId(1L)
+                        .status("ENABLED")
+                        .build()));
 
         // When: 获取文档
         KnowledgeDocument result = documentManageService.getDocument(docId);

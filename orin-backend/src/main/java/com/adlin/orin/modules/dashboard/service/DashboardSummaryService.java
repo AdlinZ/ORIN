@@ -54,7 +54,7 @@ public class DashboardSummaryService {
         summary.put("roles", roles);
         summary.put("defaultHome", resolveDefaultHome(roles));
         summary.put("systemHealth", systemHealth());
-        summary.put("metrics", metrics());
+        summary.put("metrics", metrics(authentication, roles));
         summary.put("recentActivity", recentActivity());
         summary.put("quickLinks", quickLinks(roles));
         summary.put("generatedAt", LocalDateTime.now().toString());
@@ -110,15 +110,28 @@ public class DashboardSummaryService {
         }
     }
 
-    private Map<String, Object> metrics() {
+    private Map<String, Object> metrics(Authentication authentication, List<String> roles) {
         Map<String, Object> metrics = new LinkedHashMap<>();
-        metrics.put("agents", safeCount(agentMetadataRepository::count));
-        metrics.put("knowledgeBases", safeCount(knowledgeBaseRepository::count));
+        boolean adminLike = hasAnyRole(roles, ADMIN_ROLES);
+        Long ownerUserId = extractUserId(authentication);
+
+        if (adminLike || ownerUserId == null) {
+            metrics.put("agents", safeCount(agentMetadataRepository::count));
+            metrics.put("knowledgeBases", safeCount(knowledgeBaseRepository::count));
+            metrics.put("pendingDocuments", safeCount(() ->
+                    (long) knowledgeDocumentRepository.findByVectorStatusIn(List.of("PENDING", "FAILED")).size()));
+            metrics.put("scope", "platform");
+        } else {
+            metrics.put("agents", safeCount(() ->
+                    (long) agentMetadataRepository.findByOwnerUserId(ownerUserId).size()));
+            metrics.put("knowledgeBases", safeCount(() ->
+                    (long) knowledgeBaseRepository.findByOwnerUserId(ownerUserId).size()));
+            metrics.put("pendingDocuments", safeCount(() -> countOwnedPendingDocuments(ownerUserId)));
+            metrics.put("scope", "owned");
+        }
         metrics.put("workflows", safeCount(workflowDefinitionRepository::count));
         metrics.put("collaborationPackages", safeCount(collaborationPackageRepository::count));
         metrics.put("traces", safeCount(workflowTraceRepository::count));
-        metrics.put("pendingDocuments", safeCount(() ->
-                (long) knowledgeDocumentRepository.findByVectorStatusIn(List.of("PENDING", "FAILED")).size()));
 
         Map<String, Long> tasks = taskStatusCounts();
         metrics.put("tasks", tasks);
@@ -127,6 +140,29 @@ public class DashboardSummaryService {
                 + tasks.getOrDefault("RETRYING", 0L));
         metrics.put("failedTasks", tasks.getOrDefault("FAILED", 0L) + tasks.getOrDefault("DEAD", 0L));
         return metrics;
+    }
+
+    private long countOwnedPendingDocuments(Long ownerUserId) {
+        var ownedKbIds = knowledgeBaseRepository.findByOwnerUserId(ownerUserId).stream()
+                .map(kb -> kb.getId())
+                .collect(java.util.stream.Collectors.toSet());
+        if (ownedKbIds.isEmpty()) {
+            return 0L;
+        }
+        return knowledgeDocumentRepository.findByVectorStatusIn(List.of("PENDING", "FAILED")).stream()
+                .filter(doc -> doc.getKnowledgeBaseId() != null && ownedKbIds.contains(doc.getKnowledgeBaseId()))
+                .count();
+    }
+
+    private Long extractUserId(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(authentication.getPrincipal().toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private Map<String, Long> taskStatusCounts() {

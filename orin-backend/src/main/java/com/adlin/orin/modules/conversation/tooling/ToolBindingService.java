@@ -1,5 +1,10 @@
 package com.adlin.orin.modules.conversation.tooling;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
+import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.conversation.dto.ChatMessageRequest;
 import com.adlin.orin.modules.conversation.dto.tooling.EffectiveToolBinding;
 import com.adlin.orin.modules.conversation.dto.tooling.ToolBindingDto;
@@ -31,6 +36,8 @@ public class ToolBindingService {
     private final SessionToolBindingRepository sessionToolBindingRepository;
     private final SkillRepository skillRepository;
     private final McpServiceRepository mcpServiceRepository;
+    private final AgentMetadataRepository agentMetadataRepository;
+    private final AgentOwnershipResolver ownershipResolver;
 
     @Value("${orin.conversation.default-bind-active-skills:false}")
     private boolean defaultBindActiveSkills;
@@ -38,12 +45,14 @@ public class ToolBindingService {
     private boolean defaultBindConnectedMcp;
 
     public ToolBindingDto getAgentBinding(String agentId) {
+        assertCanAccessAgent(agentId);
         AgentToolBinding binding = agentToolBindingRepository.findById(agentId)
                 .orElseGet(() -> AgentToolBinding.builder().agentId(agentId).build());
         return toDto(binding);
     }
 
     public ToolBindingDto saveAgentBinding(String agentId, ToolBindingDto request) {
+        assertCanAccessAgent(agentId);
         AgentToolBinding binding = agentToolBindingRepository.findById(agentId)
                 .orElseGet(() -> AgentToolBinding.builder().agentId(agentId).build());
 
@@ -60,12 +69,14 @@ public class ToolBindingService {
     }
 
     public ToolBindingDto getSessionBinding(String sessionId, String agentId) {
+        assertCanAccessAgent(agentId);
         SessionToolBinding binding = sessionToolBindingRepository.findById(sessionId)
                 .orElseGet(() -> SessionToolBinding.builder().sessionId(sessionId).agentId(agentId).build());
         return toDto(binding);
     }
 
     public ToolBindingDto saveSessionBinding(String sessionId, String agentId, ToolBindingDto request) {
+        assertCanAccessAgent(agentId);
         SessionToolBinding binding = sessionToolBindingRepository.findById(sessionId)
                 .orElseGet(() -> SessionToolBinding.builder().sessionId(sessionId).agentId(agentId).build());
 
@@ -239,5 +250,11 @@ public class ToolBindingService {
             if (value != null) set.add(value);
         }
         return new ArrayList<>(set);
+    }
+
+    private void assertCanAccessAgent(String agentId) {
+        AgentMetadata metadata = agentMetadataRepository.findById(agentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "智能体不存在或无权限"));
+        ownershipResolver.assertCanAccessAgent(metadata);
     }
 }

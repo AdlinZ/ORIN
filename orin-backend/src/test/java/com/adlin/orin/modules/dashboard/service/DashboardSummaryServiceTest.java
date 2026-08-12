@@ -134,6 +134,8 @@ class DashboardSummaryServiceTest {
     @Test
     void routesOperatorToWorkbenchHomeWithOperatorQuickLinks() {
         when(taskRepository.countByStatus()).thenReturn(List.of());
+        when(agentMetadataRepository.findByOwnerUserId(22L)).thenReturn(List.of());
+        when(knowledgeBaseRepository.findByOwnerUserId(22L)).thenReturn(List.of());
         when(knowledgeDocumentRepository.findByVectorStatusIn(any())).thenReturn(List.of());
         when(auditLogRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
         when(restTemplate.getForEntity(eq("http://ai-engine.local/health"), eq(Map.class)))
@@ -146,6 +148,8 @@ class DashboardSummaryServiceTest {
         ));
 
         assertThat(summary.get("defaultHome")).isEqualTo("/dashboard/applications/home");
+        Map<?, ?> metrics = (Map<?, ?>) summary.get("metrics");
+        assertThat(metrics.get("scope")).isEqualTo("owned");
         List<?> quickLinks = (List<?>) summary.get("quickLinks");
         assertThat(quickLinks).isNotEmpty();
         assertThat(((Map<?, ?>) quickLinks.get(0)).get("path")).isEqualTo("/dashboard/applications/home");
