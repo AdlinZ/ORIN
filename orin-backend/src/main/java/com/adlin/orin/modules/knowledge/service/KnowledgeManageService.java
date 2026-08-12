@@ -55,12 +55,28 @@ public class KnowledgeManageService {
         private final ObjectMapper objectMapper = new ObjectMapper();
 
         public List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> getAllKnowledgeBases() {
-                List<KnowledgeBase> bases = knowledgeBaseRepository.findAll();
+                List<KnowledgeBase> bases = listAccessibleKnowledgeBases();
                 List<com.adlin.orin.modules.knowledge.dto.UnifiedKnowledgeDTO> dtoList = new ArrayList<>();
                 for (KnowledgeBase kb : bases) {
                         dtoList.add(mapToDTO(kb, null, false));
                 }
                 return dtoList;
+        }
+
+        public List<KnowledgeBase> listAccessibleKnowledgeBases() {
+                if (ownershipResolver.isCurrentUserAdmin()) {
+                        return knowledgeBaseRepository.findAll();
+                }
+                return knowledgeBaseRepository.findByOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
+        }
+
+        public KnowledgeBase requireAccessibleKnowledgeBase(String id) {
+                KnowledgeBase kb = knowledgeBaseRepository.findById(id)
+                                .orElseThrow(() -> new BusinessException(
+                                                com.adlin.orin.common.exception.ErrorCode.FORBIDDEN,
+                                                "知识库不存在或无权限"));
+                ownershipResolver.assertCanAccessOwnedResource(kb.getOwnerUserId(), "知识库");
+                return kb;
         }
 
         /**
@@ -293,16 +309,14 @@ public class KnowledgeManageService {
          * 获取知识库详情
          */
         public KnowledgeBase getKnowledgeBaseById(String id) {
-                return knowledgeBaseRepository.findById(id)
-                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + id));
+                return requireAccessibleKnowledgeBase(id);
         }
 
         /**
          * 更新知识库状态
          */
         public KnowledgeBase updateStatus(String kbId, boolean enabled) {
-                KnowledgeBase kb = knowledgeBaseRepository.findById(kbId)
-                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + kbId));
+                KnowledgeBase kb = requireAccessibleKnowledgeBase(kbId);
 
                 kb.setStatus(enabled ? "ENABLED" : "DISABLED");
                 // In a real scenario, we might also want to call Dify API to disable it there
@@ -325,7 +339,10 @@ public class KnowledgeManageService {
                 if (kb.getStatus() == null) {
                         kb.setStatus("ENABLED");
                 }
-                if (kb.getOwnerUserId() == null) {
+                // Non-admin cannot spoof ownership; admin may assign or default to current/system seed.
+                if (!ownershipResolver.isCurrentUserAdmin()) {
+                        kb.setOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
+                } else if (kb.getOwnerUserId() == null) {
                         kb.setOwnerUserId(resolveOwnerUserId());
                 }
                 KnowledgeBase saved = knowledgeBaseRepository.save(kb);
@@ -346,8 +363,7 @@ public class KnowledgeManageService {
          * 更新知识库
          */
         public KnowledgeBase updateKnowledgeBase(String id, KnowledgeBase updates) {
-                KnowledgeBase kb = knowledgeBaseRepository.findById(id)
-                                .orElseThrow(() -> new RuntimeException("Knowledge Base not found: " + id));
+                KnowledgeBase kb = requireAccessibleKnowledgeBase(id);
                 if (updates.getName() != null)
                         kb.setName(updates.getName());
                 if (updates.getType() != null)
@@ -399,9 +415,7 @@ public class KnowledgeManageService {
          */
         @org.springframework.transaction.annotation.Transactional
         public void deleteKnowledgeBase(String id) {
-                KnowledgeBase kb = knowledgeBaseRepository.findById(id)
-                                .orElseThrow(() -> new com.adlin.orin.common.exception.ResourceNotFoundException(
-                                                "KnowledgeBase", id));
+                KnowledgeBase kb = requireAccessibleKnowledgeBase(id);
 
                 // 1. Delete all documents associated with this KB (Bulk Optimized)
                 documentService.deleteByKnowledgeBaseId(id);

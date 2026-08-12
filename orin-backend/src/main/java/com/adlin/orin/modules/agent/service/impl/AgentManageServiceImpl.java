@@ -5,6 +5,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.entity.AgentJobEntity;
 import com.adlin.orin.modules.agent.entity.AgentMetadata;
@@ -431,9 +433,11 @@ public class AgentManageServiceImpl implements AgentManageService {
     }
 
     @Override
-    @Cacheable(value = "agent_list")
     public java.util.List<AgentMetadata> getAllAgents() {
-        return metadataRepository.findAll();
+        if (ownershipResolver.isCurrentUserAdmin()) {
+            return metadataRepository.findAll();
+        }
+        return metadataRepository.findByOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
     }
 
     @Override
@@ -444,6 +448,9 @@ public class AgentManageServiceImpl implements AgentManageService {
     })
     public void updateAgent(String agentId, com.adlin.orin.modules.agent.dto.AgentOnboardRequest request) {
         log.info("Updating agent: {}", agentId);
+        AgentMetadata existing = metadataRepository.findById(agentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "智能体不存在或无权限"));
+        ownershipResolver.assertCanAccessAgent(existing);
 
         // 1. Update Metadata
         metadataRepository.findById(agentId).ifPresent(metadata -> {
@@ -670,6 +677,9 @@ public class AgentManageServiceImpl implements AgentManageService {
             @CacheEvict(value = "agent_list", allEntries = true)
     })
     public void deleteAgent(String agentId) {
+        AgentMetadata metadata = metadataRepository.findById(agentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "智能体不存在或无权限"));
+        ownershipResolver.assertCanAccessAgent(metadata);
         accessProfileRepository.deleteById(agentId);
         metadataRepository.deleteById(agentId);
         healthStatusRepository.deleteById(agentId);
@@ -678,15 +688,21 @@ public class AgentManageServiceImpl implements AgentManageService {
 
     @Override
     public AgentAccessProfile getAgentAccessProfile(String agentId) {
+        ownershipResolver.assertCanAccessAgent(requireAgentMetadata(agentId));
         return accessProfileRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "智能体接入配置不存在或无权限"));
     }
 
     @Override
-    @Cacheable(key = "#agentId")
     public AgentMetadata getAgentMetadata(String agentId) {
+        AgentMetadata metadata = requireAgentMetadata(agentId);
+        ownershipResolver.assertCanAccessAgent(metadata);
+        return metadata;
+    }
+
+    private AgentMetadata requireAgentMetadata(String agentId) {
         return metadataRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "智能体不存在或无权限"));
     }
 
     private java.util.Optional<Object> chatWithSiliconFlow(AgentAccessProfile profile, AgentMetadata metadata,
@@ -1863,12 +1879,12 @@ public class AgentManageServiceImpl implements AgentManageService {
         log.info("Chatting with agent: {} (conversationId: {}, fileId: {}, hasOverride: {}, thinking: {})",
                 agentId, conversationId, fileId, overrideSystemPrompt != null, enableThinking);
 
-        // 1. Get agent profile and metadata
-        AgentAccessProfile profile = accessProfileRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent access profile not found for ID: " + agentId));
+        // 1. Get agent profile and metadata (resource ACL)
+        AgentMetadata metadata = requireAgentMetadata(agentId);
+        ownershipResolver.assertCanAccessAgent(metadata);
 
-        AgentMetadata metadata = metadataRepository.findById(agentId)
-                .orElseThrow(() -> new RuntimeException("Agent metadata not found for ID: " + agentId));
+        AgentAccessProfile profile = accessProfileRepository.findById(agentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "智能体接入配置不存在或无权限"));
 
         // 2. Dynamic System Prompt Assembly (Includes Memory and Skills)
         String dynamicSystemPrompt;

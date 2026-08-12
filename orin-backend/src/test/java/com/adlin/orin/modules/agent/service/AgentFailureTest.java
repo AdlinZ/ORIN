@@ -150,6 +150,8 @@ class AgentFailureTest {
                 minimaxAgentManageService,
                 agentJobRepository
         );
+        lenient().doNothing().when(ownershipResolver).assertCanAccessAgent(any());
+        lenient().doNothing().when(ownershipResolver).assertCanManageMcpExposure(any());
     }
 
     // ==================== 1. 接入失败场景 (Access/Connection Failure) ====================
@@ -707,15 +709,15 @@ class AgentFailureTest {
     @Test
     @DisplayName("E1.2 - 边界场景: 智能体已删除但仍尝试聊天")
     void testChat_AgentAlreadyDeleted() {
-        // Given: 智能体已被删除（profile 不存在）
+        // Given: 智能体已被删除（metadata 不存在）
         String agentId = "deleted-agent";
-        when(accessProfileRepository.findById(agentId)).thenReturn(Optional.empty());
+        when(metadataRepository.findById(agentId)).thenReturn(Optional.empty());
 
         // When & Then: 聊天应该抛出 RuntimeException
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> agentManageService.chat(agentId, "Hi", (String) null));
 
-        assertTrue(exception.getMessage().contains("not found"));
+        assertTrue(exception.getMessage().contains("不存在或无权限") || exception.getMessage().contains("not found"));
     }
 
     @Test
@@ -730,14 +732,13 @@ class AgentFailureTest {
         profile.setApiKey("test-key");
         profile.setConnectionStatus("ACTIVE");
 
-        when(accessProfileRepository.findById(agentId)).thenReturn(Optional.of(profile));
         when(metadataRepository.findById(agentId)).thenReturn(Optional.empty());
 
         // When & Then: 聊天应该抛出 RuntimeException
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> agentManageService.chat(agentId, "Hi", (String) null));
 
-        assertTrue(exception.getMessage().contains("not found"));
+        assertTrue(exception.getMessage().contains("不存在或无权限") || exception.getMessage().contains("not found"));
     }
 
     @Test

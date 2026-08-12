@@ -1,7 +1,11 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
+import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,6 +19,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class DocumentManageServiceTest {
@@ -22,8 +27,21 @@ class DocumentManageServiceTest {
     @Mock
     private KnowledgeDocumentRepository documentRepository;
 
+    @Mock
+    private KnowledgeBaseRepository knowledgeBaseRepository;
+
+    @Mock
+    private AgentOwnershipResolver ownershipResolver;
+
     @InjectMocks
     private DocumentManageService documentManageService;
+
+    @BeforeEach
+    void allowKbAccess() {
+        lenient().when(ownershipResolver.isCurrentUserAdmin()).thenReturn(true);
+        lenient().when(knowledgeBaseRepository.findById("kb-1")).thenReturn(Optional.of(
+                KnowledgeBase.builder().id("kb-1").ownerUserId(1L).status("ENABLED").build()));
+    }
 
     @Test
     void testGetDocuments() {
@@ -46,6 +64,7 @@ class DocumentManageServiceTest {
     void testGetDocument() {
         KnowledgeDocument doc = KnowledgeDocument.builder()
                 .id("doc-1")
+                .knowledgeBaseId("kb-1")
                 .fileName("test.pdf")
                 .build();
 
@@ -80,6 +99,7 @@ class DocumentManageServiceTest {
     void updateVectorizationStatus_shouldPersistSafeFailureReason() {
         KnowledgeDocument doc = KnowledgeDocument.builder()
                 .id("doc-1")
+                .knowledgeBaseId("kb-1")
                 .vectorStatus("INDEXING")
                 .build();
         when(documentRepository.findById("doc-1")).thenReturn(Optional.of(doc));

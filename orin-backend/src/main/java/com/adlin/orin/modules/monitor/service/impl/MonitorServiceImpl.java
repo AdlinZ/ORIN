@@ -17,6 +17,9 @@ import com.adlin.orin.modules.monitor.repository.ServerInfoRepository;
 import com.adlin.orin.modules.monitor.service.MonitorService;
 import com.adlin.orin.modules.monitor.service.PrometheusService;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
+import com.adlin.orin.modules.agent.entity.AgentMetadata;
+import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.agent.service.DifyIntegrationService;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
@@ -61,6 +64,8 @@ public class MonitorServiceImpl implements MonitorService {
         private final ProviderRegistry providerRegistry;
         private final KnowledgeBaseRepository knowledgeBaseRepository;
         private final KnowledgeDocumentRepository knowledgeDocumentRepository;
+        private final AgentMetadataRepository agentMetadataRepository;
+        private final AgentOwnershipResolver ownershipResolver;
         private final JdbcTemplate jdbcTemplate;
 
         // Dedicated thread pool for Prometheus queries to avoid using the common
@@ -251,7 +256,17 @@ public class MonitorServiceImpl implements MonitorService {
 
         @Override
         public List<AgentHealthStatus> getAgentList() {
-                return healthStatusRepository.findAll();
+                List<AgentHealthStatus> all = healthStatusRepository.findAll();
+                if (ownershipResolver.isCurrentUserAdmin()) {
+                        return all;
+                }
+                Long ownerUserId = ownershipResolver.resolveFromCurrentRequest();
+                Set<String> ownedIds = agentMetadataRepository.findByOwnerUserId(ownerUserId).stream()
+                                .map(AgentMetadata::getAgentId)
+                                .collect(Collectors.toSet());
+                return all.stream()
+                                .filter(agent -> ownedIds.contains(agent.getAgentId()))
+                                .toList();
         }
 
         @Override

@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.conversation.tooling;
 
+import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.conversation.dto.ChatMessageRequest;
 import com.adlin.orin.modules.conversation.dto.tooling.EffectiveToolBinding;
 import com.adlin.orin.modules.conversation.entity.AgentChatSession;
@@ -37,6 +39,12 @@ class ToolBindingServiceTest {
 
     @Mock
     private McpServiceRepository mcpServiceRepository;
+
+    @Mock
+    private AgentMetadataRepository agentMetadataRepository;
+
+    @Mock
+    private AgentOwnershipResolver ownershipResolver;
 
     @InjectMocks
     private ToolBindingService toolBindingService;

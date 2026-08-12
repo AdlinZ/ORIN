@@ -2,7 +2,7 @@
   <div class="page-container operator-workbench">
     <OrinPageShell
       title="运维工作台"
-      description="AI 应用管理员日常入口：资产概览、待处理文档、最近 Trace 与快捷跳转"
+      description="AI 应用管理员日常入口：我的资产、绑定状态、调试会话、API Key 用量与待处理文档"
       icon="DataAnalysis"
       domain="智能体中枢"
       maturity="available"
@@ -21,7 +21,7 @@
     </OrinPageShell>
 
     <p class="scope-note">
-      下列清单为当前角色可见的平台资产；资源级 ACL 尚未启用，归属徽章用于核对与后续收敛。
+      非管理员默认只看到自己拥有的智能体与知识库；管理员可见平台全部资产。绑定与调试摘要来自真实会话与工具绑定接口。
     </p>
 
     <section class="kpi-grid">
@@ -80,8 +80,8 @@
                 <el-tag size="small" :type="agent.mcpExposed ? 'success' : 'info'" effect="plain">
                   {{ agent.mcpExposed ? '已发布' : '未发布' }}
                 </el-tag>
-                <el-tag v-if="agent.ownerUserId" size="small" effect="plain">
-                  归属 {{ agent.ownerUserId }}
+                <el-tag size="small" :type="agent.boundKbCount > 0 ? 'success' : 'warning'" effect="plain">
+                  绑定 KB {{ agent.boundKbCount ?? 0 }}
                 </el-tag>
                 <el-button link type="primary" @click="openAgentWorkspace(agent)">调试</el-button>
               </div>
@@ -143,8 +143,57 @@
       <el-card shadow="never" class="panel-card">
         <template #header>
           <div class="panel-header">
+            <span>最近调试</span>
+            <span class="panel-sub">会话更新时间</span>
+          </div>
+        </template>
+        <OrinAsyncState :status="debugState.status" empty-text="暂无调试会话" @retry="loadRecentDebug">
+          <ul class="asset-list">
+            <li v-for="session in recentSessions.slice(0, 8)" :key="session.id" class="asset-row">
+              <div class="asset-main">
+                <strong>{{ session.title || '未命名会话' }}</strong>
+                <span>{{ session.agentName || session.agentId }} · {{ formatTime(session.updatedAt || session.createdAt) }}</span>
+              </div>
+              <div class="asset-tags">
+                <el-button link type="primary" @click="openSession(session)">继续</el-button>
+              </div>
+            </li>
+          </ul>
+        </OrinAsyncState>
+      </el-card>
+
+      <el-card shadow="never" class="panel-card">
+        <template #header>
+          <div class="panel-header">
+            <span>API Key 用量</span>
+            <el-button link type="primary" @click="$router.push(ROUTES.PORTAL_API_KEYS)">管理</el-button>
+          </div>
+        </template>
+        <OrinAsyncState :status="apiKeyState.status" empty-text="暂无 API Key" @retry="loadApiKeyUsage">
+          <ul class="asset-list">
+            <li v-for="item in apiKeyUsage.slice(0, 5)" :key="item.id" class="asset-row">
+              <div class="asset-main">
+                <strong>{{ item.name }}</strong>
+                <span>
+                  近窗调用 {{ item.totalCalls ?? 0 }} · 失败率 {{ formatPercent(item.failureRate) }}
+                  · 最近 {{ formatTime(item.lastUsedAt) }}
+                </span>
+              </div>
+              <div class="asset-tags">
+                <el-tag size="small" :type="item.enabled === false ? 'info' : 'success'" effect="plain">
+                  {{ item.enabled === false ? '已禁用' : '启用' }}
+                </el-tag>
+              </div>
+            </li>
+          </ul>
+        </OrinAsyncState>
+      </el-card>
+
+      <el-card shadow="never" class="panel-card">
+        <template #header>
+          <div class="panel-header">
             <span>最近 Trace</span>
-            <span class="panel-sub">平台可见摘要</span>
+            <span class="panel-sub">可复制 Trace ID</span>
           </div>
         </template>
         <OrinAsyncState :status="traceState.status" empty-text="暂无 Trace" @retry="loadTraces">
@@ -183,6 +232,8 @@ import { getAgentList } from '@/api/agent'
 import { getKnowledgeList, getPendingDocuments } from '@/api/knowledge'
 import { getRecentTraces } from '@/api/trace'
 import { getDashboardSummary } from '@/api/dashboard'
+import { getAgentToolBinding, listChatSessions } from '@/api/agent-chat'
+import { getAllApiKeys, getApiKeyUsage } from '@/api/apiKey'
 import { toDashboardSummaryViewModel } from '@/viewmodels/adapters/dashboard'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
@@ -200,12 +251,16 @@ const agents = ref([])
 const knowledgeBases = ref([])
 const pendingDocuments = ref([])
 const recentTraces = ref([])
+const recentSessions = ref([])
+const apiKeyUsage = ref([])
 const quickLinks = ref([])
 
 const agentState = reactive(createAsyncState())
 const kbState = reactive(createAsyncState())
 const pendingState = reactive(createAsyncState())
 const traceState = reactive(createAsyncState())
+const debugState = reactive(createAsyncState())
+const apiKeyState = reactive(createAsyncState())
 
 const publishedAgentCount = computed(() => agents.value.filter((item) => item.mcpExposed).length)
 const enabledKbCount = computed(() => knowledgeBases.value.filter((item) => item.status === 'ENABLED').length)
@@ -222,6 +277,12 @@ const formatTime = (value) => {
   return parsed.isValid() ? parsed.format('MM-DD HH:mm') : String(value)
 }
 
+const formatPercent = (value) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '-'
+  return `${Math.round(num * 100)}%`
+}
+
 const normalizeList = (payload) => {
   if (Array.isArray(payload)) return payload
   if (Array.isArray(payload?.data)) return payload.data
@@ -233,13 +294,29 @@ const loadAgents = async () => {
   markLoading(agentState)
   try {
     const rows = normalizeList(await getAgentList())
-    agents.value = rows.map((item) => ({
+    const mapped = rows.map((item) => ({
       id: item.id || item.agentId,
       name: item.name || item.agentName || '未命名智能体',
       providerType: item.providerType || item.provider,
       modelName: item.modelName || item.model,
       mcpExposed: Boolean(item.mcpExposed),
-      ownerUserId: item.ownerUserId ?? null
+      ownerUserId: item.ownerUserId ?? null,
+      boundKbCount: 0
+    }))
+    const withBindings = await Promise.all(mapped.slice(0, 12).map(async (agent) => {
+      if (!agent.id) return agent
+      try {
+        const binding = await getAgentToolBinding(agent.id)
+        const kbIds = Array.isArray(binding?.kbIds) ? binding.kbIds : []
+        return { ...agent, boundKbCount: kbIds.length }
+      } catch {
+        return agent
+      }
+    }))
+    const bindingById = new Map(withBindings.map((item) => [item.id, item.boundKbCount]))
+    agents.value = mapped.map((agent) => ({
+      ...agent,
+      boundKbCount: bindingById.get(agent.id) ?? 0
     }))
     if (!agents.value.length) markEmpty(agentState)
     else markSuccess(agentState)
@@ -287,6 +364,69 @@ const loadTraces = async () => {
   }
 }
 
+const loadRecentDebug = async () => {
+  markLoading(debugState)
+  try {
+    const candidates = agents.value.slice(0, 5)
+    if (!candidates.length) {
+      recentSessions.value = []
+      markEmpty(debugState)
+      return
+    }
+    const batches = await Promise.all(candidates.map(async (agent) => {
+      try {
+        const sessions = normalizeList(await listChatSessions({ agentId: agent.id }))
+        return sessions.slice(0, 3).map((session) => ({
+          id: session.id || session.sessionId,
+          agentId: agent.id,
+          agentName: agent.name,
+          title: session.title || '未命名会话',
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt || session.createdAt
+        }))
+      } catch {
+        return []
+      }
+    }))
+    recentSessions.value = batches.flat()
+      .sort((a, b) => dayjs(b.updatedAt || 0).valueOf() - dayjs(a.updatedAt || 0).valueOf())
+      .slice(0, 8)
+    if (!recentSessions.value.length) markEmpty(debugState)
+    else markSuccess(debugState)
+  } catch (error) {
+    markError(debugState, error)
+  }
+}
+
+const loadApiKeyUsage = async () => {
+  markLoading(apiKeyState)
+  try {
+    const keys = normalizeList(await getAllApiKeys()).slice(0, 5)
+    const rows = await Promise.all(keys.map(async (key) => {
+      const id = key.id || key.keyId
+      let usage = {}
+      try {
+        usage = await getApiKeyUsage(id, { limit: 5 }) || {}
+      } catch {
+        usage = {}
+      }
+      return {
+        id,
+        name: key.name || id,
+        enabled: key.enabled !== false && key.status !== 'DISABLED',
+        totalCalls: usage.totalCalls ?? usage.total_calls ?? 0,
+        failureRate: usage.failureRate ?? usage.failure_rate ?? null,
+        lastUsedAt: usage.lastUsedAt || usage.last_used_at || key.lastUsedAt || null
+      }
+    }))
+    apiKeyUsage.value = rows
+    if (!apiKeyUsage.value.length) markEmpty(apiKeyState)
+    else markSuccess(apiKeyState)
+  } catch (error) {
+    markError(apiKeyState, error)
+  }
+}
+
 const loadSummary = async () => {
   try {
     const summary = toDashboardSummaryViewModel(await getDashboardSummary({ silentError: true }))
@@ -299,7 +439,8 @@ const loadSummary = async () => {
 const loadAll = async () => {
   loading.value = true
   try {
-    await Promise.all([loadAgents(), loadKnowledge(), loadPending(), loadTraces(), loadSummary()])
+    await Promise.all([loadAgents(), loadKnowledge(), loadPending(), loadTraces(), loadSummary(), loadApiKeyUsage()])
+    await loadRecentDebug()
   } finally {
     loading.value = false
   }
@@ -308,6 +449,14 @@ const loadAll = async () => {
 const openAgentWorkspace = (agent) => {
   if (!agent?.id) return
   router.push(ROUTES.AGENTS.CONSOLE.replace(':id', agent.id))
+}
+
+const openSession = (session) => {
+  if (!session?.agentId) return
+  router.push({
+    path: ROUTES.AGENTS.CONSOLE.replace(':id', session.agentId),
+    query: session.id ? { sessionId: session.id } : undefined
+  })
 }
 
 const openKbDetail = (kb) => {

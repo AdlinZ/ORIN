@@ -149,6 +149,9 @@ class AgentSmokeTest {
                 minimaxAgentManageService,
                 agentJobRepository
         );
+        lenient().when(ownershipResolver.isCurrentUserAdmin()).thenReturn(true);
+        lenient().doNothing().when(ownershipResolver).assertCanAccessAgent(any());
+        lenient().doNothing().when(ownershipResolver).assertCanManageMcpExposure(any());
     }
 
     @Test
@@ -294,7 +297,7 @@ class AgentSmokeTest {
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> agentManageService.getAgentMetadata("non-existent-id"));
 
-        assertTrue(exception.getMessage().contains("not found"));
+        assertTrue(exception.getMessage().contains("不存在或无权限") || exception.getMessage().contains("not found"));
     }
 
     @Test
@@ -346,14 +349,13 @@ class AgentSmokeTest {
     @Test
     @DisplayName("E1.1 - Smoke Test: 向不存在的智能体发送消息抛出异常")
     void testChatWithNonExistentAgent_ThrowsException() {
-        // Given: 智能体不存在 - 只 stub accessProfileRepository
-        when(accessProfileRepository.findById("non-existent")).thenReturn(Optional.empty());
+        when(metadataRepository.findById("non-existent")).thenReturn(Optional.empty());
 
         // When & Then: 向不存在的智能体发消息会抛出 RuntimeException
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> agentManageService.chat("non-existent", "Hi", (String) null));
 
-        assertTrue(exception.getMessage().contains("not found"));
+        assertTrue(exception.getMessage().contains("不存在或无权限") || exception.getMessage().contains("not found"));
     }
 
     @Test
@@ -361,6 +363,10 @@ class AgentSmokeTest {
     void testDeleteAgent_Success() {
         // Given: 智能体存在
         String agentId = "agent-to-delete";
+        AgentMetadata metadata = new AgentMetadata();
+        metadata.setAgentId(agentId);
+        metadata.setOwnerUserId(42L);
+        when(metadataRepository.findById(agentId)).thenReturn(Optional.of(metadata));
 
         // When: 删除智能体
         agentManageService.deleteAgent(agentId);

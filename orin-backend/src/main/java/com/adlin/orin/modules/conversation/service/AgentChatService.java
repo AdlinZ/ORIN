@@ -128,6 +128,7 @@ public class AgentChatService {
      */
     @Transactional
     public SessionResponse createSession(CreateSessionRequest request) {
+        agentManageService.getAgentMetadata(request.getAgentId());
         String sessionId = UUID.randomUUID().toString().replace("-", "");
         
         AgentChatSession session = new AgentChatSession();
@@ -151,6 +152,7 @@ public class AgentChatService {
      * 获取会话列表
      */
     public List<SessionResponse> listSessions(String agentId) {
+        agentManageService.getAgentMetadata(agentId);
         List<AgentChatSession> sessions = sessionRepository.findByAgentIdOrderByUpdatedAtDesc(agentId);
         
         return sessions.stream().map(s -> {
@@ -159,6 +161,7 @@ public class AgentChatService {
             r.setAgentId(s.getAgentId());
             r.setTitle(s.getTitle());
             r.setCreatedAt(s.getCreatedAt() != null ? s.getCreatedAt().toString() : null);
+            r.setUpdatedAt(s.getUpdatedAt() != null ? s.getUpdatedAt().toString() : null);
             return r;
         }).collect(Collectors.toList());
     }
@@ -169,12 +172,14 @@ public class AgentChatService {
     public Map<String, Object> getSession(String sessionId) {
         AgentChatSession session = sessionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
-        
+        agentManageService.getAgentMetadata(session.getAgentId());
+
         Map<String, Object> result = new HashMap<>();
         result.put("id", session.getSessionId());
         result.put("agentId", session.getAgentId());
         result.put("title", session.getTitle());
         result.put("createdAt", session.getCreatedAt());
+        result.put("updatedAt", session.getUpdatedAt());
         
         // 解析历史消息
         try {
@@ -201,6 +206,7 @@ public class AgentChatService {
     public void saveMessageHistory(String sessionId, Map<String, Object> body) {
         AgentChatSession session = sessionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        agentManageService.getAgentMetadata(session.getAgentId());
 
         Object rawMessages = body != null ? body.get("messages") : null;
         if (!(rawMessages instanceof List<?> rawList)) {
@@ -1563,6 +1569,9 @@ public class AgentChatService {
      */
     @Transactional
     public void deleteSession(String sessionId) {
+        AgentChatSession session = sessionRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new RuntimeException("会话不存在: " + sessionId));
+        agentManageService.getAgentMetadata(session.getAgentId());
         sessionRepository.deleteBySessionId(sessionId);
     }
 

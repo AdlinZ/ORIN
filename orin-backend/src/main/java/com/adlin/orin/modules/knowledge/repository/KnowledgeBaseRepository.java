@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBase, String> {
     List<KnowledgeBase> findBySourceAgentId(String sourceAgentId);
+
+    List<KnowledgeBase> findByOwnerUserId(Long ownerUserId);
 }
