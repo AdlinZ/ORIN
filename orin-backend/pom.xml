@@ -335,7 +335,7 @@
                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
-                            <version>1.6.0</version>
+                            <version>1.6.3</version>
                         </path>
                         <!-- spring-boot-configuration-processor last to avoid interference -->
                         <path>
