@@ -50,6 +50,23 @@
           <span class="kpi-meta">{{ formatDelta(kpi.alertDelta, '较昨日') }}</span>
         </article>
       </div>
+      <div class="kpi-grid kpi-grid-governance">
+        <article class="kpi-card">
+          <span class="kpi-label">平台用户数</span>
+          <span class="kpi-value kpi-value-sm">{{ kpi.totalUsers }}</span>
+          <span class="kpi-meta">组织账号总量</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">API Key 数</span>
+          <span class="kpi-value kpi-value-sm">{{ kpi.apiKeyCount }}</span>
+          <span class="kpi-meta">CLIENT_ACCESS 密钥</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">近 24h 审计</span>
+          <span class="kpi-value kpi-value-sm">{{ kpi.auditFrequency24h }}</span>
+          <span class="kpi-meta">脱敏审计事件数</span>
+        </article>
+      </div>
     </section>
 
     <!-- 中间两列：趋势图 + 节点活跃分析 -->
@@ -358,8 +375,8 @@
         <el-card class="panel-card panel-main" shadow="never">
           <template #header>
             <div class="panel-header">
-              <span>实时审计日志</span>
-              <span class="panel-sub">最近 6 条</span>
+              <span>最近审计活动</span>
+              <span class="panel-sub">来自 dashboard summary</span>
             </div>
           </template>
           <ul class="event-list" v-if="recentLogs.length">
@@ -371,7 +388,7 @@
               </el-tag>
             </li>
           </ul>
-          <OrinEmptyState v-else description="暂无审计日志" />
+          <OrinEmptyState v-else description="暂无审计活动" />
         </el-card>
 
         <el-card class="panel-card" shadow="never">
@@ -485,6 +502,9 @@ const kpi = ref({
   latencyNote: '暂无波动数据',
   alertCount: 0,
   alertDelta: 0,
+  totalUsers: 0,
+  apiKeyCount: 0,
+  auditFrequency24h: 0,
 })
 
 const trendData = ref([])
@@ -1191,6 +1211,9 @@ const loadDashboardData = async () => {
       latencyNote: avgLatencyValue <= 800 ? '响应稳定，建议保持当前配置' : '时延偏高，建议优化慢链路',
       alertCount,
       alertDelta: safeNumber(summary.alertTrend, safeNumber(summary.alert_count_trend)),
+      totalUsers: dashboardSummary.metrics.totalUsers,
+      apiKeyCount: dashboardSummary.metrics.apiKeyCount,
+      auditFrequency24h: dashboardSummary.metrics.auditFrequency24h,
     }
 
     buildTrendData(historyList)
@@ -1235,11 +1258,19 @@ const loadDashboardData = async () => {
           .map((item) => ({ name: item.name || item.agentName || '未知主体', value: safeNumber(item.value) }))
           .sort((a, b) => b.value - a.value)
       : []
-    recentLogs.value = historyList.slice(0, 6).map((item) => ({
-      time: dayjs(item.createdAt || item.timestamp || Date.now()).format('MM-DD HH:mm'),
-      text: `${item.agentName || item.providerId || '系统'} | ${item.endpoint?.split('/').pop() || '处理任务'}`,
+    const auditActivity = Array.isArray(dashboardSummary.recentActivity) ? dashboardSummary.recentActivity : []
+    recentLogs.value = auditActivity.slice(0, 6).map((item) => ({
+      time: dayjs(item.createdAt || Date.now()).format('MM-DD HH:mm'),
+      text: `${item.method || 'CALL'} ${item.endpoint || '审计事件'}${item.traceId ? ` · ${item.traceId}` : ''}`,
       status: item.success === false ? 'critical' : 'healthy',
     }))
+    if (!recentLogs.value.length) {
+      recentLogs.value = historyList.slice(0, 6).map((item) => ({
+        time: dayjs(item.createdAt || item.timestamp || Date.now()).format('MM-DD HH:mm'),
+        text: `${item.agentName || item.providerId || '系统'} | ${item.endpoint?.split('/').pop() || '处理任务'}`,
+        status: item.success === false ? 'critical' : 'healthy',
+      }))
+    }
     if (!recentLogs.value.length) {
       recentLogs.value = [
         { time: '- -', text: health?.status ? `平台状态：${health.status}` : UI_TEXT.common.noData, status: 'healthy' },
@@ -1413,6 +1444,11 @@ onBeforeUnmount(() => {
 
 .kpi-grid-primary {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.kpi-grid-governance {
+  margin-top: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .kpi-card {

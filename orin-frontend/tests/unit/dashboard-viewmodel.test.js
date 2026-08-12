@@ -13,7 +13,11 @@ describe('dashboard summary viewmodel', () => {
       metrics: {
         agents: '3',
         openTasks: 2,
-        failedTasks: null
+        failedTasks: null,
+        scope: 'platform',
+        totalUsers: '12',
+        apiKeyCount: 9,
+        auditFrequency24h: 42
       },
       recentActivity: [
         {
@@ -31,6 +35,10 @@ describe('dashboard summary viewmodel', () => {
     expect(vm.defaultHome).toBe('/dashboard/runtime/overview')
     expect(vm.metrics.agents).toBe(3)
     expect(vm.metrics.failedTasks).toBe(0)
+    expect(vm.metrics.scope).toBe('platform')
+    expect(vm.metrics.totalUsers).toBe(12)
+    expect(vm.metrics.apiKeyCount).toBe(9)
+    expect(vm.metrics.auditFrequency24h).toBe(42)
     expect(vm.systemHealth.aiEngine.reachable).toBe(true)
     expect(vm.recentActivity[0]).not.toHaveProperty('requestParams')
     expect(vm.quickLinks[0].title).toBe('运行监控')

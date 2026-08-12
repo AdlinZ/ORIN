@@ -31,6 +31,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
 
         long countByApiKeyIdAndSuccessAndCreatedAtAfter(String apiKeyId, Boolean success, LocalDateTime after);
 
+        long countByCreatedAtAfter(LocalDateTime after);
+
         /**
          * 获取时间范围内的审计日志
          */

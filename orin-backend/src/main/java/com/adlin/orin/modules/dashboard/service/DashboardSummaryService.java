@@ -1,11 +1,14 @@
 package com.adlin.orin.modules.dashboard.service;
 
 import com.adlin.orin.modules.agent.repository.AgentMetadataRepository;
+import com.adlin.orin.modules.apikey.entity.GatewaySecret;
+import com.adlin.orin.modules.apikey.repository.GatewaySecretRepository;
 import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.system.repository.SysUserRepository;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
 import com.adlin.orin.modules.task.repository.TaskRepository;
 import com.adlin.orin.modules.trace.repository.WorkflowTraceRepository;
@@ -43,6 +46,8 @@ public class DashboardSummaryService {
     private final TaskRepository taskRepository;
     private final WorkflowTraceRepository workflowTraceRepository;
     private final AuditLogRepository auditLogRepository;
+    private final SysUserRepository sysUserRepository;
+    private final GatewaySecretRepository gatewaySecretRepository;
     private final RestTemplate restTemplate;
 
     @Value("${orin.ai-engine.url:http://127.0.0.1:8000}")
@@ -55,7 +60,7 @@ public class DashboardSummaryService {
         summary.put("defaultHome", resolveDefaultHome(roles));
         summary.put("systemHealth", systemHealth());
         summary.put("metrics", metrics(authentication, roles));
-        summary.put("recentActivity", recentActivity());
+        summary.put("recentActivity", recentActivity(roles));
         summary.put("quickLinks", quickLinks(roles));
         summary.put("generatedAt", LocalDateTime.now().toString());
         return summary;
@@ -121,6 +126,11 @@ public class DashboardSummaryService {
             metrics.put("pendingDocuments", safeCount(() ->
                     (long) knowledgeDocumentRepository.findByVectorStatusIn(List.of("PENDING", "FAILED")).size()));
             metrics.put("scope", "platform");
+            metrics.put("totalUsers", safeCount(sysUserRepository::count));
+            metrics.put("apiKeyCount", safeCount(() ->
+                    gatewaySecretRepository.countBySecretType(GatewaySecret.SecretType.CLIENT_ACCESS)));
+            metrics.put("auditFrequency24h", safeCount(() ->
+                    auditLogRepository.countByCreatedAtAfter(LocalDateTime.now().minusHours(24))));
         } else {
             metrics.put("agents", safeCount(() ->
                     (long) agentMetadataRepository.findByOwnerUserId(ownerUserId).size()));
@@ -128,6 +138,8 @@ public class DashboardSummaryService {
                     (long) knowledgeBaseRepository.findByOwnerUserId(ownerUserId).size()));
             metrics.put("pendingDocuments", safeCount(() -> countOwnedPendingDocuments(ownerUserId)));
             metrics.put("scope", "owned");
+            metrics.put("apiKeys", safeCount(() -> gatewaySecretRepository.countBySecretTypeAndUserId(
+                    GatewaySecret.SecretType.CLIENT_ACCESS, String.valueOf(ownerUserId))));
         }
         metrics.put("workflows", safeCount(workflowDefinitionRepository::count));
         metrics.put("collaborationPackages", safeCount(collaborationPackageRepository::count));
@@ -183,7 +195,11 @@ public class DashboardSummaryService {
         return counts;
     }
 
-    private List<Map<String, Object>> recentActivity() {
+    private List<Map<String, Object>> recentActivity(List<String> roles) {
+        // Only admin overview consumes audit activity; keep portal/operator summaries light.
+        if (!hasAnyRole(roles, ADMIN_ROLES)) {
+            return List.of();
+        }
         try {
             return auditLogRepository
                     .findAll(PageRequest.of(0, 8, Sort.by(Sort.Direction.DESC, "createdAt")))
