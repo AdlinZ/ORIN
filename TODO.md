@@ -42,6 +42,8 @@
 - [x] `P0` 为 Provider、Milvus 和文档处理依赖补明确的可用性诊断
 - [x] `P0` 用真实后端和真实依赖完成两条黄金流程 E2E
   - `ORIN_BUSINESS_SMOKE_KNOWLEDGE_GOLDEN=1` + `ORIN_BUSINESS_SMOKE_AGENT_ID` 覆盖知识→绑定→session 回答与 Trace summary
+- [x] `P1` 运维日常闭环验收：绑 KB → 调试 → 发布 → API Key `/v1/mcp` tools/call → Trace
+  - `ORIN_BUSINESS_SMOKE_OPERATOR_LOOP=1`（隐含知识黄金）+ `ORIN_BUSINESS_SMOKE_AGENT_ID`；运维工作台 Trace 可跳转详情
 - [x] `P1` 统一智能体、知识库的归属、状态、权限与审计语义
   - 知识库补 `owner_user_id`（V92），创建/同步时盖章；智能体发布=`mcpExposed`，知识库=`ENABLED/DISABLED`
   - 知识写操作审计改为当前用户；`mcpExposed` 变更写 `AGENT_MCP_EXPOSED`
