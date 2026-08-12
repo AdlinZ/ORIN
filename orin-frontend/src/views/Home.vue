@@ -47,16 +47,16 @@
       <section class="hero-section">
         <a class="release-pill" href="#roles" @click.prevent="scrollToSection('roles')">
           <span>ORIN Platform</span>
-          <strong>智能体接入、知识资产、流程协作与运行观测的统一中枢</strong>
+          <strong>面向企业 AI 应用管理员的智能体与知识库统一管理平台</strong>
           <el-icon><ArrowRight /></el-icon>
         </a>
 
         <h1 class="hero-title">
-          <span>构建企业智能体的</span>
-          <span class="title-accent">管理与运行中枢</span>
+          <span>集中建设、验证与治理</span>
+          <span class="title-accent">企业知识型智能体</span>
         </h1>
         <p class="hero-subtitle">
-          ORIN 连接智能体、知识库、工作流与观测链路，帮助团队接入 AI 应用、沉淀知识资产、编排协作流程，并逐步形成可治理、可追踪、可运营的平台闭环。
+          从模型接入、知识库建设和检索验证，到智能体绑定知识、调试发布与持续观测，ORIN 帮助团队把知识型智能体沉淀为可治理、可追踪的企业资产。
         </p>
 
         <div class="hero-actions">
@@ -65,7 +65,7 @@
             <el-icon class="el-icon--right"><ArrowRight /></el-icon>
           </el-button>
           <el-button size="large" class="secondary-button" @click="goAdminConsole">
-            我是平台管理者
+            我是 AI 应用管理员
           </el-button>
         </div>
 
@@ -90,17 +90,17 @@
 
           <div class="product-preview">
             <aside class="preview-sidebar">
-              <span class="preview-brand">AI 中枢</span>
-              <span>知识资产</span>
-              <span>流程编排</span>
-              <span>运营观测</span>
+              <span class="preview-brand">智能体</span>
+              <span>知识库</span>
+              <span>调试发布</span>
+              <span>运行观测</span>
             </aside>
 
             <section class="preview-main">
               <div class="preview-header">
                 <div>
                   <span>Overview</span>
-                  <h2>智能体管理与运行中枢</h2>
+                  <h2>智能体与知识库管理中心</h2>
                 </div>
                 <div class="preview-status">
                   <i />
@@ -117,8 +117,8 @@
 
               <div class="preview-panel">
                 <div class="panel-copy">
-                  <span>Workspace</span>
-                  <strong>业务使用侧与平台治理侧共享同一套底层能力</strong>
+                  <span>Golden path</span>
+                  <strong>知识库验证完成后，再绑定智能体调试与发布</strong>
                 </div>
                 <div class="panel-lines">
                   <i />
@@ -138,8 +138,8 @@
       <section id="roles" class="roles-section">
         <div class="section-heading">
           <span>Platform entry</span>
-          <h2>同一平台，面向不同使用场景</h2>
-          <p>业务侧关注可用的智能体和知识服务，治理侧关注应用接入、资源配置、权限边界和运行状态。</p>
+          <h2>围绕核心人物组织平台入口</h2>
+          <p>业务使用者消费已发布的智能体；AI 应用管理员负责知识建设、智能体配置、效果验证、发布与治理。</p>
         </div>
 
         <div class="role-row">
@@ -150,8 +150,8 @@
           </button>
 
           <button type="button" class="role-link admin" @click="goAdminConsole">
-            <span>平台治理侧</span>
-            <strong>管理控制台</strong>
+            <span>企业 AI 应用管理员</span>
+            <strong>智能体与知识库控制台</strong>
             <el-icon><ArrowRight /></el-icon>
           </button>
         </div>
@@ -160,7 +160,7 @@
       <section id="platform" class="platform-section">
         <div class="section-heading centered">
           <span>Platform capabilities</span>
-          <h2>从接入到观测，覆盖智能体平台主链路</h2>
+          <h2>先完成知识与智能体闭环，再按需启用高级能力</h2>
         </div>
 
         <div class="capability-list">
@@ -204,7 +204,7 @@ const defaultAvatar = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e5
 const roleMap = {
   ROLE_SUPER_ADMIN: '超级管理员',
   ROLE_PLATFORM_ADMIN: '平台管理员',
-  ROLE_OPERATOR: '业务运营',
+  ROLE_OPERATOR: 'AI 应用管理员',
   ROLE_ADMIN: '管理员',
   ROLE_USER: '普通用户',
   ADMIN: '管理员',
@@ -223,26 +223,26 @@ const heroStats = [
   { value: 'Trace', label: '运行观测' },
 ]
 
-const userTasks = ['智能体问答', '知识检索', '协作任务']
-const adminTasks = ['智能体接入', '模型资源', '链路观测', '网关策略']
+const userTasks = ['智能体问答', '知识检索', '引用反馈']
+const adminTasks = ['知识库建设', '智能体配置', '调试发布', '链路观测']
 const previewTasks = [...userTasks, ...adminTasks]
 
 const capabilityGroups = [
   {
     title: '智能体接入与管理',
-    desc: '统一管理 AI 应用、模型资源、技能绑定和生命周期配置。',
+    desc: '统一创建、配置和调试智能体，绑定经过验证的企业知识。',
   },
   {
-    title: '知识资产与检索',
-    desc: '沉淀文档、向量检索和知识同步能力，支撑业务问答。',
+    title: '知识库建设与验证',
+    desc: '管理文档解析、向量化和检索测试，为智能体提供可核对的知识依据。',
   },
   {
-    title: '流程编排与协作',
-    desc: '面向工作流、多智能体协作和任务执行记录做闭环建设。',
+    title: '调试、发布与交付',
+    desc: '验证回答、引用和错误语义，再通过门户、API 或 MCP 交付。',
   },
   {
-    title: '运行观测与治理',
-    desc: '覆盖调用链路、资源健康、网关策略、审计和告警。',
+    title: '高级能力与运行治理',
+    desc: '按需启用 Workflow、MCP 和多智能体协作，并通过 Trace、审计和告警持续治理。',
   },
 ]
 

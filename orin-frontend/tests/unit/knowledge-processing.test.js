@@ -1,0 +1,125 @@
+import { describe, expect, it } from 'vitest'
+import {
+  getDependencyDiagnostics,
+  getDocumentProcessingState,
+  getRetrievalDiagnostics,
+} from '@/utils/knowledgeProcessing'
+
+describe('knowledge processing state', () => {
+  it('does not let a pending vector status hide a parse failure', () => {
+    expect(getDocumentProcessingState({
+      parseStatus: 'FAILED',
+      vectorStatus: 'PENDING',
+      raw: { parseError: 'PDF 内容为空' },
+    })).toMatchObject({
+      stage: 'parse',
+      label: '解析失败',
+      tone: 'fail',
+      active: false,
+      detail: 'PDF 内容为空',
+    })
+  })
+
+  it('marks parsing and vectorization stages as active', () => {
+    expect(getDocumentProcessingState({ parseStatus: 'PARSING', vectorStatus: 'PENDING' }).active).toBe(true)
+    expect(getDocumentProcessingState({ parseStatus: 'PARSED', vectorStatus: 'INDEXING' })).toMatchObject({
+      stage: 'vector',
+      label: '向量化中',
+      active: true,
+    })
+  })
+
+  it('shows the persisted vectorization failure reason', () => {
+    expect(getDocumentProcessingState({
+      parseStatus: 'PARSED',
+      vectorStatus: 'FAILED',
+      vectorError: 'Embedding Provider 配置无效或不可用',
+    })).toMatchObject({
+      stage: 'vector',
+      label: '向量化失败',
+      detail: 'Embedding Provider 配置无效或不可用',
+    })
+  })
+
+  it('marks a successfully indexed document as retrievable', () => {
+    expect(getDocumentProcessingState({ parseStatus: 'PARSED', vectorStatus: 'SUCCESS' })).toMatchObject({
+      stage: 'ready',
+      label: '可检索',
+      tone: 'ok',
+    })
+  })
+
+  it('treats vector success as authoritative for legacy documents without parse state', () => {
+    expect(getDocumentProcessingState({ parseStatus: 'PENDING', vectorStatus: 'SUCCESS' })).toMatchObject({
+      stage: 'ready',
+      label: '可检索',
+    })
+  })
+})
+
+describe('retrieval diagnostics', () => {
+  it('surfaces backend fallback reasons', () => {
+    expect(getRetrievalDiagnostics({
+      retrievalMode: 'KEYWORD_FALLBACK',
+      fallback: true,
+      vectorHealthy: false,
+      fallbackReason: 'Milvus 不可用',
+    })).toEqual({
+      mode: 'KEYWORD_FALLBACK',
+      fallback: true,
+      vectorHealthy: false,
+      type: 'warning',
+      title: '检索已降级（KEYWORD_FALLBACK）',
+      description: 'Milvus 不可用',
+    })
+  })
+
+  it('reports healthy vector retrieval', () => {
+    expect(getRetrievalDiagnostics({ retrievalMode: 'VECTOR', fallback: false })).toMatchObject({
+      type: 'success',
+      title: '检索链路正常（VECTOR）',
+    })
+  })
+})
+
+describe('dependency diagnostics', () => {
+  it('maps nested diagnose contract to a success strip', () => {
+    expect(getDependencyDiagnostics({
+      milvus: { healthy: true, status: 'CONNECTED' },
+      embedding: { status: 'ok', provider: 'SiliconFlow', model: 'BAAI/bge-m3' },
+      documentPipeline: { status: 'ok', pending: 0 },
+    })).toMatchObject({
+      type: 'success',
+      title: '可以向量化',
+      vectorHealthy: true,
+      embeddingHealthy: true,
+      description: 'Milvus 已连接，SiliconFlow / BAAI/bge-m3 可用。',
+    })
+  })
+
+  it('falls back to legacy flat fields and surfaces safe embedding errors', () => {
+    expect(getDependencyDiagnostics({
+      vectorServiceHealthy: false,
+      embedding: { status: 'error', error: 'Embedding Provider 配置无效或不可用' },
+      dimensionMismatch: true,
+    })).toMatchObject({
+      type: 'warning',
+      title: '向量链路需要处理',
+      vectorHealthy: false,
+      embeddingHealthy: false,
+      dimensionMismatch: true,
+    })
+  })
+
+  it('does not report success when the document pipeline is unavailable', () => {
+    expect(getDependencyDiagnostics({
+      milvus: { healthy: true },
+      embedding: { status: 'ok' },
+      documentPipeline: { status: 'error', error: '文档状态读取失败' },
+    })).toMatchObject({
+      type: 'warning',
+      title: '向量链路需要处理',
+      description: '文档状态读取失败。文档可能无法向量化，检索可能降级。',
+    })
+  })
+})

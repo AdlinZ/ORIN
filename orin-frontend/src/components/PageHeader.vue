@@ -7,24 +7,26 @@
             <div v-if="icon" class="header-icon">
               <el-icon><component :is="icon" /></el-icon>
             </div>
-            <h1 class="page-title">
-              {{ title }}
-            </h1>
+            <div class="title-copy">
+              <h1 class="page-title">
+                {{ title }}
+              </h1>
+              <p v-if="description" class="header-description">
+                {{ description }}
+              </p>
+            </div>
+            <div v-if="$slots['tag-content']" class="header-meta">
+              <slot name="tag-content" />
+            </div>
             <el-tag
-              v-if="tagText"
+              v-else-if="tagText"
               :type="tagType"
               effect="plain"
-              round
               class="header-tag"
             >
-              <slot name="tag-content">
-                {{ tagText }}
-              </slot>
+              {{ tagText }}
             </el-tag>
           </div>
-          <p v-if="description" class="header-description">
-            {{ description }}
-          </p>
         </div>
         <div class="header-actions">
           <slot name="actions" />
@@ -68,18 +70,15 @@ defineProps({
 
 <style scoped>
 .page-header-wrapper {
-  margin-bottom: var(--orin-page-gap, 18px);
+  margin-bottom: var(--orin-section-gap, 16px);
 }
 
 .page-header-container {
-  background: rgba(255, 255, 255, 0.84);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--orin-border-strong, #d8e0e8);
-  border-radius: var(--radius-base, 8px);
-  padding: 18px 20px;
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.08));
-  transition: all var(--transition-base);
+  background: var(--orin-surface, #ffffff);
+  border: 1px solid var(--orin-border, #dfe6e4);
+  border-radius: var(--orin-radius-lg, 12px);
+  padding: 22px 24px;
+  box-shadow: var(--orin-shadow-xs, 0 1px 2px rgba(15, 23, 42, 0.04));
 }
 
 html.dark .page-header-container {
@@ -91,8 +90,8 @@ html.dark .page-header-container {
 .header-main {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: var(--spacing-xl);
+  align-items: flex-start;
+  gap: 24px;
 }
 
 .header-content {
@@ -101,29 +100,35 @@ html.dark .page-header-container {
 
 .title-section {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+  align-items: flex-start;
+  gap: 14px;
 }
 
 .header-icon {
-  width: 36px;
-  height: 36px;
-  background: var(--neutral-gray-100);
-  border: 1px solid var(--orin-border-strong, #d8e0e8);
-  border-radius: var(--radius-base, 8px);
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  background: var(--orin-primary-soft, #eef8f6);
+  border: 1px solid var(--orin-primary-border, #cfe6e1);
+  border-radius: var(--orin-radius-md, 10px);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--orin-primary);
-  font-size: 18px;
+  font-size: 19px;
+}
+
+.title-copy {
+  min-width: 0;
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: var(--font-bold);
-  color: var(--neutral-gray-900);
+  font-size: 23px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--orin-ink, #17211f);
   margin: 0;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
 }
 
 html.dark .page-title {
@@ -131,17 +136,22 @@ html.dark .page-title {
 }
 
 .header-tag {
-  font-family: var(--font-heading);
-  font-weight: var(--font-bold);
-  border: none;
-  background: var(--primary-light);
-  color: var(--primary-600);
+  margin-top: 3px;
+  font-weight: 600;
+}
+
+.header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 3px;
 }
 
 .header-description {
-  margin: var(--spacing-sm) 0 0;
-  color: var(--neutral-gray-500);
-  font-size: var(--text-sm);
+  margin: 6px 0 0;
+  color: var(--orin-muted, #66736f);
+  font-size: 13px;
+  line-height: 1.55;
   max-width: 760px;
 }
 
@@ -152,9 +162,9 @@ html.dark .page-title {
 }
 
 .header-filters {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--orin-border-strong, #d8e0e8);
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--orin-border-soft, #edf1f0);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -178,7 +188,31 @@ html.dark .header-filters {
   border-radius: 0 !important;
   box-shadow: none !important;
   animation: none !important;
-  padding: var(--spacing-lg) var(--spacing-xl);
+  padding: 20px 22px;
+}
+
+@media (max-width: 760px) {
+  .page-header-container {
+    padding: 18px;
+  }
+
+  .header-main,
+  .title-section {
+    align-items: flex-start;
+  }
+
+  .header-main {
+    flex-direction: column;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .header-meta {
+    display: none;
+  }
 }
 
 </style>

@@ -24,30 +24,39 @@ defineProps({
 
 <style scoped>
 .orin-data-table {
-  border-radius: var(--radius-base, 8px) !important;
-  border-color: var(--orin-border-strong, #d8e0e8) !important;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--orin-radius-lg, 12px) !important;
+  border-color: var(--orin-border, #dfe6e4) !important;
+  box-shadow: var(--orin-shadow-xs, 0 1px 2px rgba(15, 35, 31, 0.04)) !important;
 }
 
 .orin-data-table :deep(.el-card__body) {
+  min-width: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 .orin-data-table :deep(.el-card__header) {
   padding: 14px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
+  background: var(--orin-surface, #ffffff);
+  border-bottom: 1px solid var(--orin-border-soft, #edf1f0);
 }
 
 .orin-data-table :deep(.el-table) {
+  width: 100%;
+  max-width: 100%;
   border-radius: 0;
-  --el-table-header-bg-color: #ffffff;
+  --el-table-header-bg-color: var(--orin-surface-subtle, #f8faf9);
   --el-table-row-hover-bg-color: rgba(13, 148, 136, 0.04);
 }
 
 .orin-data-table :deep(.el-table th.el-table__cell) {
   height: 40px;
   padding: 6px 0;
-  color: var(--text-secondary, #64748b);
+  color: var(--orin-muted, #66736f);
   font-size: 12px;
   font-weight: 700;
 }
@@ -75,17 +84,17 @@ defineProps({
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--orin-border-strong, #d8e0e8);
-  background: #ffffff;
+  border-bottom: 1px solid var(--orin-border-soft, #edf1f0);
+  background: var(--orin-surface, #ffffff);
 }
 
 .data-table-titlebar strong {
-  color: var(--neutral-gray-900, #101828);
+  color: var(--orin-ink, #17211f);
   font-size: 14px;
 }
 
 .data-table-titlebar span {
-  color: var(--neutral-gray-500, #667085);
+  color: var(--orin-muted, #66736f);
   font-size: 13px;
 }
 
@@ -95,7 +104,7 @@ defineProps({
   justify-content: flex-end;
   gap: 12px;
   padding: 12px 16px;
-  border-top: 1px solid var(--orin-border-strong, #d8e0e8);
-  background: #ffffff;
+  border-top: 1px solid var(--orin-border-soft, #edf1f0);
+  background: var(--orin-surface, #ffffff);
 }
 </style>

@@ -29,13 +29,13 @@ defineProps({
   place-items: center;
   min-height: 180px;
   padding: 24px;
-  border: 1px dashed var(--orin-border-strong, #d8e0e8);
-  border-radius: var(--radius-base, 8px);
-  background: #ffffff;
+  border: 1px dashed #cbd8d5;
+  border-radius: var(--orin-radius-lg, 12px);
+  background: var(--orin-surface-subtle, #f8faf9);
 }
 
 html.dark .orin-empty-state {
-  background: rgba(15, 23, 42, 0.46);
-  border-color: rgba(148, 163, 184, 0.22);
+  background: var(--orin-surface-subtle, #182421);
+  border-color: var(--orin-border, #293936);
 }
 </style>

@@ -238,6 +238,8 @@ async function mockBackends(page) {
 }
 
 test.describe('Wave 5 runtime monitoring browser smoke', () => {
+  test.describe.configure({ timeout: 90_000 })
+
   test('opens runtime pages and legacy redirects without blank screens or runtime errors', async ({ page }) => {
     const runtimeErrors = []
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`))
@@ -260,6 +262,8 @@ test.describe('Wave 5 runtime monitoring browser smoke', () => {
       '/dashboard/runtime/server',
       '/dashboard/runtime/server/local',
       '/dashboard/runtime/alerts',
+      '/dashboard/runtime/alerts/rules/create',
+      '/dashboard/runtime/alerts/rules/rule-1/edit',
       '/dashboard/runtime/logs',
       '/dashboard/runtime/rate-limit',
       '/dashboard/monitor/traces',

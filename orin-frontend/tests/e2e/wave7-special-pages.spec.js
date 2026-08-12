@@ -137,6 +137,26 @@ async function mockWave7Backends(page) {
 }
 
 test.describe('Wave 7 special pages browser smoke', () => {
+  test('opens the first-run setup surface when initialization is available', async ({ page }) => {
+    const runtimeErrors = []
+    page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`))
+    page.on('console', (message) => {
+      if (message.type() === 'error') runtimeErrors.push(`console error: ${message.text()}`)
+    })
+
+    await page.route('**/api/v1/setup/status', async (route) => route.fulfill(json({
+      completed: false,
+      canInitialize: true,
+      dependencies: [],
+      security: []
+    })))
+
+    await page.goto('/setup', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.setup-container')).toBeVisible()
+    await expect(page.locator('body')).toContainText('初始化企业 AI 中枢')
+    expect(runtimeErrors).toEqual([])
+  })
+
   test('opens public special pages without blank screens or runtime errors', async ({ page }) => {
     const runtimeErrors = []
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`))
@@ -146,7 +166,7 @@ test.describe('Wave 7 special pages browser smoke', () => {
 
     await mockWave7Backends(page)
 
-    const paths = ['/login', '/portal', '/datawall', '/wave7-not-found']
+    const paths = ['/', '/login', '/portal', '/datawall', '/unified-docs', '/wave7-not-found']
 
     for (const path of paths) {
       const startErrorCount = runtimeErrors.length
@@ -168,6 +188,7 @@ test.describe('Wave 7 special pages browser smoke', () => {
 
     const paths = [
       '/dashboard/profile',
+      '/portal/api-keys',
       '/dashboard/applications/playground/run',
       '/dashboard/applications/workflows/visual',
       '/dashboard/unknown-wave7'

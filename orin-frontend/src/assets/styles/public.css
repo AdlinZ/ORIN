@@ -1,0 +1,139 @@
+/*
+ * Public and standalone surfaces.
+ * Login remains the visual reference and is intentionally excluded.
+ */
+
+:where(.landing-wrapper, .setup-container, .service-portal, .light-datawall, .api-doc-page) {
+  --public-primary: #3f9388;
+  --public-primary-hover: #347f75;
+  --public-primary-soft: #eef8f6;
+  --public-canvas: #f5f8f7;
+  --public-surface: #ffffff;
+  --public-ink: #17211f;
+  --public-muted: #66736f;
+  --public-border: #dfe6e4;
+  --public-border-soft: #edf1f0;
+}
+
+/* Service portal */
+.service-portal {
+  --portal-primary: var(--public-primary);
+  --portal-primary-dark: var(--public-primary-hover);
+  --portal-ink: var(--public-ink);
+  --portal-muted: var(--public-muted);
+  --sidebar-width: 264px;
+  background: var(--public-canvas);
+}
+
+.service-portal .portal-sidebar {
+  border-right-color: var(--public-border);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: none;
+}
+
+.service-portal :where(
+  .creation-card,
+  .creation-prompt-card,
+  .creation-showcase-card,
+  .conversation-shell,
+  .chat-panel,
+  .welcome-card,
+  .service-card
+) {
+  border-color: var(--public-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 35, 31, 0.06);
+}
+
+.service-portal :where(
+  .creation-card,
+  .creation-prompt-card,
+  .creation-showcase-card
+):hover {
+  border-color: #c9d8d4;
+  box-shadow: 0 12px 28px rgba(15, 35, 31, 0.08);
+  transform: none;
+}
+
+.service-portal :where(button, .nav-item, .service-item) {
+  border-radius: 8px;
+}
+
+/* First-run setup mirrors the login split-panel geometry. */
+.setup-container {
+  background: var(--public-canvas);
+}
+
+.setup-container .setup-shell {
+  border-color: var(--public-border);
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(15, 35, 31, 0.08);
+}
+
+.setup-container :where(.setup-brand-panel, .setup-form-panel, .setup-step-strip, .trust-item) {
+  border-color: var(--public-border);
+  background: var(--public-surface);
+}
+
+.setup-container :where(.step-chip.active, .step-chip.done) {
+  color: var(--public-primary-hover);
+}
+
+.setup-container .step-chip.active {
+  background: var(--public-primary-soft);
+}
+
+/* Operations wall keeps its dense dashboard layout without the old glow. */
+.light-datawall {
+  background: var(--public-canvas);
+  color: var(--public-ink);
+}
+
+.light-datawall :where(
+  .wall-header,
+  .metric-card,
+  .chart-panel,
+  .side-panel,
+  .hardware-panel,
+  .agent-panel
+) {
+  border-color: var(--public-border);
+  background: var(--public-surface);
+  box-shadow: 0 1px 2px rgba(15, 35, 31, 0.04);
+}
+
+.light-datawall :where(.panel-title, .header-title h1) {
+  color: var(--public-ink);
+}
+
+/* Standalone docs */
+.api-doc-page {
+  background: var(--public-canvas);
+  color: var(--public-ink);
+}
+
+.api-doc-page .left-panel {
+  border-right-color: var(--public-border);
+  background: var(--public-surface);
+}
+
+.api-doc-page :where(.doc-dropdown-trigger, .content-card, .api-card, .test-panel) {
+  border-color: var(--public-border);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .service-portal {
+    --sidebar-width: 0px;
+  }
+}
+
+html.dark :where(.setup-container, .service-portal, .light-datawall, .api-doc-page) {
+  --public-canvas: #0d1514;
+  --public-surface: #131d1b;
+  --public-ink: #eef5f3;
+  --public-muted: #9baca7;
+  --public-border: #293936;
+  --public-border-soft: #21302d;
+}

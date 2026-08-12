@@ -141,6 +141,9 @@ public class ParsingPipelineService {
 
             // 阶段3: 向量化
             updateDocumentStatus(document, STATUS_VECTORIZING, null, null);
+            document.setVectorStatus("INDEXING");
+            document.setVectorError(null);
+            documentRepository.save(document);
             vectorService.addChunks(document.getKnowledgeBaseId(), chunksToSave);
 
             // 完成
@@ -160,11 +163,23 @@ public class ParsingPipelineService {
             return result;
 
         } catch (Exception e) {
-            log.error("Pipeline failed for document {}", documentId, e);
+            boolean vectorFailure = "INDEXING".equals(document.getVectorStatus());
+            String errorMessage = vectorFailure
+                    ? DocumentManageService.toSafeVectorError(e)
+                    : e.getMessage();
+            if (vectorFailure) {
+                log.error("Vectorization failed for document {}: {}", documentId, errorMessage);
+            } else {
+                log.error("Pipeline failed for document {}", documentId, e);
+            }
             result.setSuccess(false);
-            result.setErrorMessage(e.getMessage());
+            result.setErrorMessage(errorMessage);
             result.setProcessingTimeMs(System.currentTimeMillis() - startTime);
-            updateDocumentStatus(document, STATUS_FAILED, null, e.getMessage());
+            if (vectorFailure) {
+                document.setVectorStatus(STATUS_FAILED);
+                document.setVectorError(errorMessage);
+            }
+            updateDocumentStatus(document, STATUS_FAILED, null, errorMessage);
             return result;
         }
     }

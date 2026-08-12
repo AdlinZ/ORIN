@@ -49,9 +49,10 @@ defineProps({
   display: grid;
   gap: 0;
   margin-bottom: 14px;
-  border: 1px solid var(--orin-border-strong, #d8e0e8);
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1px solid var(--orin-border, #dfe6e4);
+  border-radius: var(--orin-radius-lg, 12px);
+  background: var(--orin-surface, #ffffff);
+  box-shadow: var(--orin-shadow-xs, 0 1px 2px rgba(15, 35, 31, 0.04));
   overflow: hidden;
 }
 
@@ -87,7 +88,7 @@ defineProps({
 
 .header-copy h1 {
   margin: 0;
-  color: var(--text-primary, #111827);
+  color: var(--orin-ink, #17211f);
   font-size: 24px;
   line-height: 1.18;
   font-weight: 680;
@@ -97,7 +98,7 @@ defineProps({
 .header-copy p {
   max-width: 680px;
   margin: 0;
-  color: var(--text-secondary, #64748b);
+  color: var(--orin-muted, #66736f);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -116,8 +117,8 @@ defineProps({
   align-items: center;
   min-height: 54px;
   padding: 10px 16px 10px 22px;
-  border-top: 1px solid var(--orin-border-soft, #e6edf3);
-  background: #ffffff;
+  border-top: 1px solid var(--orin-border-soft, #edf1f0);
+  background: var(--orin-surface, #ffffff);
 }
 
 .header-filters {
@@ -144,8 +145,8 @@ defineProps({
   gap: 6px;
   padding-right: 14px;
   margin-right: 14px;
-  border-right: 1px solid var(--orin-border-soft, #e6edf3);
-  color: var(--text-secondary, #64748b);
+  border-right: 1px solid var(--orin-border-soft, #edf1f0);
+  color: var(--orin-muted, #66736f);
   font-size: 12px;
 }
 
@@ -156,7 +157,7 @@ defineProps({
 }
 
 .summary-item strong {
-  color: var(--text-primary, #111827);
+  color: var(--orin-ink, #17211f);
   font-size: 13px;
   font-weight: 600;
 }

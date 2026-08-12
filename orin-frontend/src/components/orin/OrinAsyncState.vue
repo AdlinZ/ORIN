@@ -58,6 +58,22 @@ defineProps({
 
 <style scoped>
 .orin-async-state {
-  min-height: 96px;
+  min-width: 0;
+  min-height: 120px;
+}
+
+.orin-async-state :deep(.el-skeleton) {
+  padding: 20px;
+  border: 1px solid var(--orin-border, #dfe6e4);
+  border-radius: var(--orin-radius-lg, 12px);
+  background: var(--orin-surface, #ffffff);
+}
+
+.orin-async-state :deep(.el-result) {
+  min-height: 260px;
+  padding: 36px 20px;
+  border: 1px solid var(--orin-border, #dfe6e4);
+  border-radius: var(--orin-radius-lg, 12px);
+  background: var(--orin-surface, #ffffff);
 }
 </style>

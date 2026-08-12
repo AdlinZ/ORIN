@@ -142,6 +142,27 @@ class RetrievalServiceTest {
     }
 
     @Test
+    void testHybridSearch_UnhealthyMilvus_FallsbackToKeyword() {
+        when(vectorService.isHealthy()).thenReturn(false);
+
+        KnowledgeDocumentChunk keywordChunk = KnowledgeDocumentChunk.builder()
+            .id("keyword-1")
+            .documentId("doc-1")
+            .chunkType("child")
+            .content("This content matches keywords")
+            .build();
+        when(chunkRepository.searchByKeyword(anyString(), anyString()))
+            .thenReturn(Arrays.asList(keywordChunk));
+
+        List<VectorStoreProvider.SearchResult> results = retrievalService.hybridSearch(
+            "kb-001", "test query", 5);
+
+        assertNotNull(results);
+        assertTrue(results.stream().anyMatch(r -> "KEYWORD".equals(r.getMatchType())));
+        verify(vectorService, never()).search(anyString(), anyString(), anyInt(), any());
+    }
+
+    @Test
     void testHybridSearch_GlobalSearch() {
         // Setup mocks for global search
         when(vectorService.isHealthy()).thenReturn(true);

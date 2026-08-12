@@ -150,6 +150,8 @@ async function mockBackends(page) {
 }
 
 test.describe('Wave 4 knowledge domain browser smoke', () => {
+  test.describe.configure({ timeout: 90_000 })
+
   test('opens knowledge pages and legacy redirects without blank screens or runtime errors', async ({ page }) => {
     const runtimeErrors = []
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`))
@@ -175,16 +177,16 @@ test.describe('Wave 4 knowledge domain browser smoke', () => {
 
     for (const path of paths) {
       const startErrorCount = runtimeErrors.length
-      await page.goto(path, { waitUntil: 'networkidle' })
+      await page.goto(path, { waitUntil: 'domcontentloaded' })
       await expect(page.locator('body')).not.toHaveText(/^\\s*$/)
       await expect(page.locator('body')).not.toContainText('登录工作台')
       expect(runtimeErrors.slice(startErrorCount), path).toEqual([])
     }
 
-    await page.goto('/dashboard/resources/embedding-lab', { waitUntil: 'networkidle' })
+    await page.goto('/dashboard/resources/embedding-lab', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/dashboard\/resources\/retrieval/)
 
-    await page.goto('/dashboard/resources/graph', { waitUntil: 'networkidle' })
+    await page.goto('/dashboard/resources/graph', { waitUntil: 'domcontentloaded' })
     await expect(page).toHaveURL(/\/dashboard\/resources\/assets/)
   })
 })

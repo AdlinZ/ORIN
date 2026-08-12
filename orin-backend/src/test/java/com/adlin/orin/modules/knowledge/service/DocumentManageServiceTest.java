@@ -75,4 +75,53 @@ class DocumentManageServiceTest {
         assertEquals("INDEXING", result.getVectorStatus());
         verify(documentRepository).save(any(KnowledgeDocument.class));
     }
+
+    @Test
+    void updateVectorizationStatus_shouldPersistSafeFailureReason() {
+        KnowledgeDocument doc = KnowledgeDocument.builder()
+                .id("doc-1")
+                .vectorStatus("INDEXING")
+                .build();
+        when(documentRepository.findById("doc-1")).thenReturn(Optional.of(doc));
+        when(documentRepository.save(any(KnowledgeDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        KnowledgeDocument result = documentManageService.updateVectorizationStatus(
+                "doc-1", "FAILED", null, null);
+
+        assertEquals("FAILED", result.getVectorStatus());
+        assertEquals("向量化处理失败，请检查 Embedding 与 Milvus 配置", result.getVectorError());
+    }
+
+    @Test
+    void toSafeVectorError_shouldClassifyErrorsWithoutPersistingProviderPayload() {
+        String result = DocumentManageService.toSafeVectorError(
+                new RuntimeException("401 unauthorized api key sk-sensitive-value"));
+
+        assertEquals("Embedding Provider 配置无效或不可用", result);
+        assertFalse(result.contains("sk-sensitive-value"));
+    }
+
+    @Test
+    void toSafeVectorError_shouldRecognizeDimensionMismatch() {
+        assertEquals(
+                "Embedding 向量维度与 Milvus Collection 不匹配",
+                DocumentManageService.toSafeVectorError(
+                        new RuntimeException("vector dimension mismatch")));
+    }
+
+    @Test
+    void toSafeVectorError_shouldRecognizeMilvusUnavailable() {
+        assertEquals(
+                "Milvus 向量服务不可用或连接超时",
+                DocumentManageService.toSafeVectorError(
+                        new RuntimeException("milvus connection refused")));
+    }
+
+    @Test
+    void toSafeVectorError_shouldRecognizeEmptyParsedContent() {
+        assertEquals(
+                "文档解析内容为空，无法向量化",
+                DocumentManageService.toSafeVectorError(
+                        new RuntimeException("parsed text is empty")));
+    }
 }

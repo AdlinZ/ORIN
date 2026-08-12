@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -69,8 +70,9 @@ public class AgentChatController {
             @PathVariable String sessionId,
             @RequestBody ChatMessageRequest request) {
         SseEmitter emitter = new SseEmitter(180_000L);
+        String traceId = MDC.get("traceId");
 
-        CompletableFuture.runAsync(() -> {
+        CompletableFuture.runAsync(() -> runWithTraceId(traceId, () -> {
             try {
                 agentChatService.sendMessageStream(sessionId, request, (eventType, payload) -> {
                     try {
@@ -85,16 +87,39 @@ public class AgentChatController {
             } catch (Exception e) {
                 log.error("SSE chat failed for session {}: {}", sessionId, e.getMessage(), e);
                 try {
+                    Map<String, Object> errorPayload = new HashMap<>();
+                    errorPayload.put("message", e.getMessage());
+                    if (traceId != null && !traceId.isBlank()) {
+                        errorPayload.put("traceId", traceId);
+                    }
                     emitter.send(SseEmitter.event()
                             .name("error")
-                            .data(objectMapper.writeValueAsString(Map.of("message", e.getMessage())), MediaType.APPLICATION_JSON));
+                            .data(objectMapper.writeValueAsString(errorPayload), MediaType.APPLICATION_JSON));
                 } catch (Exception ignored) {
                 }
                 emitter.completeWithError(e);
             }
-        });
+        }));
 
         return emitter;
+    }
+
+    static void runWithTraceId(String traceId, Runnable action) {
+        String previousTraceId = MDC.get("traceId");
+        try {
+            if (traceId == null || traceId.isBlank()) {
+                MDC.remove("traceId");
+            } else {
+                MDC.put("traceId", traceId);
+            }
+            action.run();
+        } finally {
+            if (previousTraceId == null || previousTraceId.isBlank()) {
+                MDC.remove("traceId");
+            } else {
+                MDC.put("traceId", previousTraceId);
+            }
+        }
     }
 
     @Operation(summary = "附加知识库到会话")

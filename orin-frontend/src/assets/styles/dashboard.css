@@ -1,0 +1,400 @@
+/*
+ * ORIN Dashboard Foundation
+ *
+ * The three reference canvases (login, agent workspace and visual workflow
+ * editor) keep their own presentation. Everything else under MainLayout uses
+ * this quieter enterprise surface language.
+ */
+
+.dashboard-redesign:not(.is-reference-canvas) {
+  --orin-canvas: #f4f7f6;
+  --orin-surface: #ffffff;
+  --orin-surface-subtle: #f8faf9;
+  --orin-surface-raised: #ffffff;
+  --orin-ink: #17211f;
+  --orin-muted: #66736f;
+  --orin-faint: #8c9894;
+  --orin-border: #dfe6e4;
+  --orin-border-soft: #edf1f0;
+  --orin-primary: #3f9388;
+  --orin-primary-hover: #347f75;
+  --orin-primary-active: #28685f;
+  --orin-primary-soft: #eef8f6;
+  --orin-primary-border: #cfe6e1;
+  --orin-danger-soft: #fff4f3;
+  --orin-warning-soft: #fff8eb;
+  --orin-radius-sm: 7px;
+  --orin-radius-md: 10px;
+  --orin-radius-lg: 12px;
+  --orin-radius-xl: 16px;
+  --orin-shadow-xs: 0 1px 2px rgba(15, 35, 31, 0.04);
+  --orin-shadow-sm: 0 8px 24px rgba(15, 35, 31, 0.06);
+  --orin-page-gap: 24px;
+  --orin-section-gap: 16px;
+  --orin-grid-gap: 16px;
+  --orin-card-padding: 20px;
+  --sidebar-width: 264px;
+  --sidebar-width-collapsed: 72px;
+  --header-height: 68px;
+  --el-color-primary: var(--orin-primary);
+  --el-color-primary-light-9: var(--orin-primary-soft);
+  --el-color-primary-light-8: #dcefeb;
+  --el-color-primary-dark-2: var(--orin-primary-hover);
+}
+
+/* Navigation */
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container {
+  background: rgba(255, 255, 255, 0.96);
+  border-right-color: var(--orin-border);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .logo-container {
+  padding-inline: 18px;
+  border-bottom-color: var(--orin-border-soft);
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .menu-wrapper {
+  padding: 12px 10px;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .el-menu-vertical:not(.el-menu--collapse) {
+  width: auto;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container :where(.el-sub-menu__title, .el-menu-item) {
+  height: 44px !important;
+  line-height: 44px !important;
+  margin: 2px 0;
+  border-radius: 8px;
+  color: #52605c;
+  font-size: 13px;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container :where(.el-sub-menu__title, .el-menu-item) .el-icon {
+  color: #71807c !important;
+  font-size: 17px;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .el-sub-menu .el-menu-item {
+  min-width: 0;
+  padding-left: 46px !important;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .el-menu-item.is-active {
+  color: #216f65 !important;
+  background: var(--orin-primary-soft) !important;
+  font-weight: 650;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .el-menu-item.is-active .el-icon {
+  color: var(--orin-primary) !important;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .el-menu-item.is-active::after {
+  display: none;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container :where(.el-menu-item:hover, .el-sub-menu__title:hover) {
+  background: #f5f8f7 !important;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .sidebar-container .user-section {
+  padding: 12px;
+  border-top-color: var(--orin-border-soft);
+  background: var(--orin-surface);
+  backdrop-filter: none;
+}
+
+.dashboard-redesign:not(.is-reference-canvas) .top-navbar {
+  height: var(--header-height);
+  border-bottom: 1px solid var(--orin-border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) {
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--orin-canvas);
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .content-inner {
+  width: min(100%, 1560px);
+  margin: 0 auto;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .page-container,
+  .server-monitor-page,
+  .workflow-container,
+  .metrics-dashboard,
+  .trace-viewer,
+  .skill-management,
+  .user-management,
+  .department-management,
+  .role-management,
+  .kb-create-page,
+  .kb-detail-page,
+  .document-detail-page,
+  .alert-manager,
+  .workflow-editor,
+  .cost-dashboard,
+  .agent-extensions-page,
+  .knowledge-center,
+  .alert-management-page,
+  .mcp-service-page,
+  .statistics-page,
+  .rate-limit-config,
+  .system-maintenance-page,
+  .unified-gateway-workbench
+) {
+  color: var(--orin-ink);
+}
+
+/* Shared surfaces */
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .el-card,
+  .premium-card,
+  .table-card,
+  .filter-card,
+  .list-card,
+  .chart-card,
+  .activity-card,
+  .sessions-card,
+  .panel-card,
+  .stat-card,
+  .stat-mini-card,
+  .hw-stat-card
+) {
+  border: 1px solid var(--orin-border) !important;
+  border-radius: var(--orin-radius-lg) !important;
+  background: var(--orin-surface) !important;
+  box-shadow: var(--orin-shadow-xs) !important;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-card.is-hover-shadow:hover,
+.dashboard-redesign .content-area:not(.is-reference-page) .premium-card:hover {
+  border-color: #ccd8d5 !important;
+  box-shadow: var(--orin-shadow-sm) !important;
+  transform: none;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-card__header {
+  min-height: 54px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--orin-border-soft);
+  background: var(--orin-surface);
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-card__body {
+  padding: var(--orin-card-padding);
+}
+
+/* Controls */
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .el-input__wrapper,
+  .el-select__wrapper,
+  .el-textarea__inner,
+  .el-input-number,
+  .el-date-editor
+) {
+  border-radius: var(--orin-radius-sm);
+  background: var(--orin-surface);
+  box-shadow: inset 0 0 0 1px var(--orin-border);
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .el-input__wrapper,
+  .el-select__wrapper
+) {
+  min-height: 36px;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .el-input__wrapper:hover,
+  .el-select__wrapper:hover,
+  .el-textarea__inner:hover
+) {
+  box-shadow: inset 0 0 0 1px #b9c9c5;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .el-input__wrapper.is-focus,
+  .el-select__wrapper.is-focused,
+  .el-textarea__inner:focus
+) {
+  box-shadow: inset 0 0 0 1px var(--orin-primary), 0 0 0 3px rgba(63, 147, 136, 0.12);
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-button {
+  min-height: 36px;
+  border-radius: var(--orin-radius-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-button--primary {
+  border-color: var(--orin-primary);
+  background: var(--orin-primary);
+  box-shadow: none;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-button--primary:hover {
+  border-color: var(--orin-primary-hover);
+  background: var(--orin-primary-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-button.is-link,
+.dashboard-redesign .content-area:not(.is-reference-page) .el-button.is-text {
+  min-height: auto;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-form-item__label {
+  color: #35413e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Tables and pagination */
+.dashboard-redesign .content-area:not(.is-reference-page) .el-table {
+  --el-table-bg-color: var(--orin-surface);
+  --el-table-tr-bg-color: var(--orin-surface);
+  --el-table-header-bg-color: var(--orin-surface-subtle);
+  --el-table-row-hover-bg-color: var(--orin-primary-soft);
+  --el-table-border-color: var(--orin-border-soft);
+  --el-table-text-color: #35413e;
+  --el-table-header-text-color: var(--orin-muted);
+  font-size: 13px;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-table th.el-table__cell {
+  height: 42px;
+  padding: 7px 0;
+  background: var(--orin-surface-subtle);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-table td.el-table__cell {
+  padding: 9px 0;
+  border-bottom-color: var(--orin-border-soft);
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-pagination {
+  --el-pagination-button-bg-color: var(--orin-surface);
+  --el-pagination-hover-color: var(--orin-primary);
+  gap: 4px;
+}
+
+/* Tabs */
+.dashboard-redesign .content-area:not(.is-reference-page) .el-tabs__header {
+  margin-bottom: 18px;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-tabs__nav-wrap::after {
+  height: 1px;
+  background: var(--orin-border-soft);
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-tabs__item {
+  height: 42px;
+  color: var(--orin-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) .el-tabs__item.is-active {
+  color: var(--orin-primary-active);
+}
+
+/* Custom workbench headers that cannot use OrinPageShell. */
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .runtime-command-panel,
+  .metrics-command-panel,
+  .conversation-command-panel,
+  .alerts-hero,
+  .gateway-hero,
+  .page-header.cc-header-glass,
+  .extensions-console
+) {
+  border: 1px solid var(--orin-border) !important;
+  border-radius: var(--orin-radius-lg) !important;
+  background: var(--orin-surface) !important;
+  box-shadow: var(--orin-shadow-xs) !important;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .runtime-command-panel,
+  .metrics-command-panel,
+  .conversation-command-panel,
+  .alerts-hero,
+  .gateway-hero
+)::before,
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .runtime-command-panel,
+  .metrics-command-panel,
+  .conversation-command-panel,
+  .alerts-hero,
+  .gateway-hero
+)::after {
+  opacity: 0.12 !important;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .runtime-command-panel,
+  .conversation-command-panel,
+  .alerts-hero,
+  .gateway-hero
+) :where(h1, h2, h3) {
+  color: var(--orin-ink) !important;
+  letter-spacing: -0.01em;
+}
+
+.dashboard-redesign .content-area:not(.is-reference-page) :where(
+  .runtime-command-panel,
+  .conversation-command-panel,
+  .alerts-hero,
+  .gateway-hero
+) :where(p, .subtitle, .hero-subtitle) {
+  color: var(--orin-muted) !important;
+}
+
+/* Responsive density */
+@media (max-width: 1100px) {
+  .dashboard-redesign .content-area:not(.is-reference-page) {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-redesign .content-area:not(.is-reference-page) {
+    padding: 14px;
+  }
+
+  .dashboard-redesign .content-area:not(.is-reference-page) .el-card__body {
+    padding: 16px;
+  }
+}
+
+html.dark .dashboard-redesign:not(.is-reference-canvas) {
+  --orin-canvas: #0d1514;
+  --orin-surface: #131d1b;
+  --orin-surface-subtle: #182421;
+  --orin-ink: #eef5f3;
+  --orin-muted: #9baca7;
+  --orin-faint: #72827d;
+  --orin-border: #293936;
+  --orin-border-soft: #21302d;
+  --orin-primary: #55b9aa;
+  --orin-primary-hover: #6bc8ba;
+  --orin-primary-active: #8ad8cc;
+  --orin-primary-soft: rgba(85, 185, 170, 0.12);
+  --orin-primary-border: rgba(85, 185, 170, 0.28);
+  --orin-shadow-xs: none;
+  --orin-shadow-sm: 0 12px 28px rgba(0, 0, 0, 0.24);
+}

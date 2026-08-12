@@ -6,15 +6,16 @@
 
 | 文件 | 职责 |
 |------|------|
-| `src/router/routes.js` | 所有路由常量（含历史兼容路径） |
+| `src/router/routes.js` | 所有路由常量、历史兼容路径与旧面包屑配置 |
 | `src/router/index.js` | 实际路由实例与守卫 |
-| `src/router/topMenuConfig.js` | 顶部菜单暴露策略与状态标记 |
+| `src/router/topMenuConfig.js` | 当前导航结构、角色暴露策略与默认入口 |
 
 ### 路由原则
 
-- 路由常量存在 ≠ 能力交付，部分路径仅作历史兼容；当前主入口以 `routes.js` 的侧边栏二级分组为准
+- 路由常量存在 ≠ 能力交付，部分路径仅作历史兼容；当前主入口以 `topMenuConfig.js` 为唯一真相
 - `topMenuConfig.js` 负责顶部菜单的角色过滤和可见性开关，当前不使用占位状态字段标记发布状态
 - 同一能力存在多个路径别名时，必须在 `topMenuConfig.js` 标注主入口，避免误判"多个独立能力"
+- 当前产品顺序为“智能体 → 知识库 → 高级能力”；Workflow、MCP 和多智能体协作不与两类核心资产并列
 
 ### 排查命令
 
@@ -35,10 +36,14 @@ rg "开发中|未启用|待实现|ElMessage\.(info|warning)" src
 
 业务表格使用项目内的 `ResizableTable` 包装组件（位于 `src/components/`），支持列宽拖拽与持久化。新增表格时优先复用，避免直接用裸 `el-table`。
 
-### 前端统一改造 1.0
+### 前端统一改造 2.0
 
 - 管理台默认采用侧边栏企业后台模式，`topbar` 仅作为兼容/备用模式。
 - 新增业务页优先使用 `OrinPageShell`、`OrinAsyncState`、`OrinDataTable`、`OrinFilterBar`、`OrinMetricStrip`。
+- 管理台统一视觉底座位于 `src/assets/styles/dashboard.css`，仅作用于 `MainLayout` 下的业务页；色彩、间距、圆角和控件状态必须优先使用其中的 `--orin-*` token。
+- `/dashboard/applications/workspace`、`/dashboard/applications/workflows/visual` 是独立全屏工作台，`/login` 是独立认证页。三者作为当前视觉基线，不套用业务页的共享画布覆盖。
+- 业务页采用白色实体表面、细边框、低阴影和青绿色操作强调；禁止新增装饰性渐变、发光阴影或与状态无关的高饱和色块。
+- 页面信息结构固定为“页面标题与主操作 → 筛选/摘要 → 主数据区 → 详情或辅助信息”，不要在同一页面重复多个同级 hero。
 - 不扩大 Arco 组件使用范围；`src/ui/arco/` 仅作为隔离适配层保留。
 - 角色化首页数据统一走 `src/api/dashboard.js` → `GET /api/v1/dashboard/summary`，页面消费 `toDashboardSummaryViewModel()` 后的标准结构。
 - Dashboard 聚合数据由 Java 后端读取，前端不得直连 AI Engine。

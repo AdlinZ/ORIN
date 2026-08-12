@@ -7,7 +7,7 @@ from app.api.mcp import router as mcp_router
 from app.core.config import settings
 from app.engine.mq_worker import get_mq_dependency_status
 
-app = FastAPI(title="ORIN AI Engine", version="0.1.0")
+app = FastAPI(title="ORIN AI Engine", version="0.2.0")
 
 app.include_router(workflow_router, prefix="/api/v1")
 app.include_router(collaboration_router)

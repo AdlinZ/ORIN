@@ -4,6 +4,7 @@ import com.adlin.orin.common.service.FileStorageService;
 import com.adlin.orin.modules.knowledge.component.VectorStoreProvider;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
+import com.adlin.orin.modules.knowledge.service.DocumentManageService;
 import com.adlin.orin.modules.knowledge.service.UnstructuredService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +71,9 @@ public class UnstructuredServiceImpl implements UnstructuredService {
     public void processDocumentAsync(KnowledgeDocument doc, MultipartFile file) {
         try {
             log.info("Starting processing for doc: {}", doc.getFileName());
+            doc.setVectorStatus("INDEXING");
+            doc.setVectorError(null);
+            documentRepository.save(doc);
 
             String content = "";
             String fileName = (file.getOriginalFilename() != null) ? file.getOriginalFilename().toLowerCase()
@@ -118,6 +122,7 @@ public class UnstructuredServiceImpl implements UnstructuredService {
             vectorStoreProvider.addChunks(doc.getKnowledgeBaseId(), chunks_list);
 
             doc.setVectorStatus("COMPLETED");
+            doc.setVectorError(null);
             doc.setChunkCount(chunks_list.size());
             doc.setCharCount(length);
             documentRepository.save(doc);
@@ -125,8 +130,10 @@ public class UnstructuredServiceImpl implements UnstructuredService {
             log.info("Document processed successfully: {}. Chunks: {}", doc.getFileName(), chunks_list.size());
 
         } catch (Exception e) {
-            log.error("Failed to process document: {}", e.getMessage(), e);
+            String safeError = DocumentManageService.toSafeVectorError(e);
+            log.error("Vectorization failed for document {}: {}", doc.getId(), safeError);
             doc.setVectorStatus("FAILED");
+            doc.setVectorError(safeError);
             documentRepository.save(doc);
         }
     }

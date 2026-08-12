@@ -519,7 +519,7 @@ public class MilvusVectorService implements VectorStoreProvider {
         // Update document metadata after vector deletion
         try {
             for (String docId : docIds) {
-                documentRepository.updateVectorStatus(docId, "PENDING");
+                documentRepository.updateVectorStatusAndError(docId, "PENDING", null);
                 documentRepository.updateChunkCount(docId, 0);
             }
         } catch (Exception e) {

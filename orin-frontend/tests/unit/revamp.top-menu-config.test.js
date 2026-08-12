@@ -35,20 +35,20 @@ describe('top menu IA behavior', () => {
     expect(getDefaultHomeByRoles(['ROLE_USER'])).toBe(ROUTES.PORTAL)
   })
 
-  it('keeps operator navigation focused on execution workspaces', () => {
+  it('keeps operator navigation focused on agents and knowledge before advanced capabilities', () => {
     const operatorMenus = getVisibleMenus(['ROLE_OPERATOR'])
 
-    expect(operatorMenus.map((menu) => menu.id)).toEqual(['agents', 'workflows', 'knowledge'])
+    expect(operatorMenus.map((menu) => menu.id)).toEqual(['agents', 'knowledge', 'advanced'])
     expect(operatorMenus.flatMap((menu) => menu.children).every((child) => child.roles.includes('ROLE_OPERATOR'))).toBe(true)
   })
 
-  it('uses direct management-oriented menu labels', () => {
+  it('uses the product-priority menu labels', () => {
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
 
     expect(adminMenus.map((menu) => menu.title)).toEqual([
-      '智能体管理',
-      '工作流管理',
-      '知识库管理',
+      '智能体',
+      '知识库',
+      '高级能力',
       '运行监控',
       '组织权限',
       '系统设置',
@@ -61,27 +61,30 @@ describe('top menu IA behavior', () => {
 
   it('matches active top-level domain by route path', () => {
     expect(getActiveMenuId('/dashboard/applications/agents')).toBe('agents')
-    expect(getActiveMenuId(ROUTES.MCP.SERVERS)).toBe('agents')
+    expect(getActiveMenuId(ROUTES.KNOWLEDGE.CENTER)).toBe('knowledge')
+    expect(getActiveMenuId(ROUTES.MCP.SERVERS)).toBe('advanced')
     expect(getActiveMenuId('/dashboard/runtime/overview')).toBe('monitor')
     expect(getActiveMenuId('/dashboard/control/users')).toBe('organization')
   })
 
-  it('points workflow management to the V1 fallback entries', () => {
-    const workflowMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'workflows')
+  it('keeps workflow routes inside advanced capabilities', () => {
+    const advancedMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'advanced')
 
-    expect(workflowMenu).toMatchObject({ path: ROUTES.AGENTS.WORKFLOWS })
-    expect(workflowMenu.children).toEqual([
+    expect(advancedMenu).toMatchObject({ path: ROUTES.AGENTS.WORKFLOWS })
+    expect(advancedMenu.children).toEqual([
       expect.objectContaining({ title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Connection' }),
       expect.objectContaining({ title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL, icon: 'Edit' }),
       expect.objectContaining({ title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay' }),
+      expect.objectContaining({ title: '多智能体协作', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS, icon: 'Connection' }),
+      expect.objectContaining({ title: '扩展与 MCP', path: ROUTES.AGENTS.EXTENSIONS, icon: 'Star' }),
     ])
   })
 
-  it('keeps multi-agent collaboration visible under agent management', () => {
-    const agentMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'agents')
+  it('keeps multi-agent collaboration under advanced capabilities', () => {
+    const advancedMenu = getVisibleMenus(['ROLE_ADMIN']).find((menu) => menu.id === 'advanced')
 
-    expect(agentMenu.children).toContainEqual(expect.objectContaining({
-      title: '多智能体协同',
+    expect(advancedMenu.children).toContainEqual(expect.objectContaining({
+      title: '多智能体协作',
       path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS,
       icon: 'Connection',
     }))
@@ -90,6 +93,7 @@ describe('top menu IA behavior', () => {
   it('keeps MCP service management inside the extensions tab instead of a separate agent menu item', () => {
     const adminMenus = getVisibleMenus(['ROLE_ADMIN'])
     const agentMenu = adminMenus.find((menu) => menu.id === 'agents')
+    const advancedMenu = adminMenus.find((menu) => menu.id === 'advanced')
     const systemMenu = adminMenus.find((menu) => menu.id === 'system')
 
     expect(ROUTES.MCP.SERVERS).toBe('/dashboard/applications/extensions?tab=mcp')
@@ -98,8 +102,11 @@ describe('top menu IA behavior', () => {
       path: ROUTES.MCP.SERVERS,
       icon: 'Connection',
     }))
-    expect(agentMenu.children).toContainEqual(expect.objectContaining({
-      title: '扩展管理',
+    expect(agentMenu.children).not.toContainEqual(expect.objectContaining({
+      path: ROUTES.AGENTS.EXTENSIONS,
+    }))
+    expect(advancedMenu.children).toContainEqual(expect.objectContaining({
+      title: '扩展与 MCP',
       path: ROUTES.AGENTS.EXTENSIONS,
       icon: 'Star',
     }))

@@ -57,7 +57,7 @@ export function getDefaultHomeByRoles(userRoles = []) {
 export const TOP_MENU_CONFIG = [
   {
     id: 'agents',
-    title: '智能体管理',
+    title: '智能体',
     icon: 'Robot',
     color: '#0f766e',
     path: ROUTES.AGENTS.ROOT,
@@ -66,26 +66,11 @@ export const TOP_MENU_CONFIG = [
       { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'List', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS, icon: 'ChatDotRound', roles: DASHBOARD_OPERATOR_ROLES },
-      { title: '多智能体协同', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS, icon: 'Connection', roles: DASHBOARD_OPERATOR_ROLES },
-      { title: '扩展管理', path: ROUTES.AGENTS.EXTENSIONS, icon: 'Star', roles: DASHBOARD_OPERATOR_ROLES },
-    ],
-  },
-  {
-    id: 'workflows',
-    title: '工作流管理',
-    icon: 'Edit',
-    color: '#334155',
-    path: ROUTES.AGENTS.WORKFLOWS,
-    roles: DASHBOARD_OPERATOR_ROLES,
-    children: [
-      { title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Connection', roles: DASHBOARD_OPERATOR_ROLES },
-      { title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL, icon: 'Edit', roles: DASHBOARD_OPERATOR_ROLES },
-      { title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay', roles: DASHBOARD_OPERATOR_ROLES },
     ],
   },
   {
     id: 'knowledge',
-    title: '知识库管理',
+    title: '知识库',
     icon: 'Reading',
     color: '#0f766e',
     path: ROUTES.KNOWLEDGE.CENTER,
@@ -93,6 +78,21 @@ export const TOP_MENU_CONFIG = [
     children: [
       { title: '知识检索', path: ROUTES.KNOWLEDGE.CENTER, icon: 'Reading', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '知识资产', path: ROUTES.KNOWLEDGE.ASSETS, icon: 'Collection', roles: DASHBOARD_OPERATOR_ROLES },
+    ],
+  },
+  {
+    id: 'advanced',
+    title: '高级能力',
+    icon: 'SetUp',
+    color: '#475569',
+    path: ROUTES.AGENTS.WORKFLOWS,
+    roles: DASHBOARD_OPERATOR_ROLES,
+    children: [
+      { title: '工作流中心', path: ROUTES.AGENTS.WORKFLOWS, icon: 'Connection', roles: DASHBOARD_OPERATOR_ROLES },
+      { title: '可视化编排', path: ROUTES.AGENTS.WORKFLOW_VISUAL, icon: 'Edit', roles: DASHBOARD_OPERATOR_ROLES },
+      { title: '执行记录', path: ROUTES.AGENTS.WORKFLOW_EXECUTION, icon: 'VideoPlay', roles: DASHBOARD_OPERATOR_ROLES },
+      { title: '多智能体协作', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS, icon: 'Connection', roles: DASHBOARD_OPERATOR_ROLES },
+      { title: '扩展与 MCP', path: ROUTES.AGENTS.EXTENSIONS, icon: 'Star', roles: DASHBOARD_OPERATOR_ROLES },
     ],
   },
   {

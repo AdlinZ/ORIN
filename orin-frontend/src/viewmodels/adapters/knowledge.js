@@ -86,6 +86,8 @@ export function toKnowledgeDocumentListViewModel(payload) {
     fileType: item.fileType || item.type || '',
     parseStatus: item.parseStatus || item.status || 'PENDING',
     vectorStatus: item.vectorStatus || item.indexStatus || 'PENDING',
+    parseError: item.parseError || '',
+    vectorError: item.vectorError || '',
     charCount: Number(item.charCount || item.wordCount || item.size || 0),
     uploadTime: item.uploadTime || item.createdAt || item.createTime || null,
     traceId: pickTraceId(item) || pickTraceId(payload),

@@ -292,6 +292,7 @@ test.describe('Wave 6 system control browser smoke', () => {
       '/dashboard/control/data-assets',
       '/dashboard/control/system-env',
       '/dashboard/control/gateway',
+      '/dashboard/control/unified-api-docs',
       '/dashboard/control/mcp-service',
       '/dashboard/control/pricing',
       '/dashboard/control/statistics',

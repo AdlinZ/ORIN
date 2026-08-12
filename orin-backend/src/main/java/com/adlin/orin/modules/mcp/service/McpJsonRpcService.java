@@ -46,7 +46,7 @@ public class McpJsonRpcService {
             case "initialize" -> ok(id, Map.of(
                     "protocolVersion", PROTOCOL,
                     "capabilities", Map.of("tools", Map.of("listChanged", false)),
-                    "serverInfo", Map.of("name", "ORIN", "version", "0.1.0")
+                    "serverInfo", Map.of("name", "ORIN", "version", "0.2.0")
             ));
             case "tools/list" -> listTools(id, secret);
             case "tools/call" -> call(id, map(req.get("params")), secret);

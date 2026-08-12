@@ -287,7 +287,7 @@ const getRoleScope = (roleCode) => {
   const scopeMap = {
     ROLE_SUPER_ADMIN: '全平台与最高权限',
     ROLE_PLATFORM_ADMIN: '平台配置与组织治理',
-    ROLE_OPERATOR: '业务运营与运行监控',
+    ROLE_OPERATOR: '智能体与知识库管理',
     ROLE_ADMIN: '系统管理与基础配置',
     ROLE_USER: '普通业务访问'
   }
@@ -438,6 +438,7 @@ onUnmounted(() => {
 .role-management {
   padding: 32px;
   max-width: none;
+  min-width: 0;
   width: 100%;
   margin: 0 auto;
   background: var(--bg-color, #f8fafc);
@@ -469,6 +470,11 @@ onUnmounted(() => {
 .governance-card {
   display: grid;
   gap: 18px;
+  min-width: 0;
+}
+
+.governance-card > * {
+  min-width: 0;
 }
 
 .card-heading {
