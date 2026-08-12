@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service.sync;
 
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.knowledge.entity.*;
 import com.adlin.orin.modules.knowledge.repository.*;
 import com.adlin.orin.modules.settings.service.SystemDifyConfigProvider;
@@ -28,6 +29,7 @@ public class DifyFullSyncService {
     private final DifyWorkflowRepository difyWorkflowRepository;
     private final DifyConversationRepository difyConversationRepository;
     private final SystemDifyConfigProvider difyConfigProvider;
+    private final AgentOwnershipResolver ownershipResolver;
 
     /**
      * 完整同步所有内容
@@ -159,6 +161,7 @@ public class DifyFullSyncService {
             kb.setDescription(dataset.getDescription());
             kb.setDocCount(dataset.getDocumentCount());
             kb.setStatus("ENABLED");
+            kb.setOwnerUserId(ownershipResolver.resolveForSystemSeed());
             kb.setCreatedAt(LocalDateTime.now());
             kb.setSyncTime(LocalDateTime.now());
             knowledgeBaseRepository.save(kb);

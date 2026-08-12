@@ -4,6 +4,7 @@ const DEFAULT_METRICS = {
   workflows: 0,
   collaborationPackages: 0,
   traces: 0,
+  pendingDocuments: 0,
   tasks: {},
   openTasks: 0,
   failedTasks: 0
@@ -45,6 +46,7 @@ export function toDashboardSummaryViewModel(payload = {}) {
       workflows: normalizeNumber(metrics.workflows),
       collaborationPackages: normalizeNumber(metrics.collaborationPackages),
       traces: normalizeNumber(metrics.traces),
+      pendingDocuments: normalizeNumber(metrics.pendingDocuments),
       tasks: metrics.tasks || {},
       openTasks: normalizeNumber(metrics.openTasks),
       failedTasks: normalizeNumber(metrics.failedTasks)

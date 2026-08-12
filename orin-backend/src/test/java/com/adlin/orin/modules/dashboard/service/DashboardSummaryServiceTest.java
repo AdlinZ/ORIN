@@ -5,6 +5,7 @@ import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
 import com.adlin.orin.modules.task.repository.TaskRepository;
 import com.adlin.orin.modules.trace.repository.WorkflowTraceRepository;
@@ -35,6 +36,7 @@ class DashboardSummaryServiceTest {
 
     private AgentMetadataRepository agentMetadataRepository;
     private KnowledgeBaseRepository knowledgeBaseRepository;
+    private KnowledgeDocumentRepository knowledgeDocumentRepository;
     private WorkflowDefinitionRepository workflowDefinitionRepository;
     private CollaborationPackageRepository collaborationPackageRepository;
     private TaskRepository taskRepository;
@@ -47,6 +49,7 @@ class DashboardSummaryServiceTest {
     void setUp() {
         agentMetadataRepository = mock(AgentMetadataRepository.class);
         knowledgeBaseRepository = mock(KnowledgeBaseRepository.class);
+        knowledgeDocumentRepository = mock(KnowledgeDocumentRepository.class);
         workflowDefinitionRepository = mock(WorkflowDefinitionRepository.class);
         collaborationPackageRepository = mock(CollaborationPackageRepository.class);
         taskRepository = mock(TaskRepository.class);
@@ -57,6 +60,7 @@ class DashboardSummaryServiceTest {
         service = new DashboardSummaryService(
                 agentMetadataRepository,
                 knowledgeBaseRepository,
+                knowledgeDocumentRepository,
                 workflowDefinitionRepository,
                 collaborationPackageRepository,
                 taskRepository,
@@ -71,6 +75,7 @@ class DashboardSummaryServiceTest {
     void buildsAdminSummaryAndSanitizesRecentActivity() {
         when(agentMetadataRepository.count()).thenReturn(3L);
         when(knowledgeBaseRepository.count()).thenReturn(4L);
+        when(knowledgeDocumentRepository.findByVectorStatusIn(any())).thenReturn(List.of());
         when(workflowDefinitionRepository.count()).thenReturn(5L);
         when(collaborationPackageRepository.count()).thenReturn(6L);
         when(workflowTraceRepository.count()).thenReturn(7L);
@@ -94,6 +99,7 @@ class DashboardSummaryServiceTest {
 
         Map<?, ?> metrics = (Map<?, ?>) summary.get("metrics");
         assertThat(metrics.get("agents")).isEqualTo(3L);
+        assertThat(metrics.get("pendingDocuments")).isEqualTo(0L);
         assertThat(metrics.get("openTasks")).isEqualTo(3L);
         assertThat(metrics.get("failedTasks")).isEqualTo(3L);
 
@@ -111,6 +117,7 @@ class DashboardSummaryServiceTest {
     @Test
     void fallsBackToUserHomeAndDownHealthWhenAiEngineUnavailable() {
         when(taskRepository.countByStatus()).thenReturn(List.of());
+        when(knowledgeDocumentRepository.findByVectorStatusIn(any())).thenReturn(List.of());
         when(auditLogRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
         when(restTemplate.getForEntity(eq("http://ai-engine.local/health"), eq(Map.class)))
                 .thenThrow(new IllegalStateException("offline"));
@@ -122,6 +129,26 @@ class DashboardSummaryServiceTest {
         Map<?, ?> aiEngine = (Map<?, ?>) ((Map<?, ?>) summary.get("systemHealth")).get("aiEngine");
         assertThat(aiEngine.get("status")).isEqualTo("DOWN");
         assertThat(aiEngine.get("reachable")).isEqualTo(false);
+    }
+
+    @Test
+    void routesOperatorToWorkbenchHomeWithOperatorQuickLinks() {
+        when(taskRepository.countByStatus()).thenReturn(List.of());
+        when(knowledgeDocumentRepository.findByVectorStatusIn(any())).thenReturn(List.of());
+        when(auditLogRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        when(restTemplate.getForEntity(eq("http://ai-engine.local/health"), eq(Map.class)))
+                .thenThrow(new IllegalStateException("offline"));
+
+        Map<String, Object> summary = service.getSummary(new UsernamePasswordAuthenticationToken(
+                "22",
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_OPERATOR"))
+        ));
+
+        assertThat(summary.get("defaultHome")).isEqualTo("/dashboard/applications/home");
+        List<?> quickLinks = (List<?>) summary.get("quickLinks");
+        assertThat(quickLinks).isNotEmpty();
+        assertThat(((Map<?, ?>) quickLinks.get(0)).get("path")).isEqualTo("/dashboard/applications/home");
     }
 
     private AuditLog auditLog() {

@@ -30,6 +30,8 @@ import java.util.Optional;
 
 import com.adlin.orin.modules.knowledge.service.meta.MetaKnowledgeService;
 import com.adlin.orin.modules.knowledge.component.EmbeddingService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/api/v1/knowledge")
@@ -275,7 +277,7 @@ public class KnowledgeManageController {
         KnowledgeBase result = knowledgeManageService.createKnowledgeBase(kb);
         // 审计日志
         auditLogService.logApiCall(
-                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
                 "/knowledge", "POST", kb.getName(), null, null,
                 "{\"name\":\"" + kb.getName() + "\"}", null, 200, null,
                 null, null, null, true, null, null, null);
@@ -288,7 +290,7 @@ public class KnowledgeManageController {
         KnowledgeBase result = knowledgeManageService.updateKnowledgeBase(kbId, kb);
         // 审计日志
         auditLogService.logApiCall(
-                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
                 "/knowledge/" + kbId, "PUT", kb.getName(), null, null,
                 null, null, 200, null,
                 null, null, null, true, null, null, null);
@@ -301,7 +303,7 @@ public class KnowledgeManageController {
         knowledgeManageService.deleteKnowledgeBase(kbId);
         // 审计日志
         auditLogService.logApiCall(
-                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
                 "/knowledge/" + kbId, "DELETE", kbId, null, null,
                 null, null, 200, null,
                 null, null, null, true, null, null, null);
@@ -331,7 +333,7 @@ public class KnowledgeManageController {
             KnowledgeDocument result = documentManageService.uploadDocument(kbId, file, uploadedBy);
             // 审计日志
             auditLogService.logApiCall(
-                    "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                    currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
                     "/knowledge/" + kbId + "/documents/upload", "POST", file.getOriginalFilename(), null, null,
                     "{\"kbId\":\"" + kbId + "\",\"filename\":\"" + file.getOriginalFilename() + "\"}", null, 200, null,
                     null, null, null, true, null, null, null);
@@ -365,7 +367,7 @@ public class KnowledgeManageController {
         documentManageService.deleteDocument(docId);
         // 审计日志
         auditLogService.logApiCall(
-                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
                 "/knowledge/documents/" + docId, "DELETE", docId, null, null,
                 null, null, 200, null,
                 null, null, null, true, null, null, null);
@@ -378,7 +380,7 @@ public class KnowledgeManageController {
         KnowledgeDocument result = documentManageService.triggerVectorization(docId);
         // 审计日志
         auditLogService.logApiCall(
-                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
                 "/knowledge/documents/" + docId + "/vectorize", "POST", docId, null, null,
                 null, null, 200, null,
                 null, null, null, true, null, null, null);
@@ -392,7 +394,7 @@ public class KnowledgeManageController {
         KnowledgeDocument result = documentManageService.triggerParsing(docId, false);
         // 审计日志
         auditLogService.logApiCall(
-            "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+            currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
             "/knowledge/documents/" + docId + "/parse", "POST", docId, null, null,
             null, null, 200, null,
             null, null, null, true, null, null, null);
@@ -602,7 +604,7 @@ public class KnowledgeManageController {
 
         // 审计日志 - RAG 检索
         auditLogService.logApiCall(
-                "SYSTEM", null, "KNOWLEDGE", "KNOWLEDGE",
+                currentUserId(), null, "KNOWLEDGE", "KNOWLEDGE",
                 "/knowledge/retrieve/test", "POST", kbId != null ? kbId : "all", null, null,
                 "{\"query\":\"" + (query != null ? query.substring(0, Math.min(50, query.length())) : "")
                         + "\",\"topK\":" + topK + ",\"alpha\":" + alpha + ",\"threshold\":" + threshold
@@ -611,6 +613,15 @@ public class KnowledgeManageController {
                 null, null, null, true, null, null, null);
 
         return response;
+    }
+
+    private String currentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return "SYSTEM";
+        }
+        String principal = String.valueOf(authentication.getPrincipal());
+        return principal.isBlank() ? "SYSTEM" : principal;
     }
 
     private List<?> extractRetrievalResults(Object result) {

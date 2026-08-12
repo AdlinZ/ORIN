@@ -43,7 +43,7 @@ export function getDefaultHomeByRoles(userRoles = []) {
   }
 
   if (isOperatorLike(userRoles)) {
-    return ROUTES.AGENTS.LIST
+    return ROUTES.AGENTS.HOME
   }
 
   return ROUTES.PORTAL
@@ -63,7 +63,7 @@ export const TOP_MENU_CONFIG = [
     path: ROUTES.AGENTS.ROOT,
     roles: DASHBOARD_OPERATOR_ROLES,
     children: [
-      { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE, icon: 'ChatDotRound', roles: DASHBOARD_OPERATOR_ROLES },
+      { title: '运维工作台', path: ROUTES.AGENTS.HOME, icon: 'DataAnalysis', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '智能体列表', path: ROUTES.AGENTS.LIST, icon: 'List', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS, icon: 'ChatDotRound', roles: DASHBOARD_OPERATOR_ROLES },
     ],
@@ -73,11 +73,11 @@ export const TOP_MENU_CONFIG = [
     title: '知识库',
     icon: 'Reading',
     color: '#0f766e',
-    path: ROUTES.KNOWLEDGE.CENTER,
+    path: ROUTES.KNOWLEDGE.ASSETS,
     roles: DASHBOARD_OPERATOR_ROLES,
     children: [
-      { title: '知识检索', path: ROUTES.KNOWLEDGE.CENTER, icon: 'Reading', roles: DASHBOARD_OPERATOR_ROLES },
       { title: '知识资产', path: ROUTES.KNOWLEDGE.ASSETS, icon: 'Collection', roles: DASHBOARD_OPERATOR_ROLES },
+      { title: '知识检索', path: ROUTES.KNOWLEDGE.RETRIEVAL_LAB, icon: 'Reading', roles: DASHBOARD_OPERATOR_ROLES },
     ],
   },
   {

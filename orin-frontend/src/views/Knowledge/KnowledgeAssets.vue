@@ -193,6 +193,7 @@
               <el-tag size="small" effect="plain">{{ formatKnowledgeType(selected.kb.type) }}</el-tag>
               <span class="kb-summary-item">文档数 {{ kbDocumentCount(selected.kb) }}</span>
               <span class="kb-summary-item">状态 {{ kbStatusText(selected.kb.status) }}</span>
+              <span v-if="selected.kb.ownerUserId" class="kb-summary-item">归属 {{ selected.kb.ownerUserId }}</span>
               <span class="kb-summary-item">最近更新 {{ formatTime(resolveUpdatedAt(selected)) }}</span>
             </div>
             <div class="kb-summary-desc">

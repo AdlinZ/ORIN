@@ -5,6 +5,7 @@ import com.adlin.orin.modules.audit.entity.AuditLog;
 import com.adlin.orin.modules.audit.repository.AuditLogRepository;
 import com.adlin.orin.modules.collaboration.repository.CollaborationPackageRepository;
 import com.adlin.orin.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.adlin.orin.modules.knowledge.repository.KnowledgeDocumentRepository;
 import com.adlin.orin.modules.task.entity.TaskEntity.TaskStatus;
 import com.adlin.orin.modules.task.repository.TaskRepository;
 import com.adlin.orin.modules.trace.repository.WorkflowTraceRepository;
@@ -36,6 +37,7 @@ public class DashboardSummaryService {
 
     private final AgentMetadataRepository agentMetadataRepository;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final KnowledgeDocumentRepository knowledgeDocumentRepository;
     private final WorkflowDefinitionRepository workflowDefinitionRepository;
     private final CollaborationPackageRepository collaborationPackageRepository;
     private final TaskRepository taskRepository;
@@ -76,7 +78,7 @@ public class DashboardSummaryService {
             return "/dashboard/runtime/overview";
         }
         if (hasAnyRole(roles, OPERATOR_ROLES)) {
-            return "/dashboard/applications/agents";
+            return "/dashboard/applications/home";
         }
         return "/portal";
     }
@@ -115,6 +117,8 @@ public class DashboardSummaryService {
         metrics.put("workflows", safeCount(workflowDefinitionRepository::count));
         metrics.put("collaborationPackages", safeCount(collaborationPackageRepository::count));
         metrics.put("traces", safeCount(workflowTraceRepository::count));
+        metrics.put("pendingDocuments", safeCount(() ->
+                (long) knowledgeDocumentRepository.findByVectorStatusIn(List.of("PENDING", "FAILED")).size()));
 
         Map<String, Long> tasks = taskStatusCounts();
         metrics.put("tasks", tasks);
@@ -181,10 +185,11 @@ public class DashboardSummaryService {
         }
         if (hasAnyRole(roles, OPERATOR_ROLES)) {
             return List.of(
+                    link("运维工作台", "/dashboard/applications/home"),
                     link("智能体列表", "/dashboard/applications/agents"),
-                    link("工作流中心", "/dashboard/applications/workflows"),
                     link("知识资产", "/dashboard/resources/assets"),
-                    link("协作看板", "/dashboard/applications/collaboration/dashboard")
+                    link("知识检索", "/dashboard/resources/retrieval"),
+                    link("工作流中心", "/dashboard/applications/workflows")
             );
         }
         return List.of(

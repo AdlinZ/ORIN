@@ -56,6 +56,13 @@ describe('route cleanup contracts', () => {
     expect(ROUTES.MONITOR.ALERT_RULES).toBe(ROUTES.MONITOR.ALERTS)
   })
 
+  it('exposes operator workbench home and keeps knowledge lab aliases on retrieval', () => {
+    expect(ROUTES.AGENTS.HOME).toBe('/dashboard/applications/home')
+    expect(ROUTES.KNOWLEDGE.RETRIEVAL_LAB).toBe('/dashboard/resources/retrieval')
+    expect(ROUTES.KNOWLEDGE.EMBEDDING_LAB).toBe(ROUTES.KNOWLEDGE.RETRIEVAL_LAB)
+    expect(ROUTES.KNOWLEDGE.CENTER).toBe('/dashboard/resources/center')
+  })
+
   it('keeps legacy workflow routes and redirects removed V2 entries to V1 fallback', () => {
     expect(ROUTES.AGENTS.WORKFLOWS).toBe('/dashboard/applications/workflows')
     expect(ROUTES.AGENTS.WORKFLOWS_V2).toBeUndefined()

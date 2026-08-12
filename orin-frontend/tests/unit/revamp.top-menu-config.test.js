@@ -31,7 +31,7 @@ describe('top menu IA behavior', () => {
     expect(getDefaultHomeByRoles(['ROLE_SUPER_ADMIN'])).toBe(ROUTES.HOME)
     expect(getDefaultHomeByRoles(['ROLE_PLATFORM_ADMIN'])).toBe(ROUTES.HOME)
     expect(getDefaultHomeByRoles(['ROLE_ADMIN'])).toBe(ROUTES.HOME)
-    expect(getDefaultHomeByRoles(['ROLE_OPERATOR'])).toBe(ROUTES.AGENTS.LIST)
+    expect(getDefaultHomeByRoles(['ROLE_OPERATOR'])).toBe(ROUTES.AGENTS.HOME)
     expect(getDefaultHomeByRoles(['ROLE_USER'])).toBe(ROUTES.PORTAL)
   })
 
@@ -60,11 +60,34 @@ describe('top menu IA behavior', () => {
   })
 
   it('matches active top-level domain by route path', () => {
+    expect(getActiveMenuId('/dashboard/applications/home')).toBe('agents')
     expect(getActiveMenuId('/dashboard/applications/agents')).toBe('agents')
-    expect(getActiveMenuId(ROUTES.KNOWLEDGE.CENTER)).toBe('knowledge')
+    expect(getActiveMenuId(ROUTES.KNOWLEDGE.ASSETS)).toBe('knowledge')
+    expect(getActiveMenuId(ROUTES.KNOWLEDGE.RETRIEVAL_LAB)).toBe('knowledge')
     expect(getActiveMenuId(ROUTES.MCP.SERVERS)).toBe('advanced')
     expect(getActiveMenuId('/dashboard/runtime/overview')).toBe('monitor')
     expect(getActiveMenuId('/dashboard/control/users')).toBe('organization')
+  })
+
+  it('keeps operator agent and knowledge menus to a single primary surface each', () => {
+    const operatorMenus = getVisibleMenus(['ROLE_OPERATOR'])
+    const agentMenu = operatorMenus.find((menu) => menu.id === 'agents')
+    const knowledgeMenu = operatorMenus.find((menu) => menu.id === 'knowledge')
+
+    expect(agentMenu.children.map((child) => child.title)).toEqual([
+      '运维工作台',
+      '智能体列表',
+      '会话记录',
+    ])
+    expect(agentMenu.children.map((child) => child.path)).not.toContain(ROUTES.AGENTS.WORKSPACE)
+    expect(knowledgeMenu.children.map((child) => child.title)).toEqual([
+      '知识资产',
+      '知识检索',
+    ])
+    expect(knowledgeMenu.children.map((child) => child.path)).toEqual([
+      ROUTES.KNOWLEDGE.ASSETS,
+      ROUTES.KNOWLEDGE.RETRIEVAL_LAB,
+    ])
   })
 
   it('keeps workflow routes inside advanced capabilities', () => {

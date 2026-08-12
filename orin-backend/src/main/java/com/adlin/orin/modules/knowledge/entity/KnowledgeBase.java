@@ -45,6 +45,13 @@ public class KnowledgeBase {
     @Column(name = "status")
     private String status; // ENABLED, DISABLED
 
+    /**
+     * Owning user id (same semantic stamp as agent_metadata.owner_user_id).
+     * List filtering / resource ACL is not enabled yet; field is for audit and future scoping.
+     */
+    @Column(name = "owner_user_id", nullable = false)
+    private Long ownerUserId;
+
     @Column(name = "source_agent_id")
     private String sourceAgentId; // ID of the agent this KB was synced from (optional binding)
 

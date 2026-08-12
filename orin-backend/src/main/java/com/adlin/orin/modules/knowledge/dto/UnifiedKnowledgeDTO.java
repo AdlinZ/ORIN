@@ -13,6 +13,7 @@ public class UnifiedKnowledgeDTO {
     private String description;
     private KnowledgeType type;
     private String status;
+    private Long ownerUserId;
 
     /**
      * Vector sync status from Milvus

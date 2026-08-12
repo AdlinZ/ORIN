@@ -3,8 +3,8 @@
  * 集中管理所有路由路径，避免硬编码
  *
  * 菜单结构：
- * 1. 智能体 - 智能体列表、智能体工作台、会话记录
- * 2. 知识库 - 知识检索、知识资产
+ * 1. 智能体 - 运维工作台、智能体列表、会话记录（调试工作台/接入为深链）
+ * 2. 知识库 - 知识资产、知识检索（center 旧入口重定向到检索）
  * 3. 高级能力 - 工作流、多智能体协作、扩展与 MCP
  * 4. 运行监控 - 监控总览、链路与分析、告警与事件、运维操作
  * 5. 系统设置 - 组织权限、平台设置、模型管理、统一网关、支持维护
@@ -12,6 +12,7 @@
 
 const agentRoutes = {
     ROOT: '/dashboard/applications',
+    HOME: '/dashboard/applications/home',
     LIST: '/dashboard/applications/agents',
     ONBOARD: '/dashboard/applications/agents/onboard',
     CONSOLE: '/dashboard/applications/agents/console/:id',
@@ -332,9 +333,9 @@ export const SIDEBAR_MENU_CONFIG = [
                 icon: 'Grid',
                 path: '/dashboard/agents/manage',
                 children: [
+                    { title: '运维工作台', path: ROUTES.AGENTS.HOME },
                     { title: '智能体列表', path: ROUTES.AGENTS.LIST },
                     { title: '智能体接入', path: ROUTES.AGENTS.ONBOARD },
-                    { title: '智能体控制台', path: ROUTES.AGENTS.CONSOLE },
                 ]
             },
             // 会话管理（三级）
@@ -345,7 +346,7 @@ export const SIDEBAR_MENU_CONFIG = [
                 path: '/dashboard/agents/session',
                 children: [
                     { title: '会话记录', path: ROUTES.AGENTS.CHAT_LOGS },
-                    { title: '智能体工作台', path: ROUTES.AGENTS.WORKSPACE },
+                    { title: '调试工作台', path: ROUTES.AGENTS.WORKSPACE },
                     { title: '多智能体协同', path: ROUTES.AGENTS.COLLABORATION_WORKFLOWS },
                 ]
             },

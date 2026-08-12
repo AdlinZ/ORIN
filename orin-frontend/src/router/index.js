@@ -151,6 +151,12 @@ const routes = [
                 path: 'applications',
                 meta: { title: '智能体管理', category: 'applications', roles: OPERATOR_ROUTE_ROLES },
                 children: [
+                    {
+                        path: 'home',
+                        name: 'OperatorWorkbench',
+                        component: () => import('@/views/revamp/operators/OperatorWorkbench.vue'),
+                        meta: { title: '运维工作台', icon: 'DataAnalysis' }
+                    },
                     // 应用列表（智能体）
                     {
                         path: 'agents',
@@ -188,7 +194,7 @@ const routes = [
                         path: 'workspace',
                         name: 'ApplicationWorkspace',
                         component: () => import('@/views/Agent/AgentWorkspace.vue'),
-                        meta: { title: '智能体工作台', icon: 'Monitor' }
+                        meta: { title: '调试工作台', icon: 'Monitor' }
                     },
                     {
                         path: 'workflows/execution',
