@@ -108,4 +108,20 @@ class DocumentManageServiceTest {
                 DocumentManageService.toSafeVectorError(
                         new RuntimeException("vector dimension mismatch")));
     }
+
+    @Test
+    void toSafeVectorError_shouldRecognizeMilvusUnavailable() {
+        assertEquals(
+                "Milvus 向量服务不可用或连接超时",
+                DocumentManageService.toSafeVectorError(
+                        new RuntimeException("milvus connection refused")));
+    }
+
+    @Test
+    void toSafeVectorError_shouldRecognizeEmptyParsedContent() {
+        assertEquals(
+                "文档解析内容为空，无法向量化",
+                DocumentManageService.toSafeVectorError(
+                        new RuntimeException("parsed text is empty")));
+    }
 }

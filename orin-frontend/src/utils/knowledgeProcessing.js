@@ -104,3 +104,73 @@ export function getRetrievalDiagnostics(payload = {}) {
       || (empty ? '请检查文档处理状态、检索阈值或问题表述。' : '结果来自已就绪的知识索引。'),
   }
 }
+
+/**
+ * Normalize GET /knowledge/diagnose/milvus into a shared readiness strip model.
+ * Prefers nested milvus/embedding/documentPipeline; falls back to legacy flat fields.
+ */
+export function getDependencyDiagnostics(payload = {}) {
+  if (!payload || typeof payload !== 'object') {
+    return {
+      type: 'warning',
+      title: '诊断不可用',
+      description: '暂时无法获取向量依赖状态，上传仍可继续，检索前请重新诊断。',
+      vectorHealthy: false,
+      embeddingHealthy: false,
+      dimensionMismatch: false,
+      milvus: {},
+      embedding: {},
+      documentPipeline: {},
+    }
+  }
+
+  const milvus = payload.milvus && typeof payload.milvus === 'object' ? payload.milvus : {}
+  const embedding = payload.embedding && typeof payload.embedding === 'object' ? payload.embedding : {}
+  const documentPipeline = payload.documentPipeline && typeof payload.documentPipeline === 'object'
+    ? payload.documentPipeline
+    : {}
+
+  const vectorHealthy = milvus.healthy === true || payload.vectorServiceHealthy === true
+  const embeddingHealthy = embedding.status === 'ok'
+  const dimensionMismatch = milvus.dimensionMismatch === true || payload.dimensionMismatch === true
+
+  const documentPipelineHealthy = documentPipeline.status !== 'error'
+
+  if (vectorHealthy && embeddingHealthy && documentPipelineHealthy && !dimensionMismatch) {
+    const provider = embedding.provider || 'Embedding'
+    const model = embedding.model || '默认模型'
+    return {
+      type: 'success',
+      title: '可以向量化',
+      description: `Milvus 已连接，${provider} / ${model} 可用。`,
+      vectorHealthy,
+      embeddingHealthy,
+      dimensionMismatch,
+      milvus,
+      embedding,
+      documentPipeline,
+    }
+  }
+
+  const issues = []
+  if (!vectorHealthy) issues.push('Milvus 未连接')
+  if (!embeddingHealthy) {
+    issues.push(embedding.error ? `Embedding 不可用（${embedding.error}）` : 'Embedding 不可用')
+  }
+  if (dimensionMismatch) issues.push('向量维度不匹配')
+  if (documentPipeline.status === 'error') {
+    issues.push(documentPipeline.error || '文档处理管道异常')
+  }
+
+  return {
+    type: 'warning',
+    title: '向量链路需要处理',
+    description: `${issues.join('；') || '依赖状态异常'}。文档可能无法向量化，检索可能降级。`,
+    vectorHealthy,
+    embeddingHealthy,
+    dimensionMismatch,
+    milvus,
+    embedding,
+    documentPipeline,
+  }
+}

@@ -110,7 +110,13 @@ bash scripts/smoke-test.sh
 bash scripts/check-version-consistency.sh
 ```
 
-`business-smoke.sh` 当前主要覆盖 API Key、MCP、Workflow、Collaboration 与 Trace，还没有覆盖“知识库上传与检索 → 智能体绑定知识 → 基于知识回答”的完整黄金流程，因此不能单独作为核心产品验收结论。
+`business-smoke.sh` 默认覆盖 API Key、MCP、Workflow、Collaboration 与 Trace。产品黄金流程（知识库上传/检索 → 智能体绑定 → 基于知识回答）需真实依赖后显式开启：
+
+```bash
+ORIN_BUSINESS_SMOKE_KNOWLEDGE_GOLDEN=1 \
+ORIN_BUSINESS_SMOKE_AGENT_ID=<provider-backed-agent-id> \
+bash scripts/business-smoke.sh
+```
 
 ## 技术栈与目录
 

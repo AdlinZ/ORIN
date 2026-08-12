@@ -20,6 +20,9 @@ public class ChatMessageResponse {
     // Timestamp
     private String createdAt;
 
+    /** Platform request trace id for audit / Trace summary linkage. */
+    private String traceId;
+
     // Tool execution traces
     private List<ToolTrace> toolTraces;
 

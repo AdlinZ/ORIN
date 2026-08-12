@@ -24,6 +24,17 @@
       </template>
     </OrinPageShell>
 
+  <section class="readiness-strip" :class="`is-${dependencyDiagnostics.type}`">
+    <div>
+      <span class="readiness-label">向量链路</span>
+      <strong>{{ dependencyDiagnostics.title }}</strong>
+      <p>{{ dependencyDiagnostics.description }}</p>
+    </div>
+    <el-button :icon="Refresh" :loading="dependencyLoading" @click="loadDependencyDiagnostics">
+      刷新诊断
+    </el-button>
+  </section>
+
   <div class="retrieval-workbench">
     <aside class="retrieval-sidebar" :class="{ 'is-collapsed': sidebarCollapsed }">
       <button class="sidebar-toggle" type="button" @click="toggleSidebar">
@@ -462,9 +473,10 @@ import { ElMessage } from 'element-plus';
 import { getAgentList, updateAgent } from '@/api/agent';
 import { getAgentToolBinding, saveAgentToolBinding } from '@/api/agent-chat';
 import { getModelList } from '@/api/model';
-import { getKnowledgeList, getKnowledgeVectorStatus, testRetrieval } from '@/api/knowledge';
+import { diagnoseMilvus, getKnowledgeList, getKnowledgeVectorStatus, testRetrieval } from '@/api/knowledge';
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
+import { getDependencyDiagnostics } from '@/utils/knowledgeProcessing';
 
 const HISTORY_KEY = 'orin-retrieval-history';
 const MAX_HISTORY = 50;
@@ -486,6 +498,9 @@ const agents = ref([]);
 const selectedAgentId = ref('');
 const savingAgentConfig = ref(false);
 const vectorStatus = ref({ healthy: null, connection: 'UNKNOWN' });
+const dependencyPayload = ref(null);
+const dependencyLoading = ref(false);
+const dependencyDiagnostics = computed(() => getDependencyDiagnostics(dependencyPayload.value));
 const retrievalMeta = reactive({
   retrievalMode: 'IDLE',
   vectorHealthy: null,
@@ -624,8 +639,20 @@ const resultSubtitle = computed(() => {
 
 onMounted(async () => {
   loadHistoryFromStorage();
-  await loadInitialData();
+  await Promise.all([loadInitialData(), loadDependencyDiagnostics()]);
 });
+
+const loadDependencyDiagnostics = async () => {
+  dependencyLoading.value = true;
+  try {
+    dependencyPayload.value = await diagnoseMilvus();
+  } catch (error) {
+    console.warn('Failed to diagnose knowledge dependencies', error);
+    dependencyPayload.value = null;
+  } finally {
+    dependencyLoading.value = false;
+  }
+};
 
 const loadInitialData = async () => {
   if (initialDataLoading.value) return;
@@ -1008,6 +1035,46 @@ const matchLabel = (type) => {
 </script>
 
 <style scoped>
+.readiness-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--orin-border-strong, #d8e0e8);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.readiness-strip.is-success {
+  border-color: var(--success-200, #a7f3d0);
+  background: var(--success-50, #ecfdf5);
+}
+
+.readiness-strip.is-warning {
+  border-color: var(--warning-200, #fde68a);
+  background: var(--warning-50, #fffbeb);
+}
+
+.readiness-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--neutral-gray-500, #64748b);
+  font-size: 12px;
+}
+
+.readiness-strip strong {
+  color: var(--neutral-gray-900, #0f172a);
+  font-size: 14px;
+}
+
+.readiness-strip p {
+  margin: 3px 0 0;
+  color: var(--neutral-gray-600, #475569);
+  font-size: 12px;
+}
+
 .retrieval-workbench {
   --panel-border: var(--orin-border-strong, #d8e0e8);
   --panel-bg: #ffffff;

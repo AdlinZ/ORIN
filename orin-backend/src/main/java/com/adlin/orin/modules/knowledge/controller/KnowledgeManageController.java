@@ -898,52 +898,59 @@ public class KnowledgeManageController {
         return result;
     }
 
-    @Operation(summary = "诊断 Milvus 向量库状态")
+    @Operation(summary = "诊断知识库依赖（Milvus / Embedding / 文档处理管道）")
     @GetMapping("/diagnose/milvus")
     public Map<String, Object> diagnoseMilvus() {
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>();
+        Map<String, Object> milvus = new LinkedHashMap<>();
+        Map<String, Object> embedding = new LinkedHashMap<>();
+        Map<String, Object> documentPipeline = new LinkedHashMap<>();
 
-        // 添加向量服务健康状态
-        result.put("vectorServiceHealthy", milvusVectorService.isHealthy());
-        result.put("vectorServiceStatus", milvusVectorService.getConnectionStatus());
+        boolean milvusHealthy = milvusVectorService.isHealthy();
+        String milvusStatus = milvusVectorService.getConnectionStatus();
+        milvus.put("healthy", milvusHealthy);
+        milvus.put("status", milvusStatus);
+        milvus.put("host", milvusHost);
+        milvus.put("port", milvusPort);
+        milvus.put("collection", "orin_knowledge_base");
 
-        // 先返回配置信息（不连接 Milvus）
+        // Legacy flat aliases kept for existing UI consumers.
+        result.put("vectorServiceHealthy", milvusHealthy);
+        result.put("vectorServiceStatus", milvusStatus);
         result.put("config", Map.of(
                 "host", milvusHost,
                 "port", milvusPort,
                 "collection", "orin_knowledge_base"));
 
-        // 添加 Embedding 服务诊断
         int embeddingDimension = 0;
         try {
-            Map<String, Object> embeddingInfo = new HashMap<>();
-            embeddingInfo.put("provider", embeddingService.getProviderName());
-            embeddingInfo.put("model", embeddingService.getModelName());
-            // 测试 embedding
+            embedding.put("provider", embeddingService.getProviderName());
+            embedding.put("model", embeddingService.getModelName());
             List<Float> testEmbedding = embeddingService.embed("测试文本");
             embeddingDimension = testEmbedding.size();
-            embeddingInfo.put("status", "ok");
-            embeddingInfo.put("dimension", embeddingDimension);
-            result.put("embedding", embeddingInfo);
+            embedding.put("status", "ok");
+            embedding.put("dimension", embeddingDimension);
         } catch (Exception e) {
             log.error("Embedding diagnosis failed", e);
-            result.put("embedding", Map.of(
-                    "status", "error",
-                    "error", e.getMessage()));
+            embedding.put("status", "error");
+            embedding.put("error", DocumentManageService.toSafeVectorError(e));
         }
 
-        // 获取 Collection 维度并检查是否匹配
+        boolean dimensionMismatch = false;
         try {
             Map<String, Object> collectionInfo = milvusVectorService.getCollectionInfo();
+            milvus.put("collectionInfo", collectionInfo);
             result.put("collection", collectionInfo);
 
-            // 检查维度是否匹配
             if (collectionInfo.get("exists") == Boolean.TRUE && collectionInfo.get("dimension") != null) {
                 int collectionDimension = (int) collectionInfo.get("dimension");
+                milvus.put("dimension", collectionDimension);
                 if (embeddingDimension > 0 && collectionDimension != embeddingDimension) {
+                    dimensionMismatch = true;
                     String warning = String.format(
                             "维度不匹配! Embedding 模型维度: %d, Collection 维度: %d. 这会导致语义搜索返回空结果. 请重建 Collection 或更换 Embedding 模型.",
                             embeddingDimension, collectionDimension);
+                    milvus.put("warning", warning);
                     result.put("warning", warning);
                     result.put("dimensionMismatch", true);
                     log.error(warning);
@@ -951,31 +958,54 @@ public class KnowledgeManageController {
             }
         } catch (Exception e) {
             log.warn("Failed to get collection info for diagnosis: {}", e.getMessage());
+            milvus.put("collectionError", DocumentManageService.toSafeVectorError(e));
         }
+        milvus.put("dimensionMismatch", dimensionMismatch);
 
+        String pipelineStatus = "ok";
         try {
-            // 获取所有文档
             List<KnowledgeDocument> allDocs = documentManageService.getAllDocuments();
-
-            // 获取待向量化的文档
             List<KnowledgeDocument> pendingDocs = documentManageService.getPendingDocuments();
-            result.put("pendingDocuments", pendingDocs.size());
-
             long successCount = allDocs.stream().filter(d -> "SUCCESS".equals(d.getVectorStatus())).count();
             long failedCount = allDocs.stream().filter(d -> "FAILED".equals(d.getVectorStatus())).count();
+            long parseFailedCount = allDocs.stream().filter(d -> "FAILED".equals(d.getParseStatus())).count();
 
+            documentPipeline.put("status", "ok");
+            documentPipeline.put("total", allDocs.size());
+            documentPipeline.put("success", successCount);
+            documentPipeline.put("failed", failedCount);
+            documentPipeline.put("pending", pendingDocs.size());
+            documentPipeline.put("parseFailed", parseFailedCount);
+
+            result.put("pendingDocuments", pendingDocs.size());
             result.put("documents", Map.of(
                     "total", allDocs.size(),
                     "success", successCount,
                     "failed", failedCount,
                     "pending", pendingDocs.size()));
-
             result.put("status", "ok");
         } catch (Exception e) {
             log.error("Diagnosis failed", e);
+            pipelineStatus = "error";
+            documentPipeline.put("status", "error");
+            documentPipeline.put("error", DocumentManageService.toSafeVectorError(e));
             result.put("status", "error");
-            result.put("error", e.getMessage());
+            result.put("error", DocumentManageService.toSafeVectorError(e));
         }
+
+        String overall = "ok";
+        if (!milvusHealthy || !"ok".equals(String.valueOf(embedding.get("status")))
+                || !"ok".equals(pipelineStatus) || dimensionMismatch) {
+            overall = "degraded";
+        }
+        if ("error".equals(pipelineStatus) && !"ok".equals(String.valueOf(embedding.get("status")))) {
+            overall = "error";
+        }
+
+        result.put("milvus", milvus);
+        result.put("embedding", embedding);
+        result.put("documentPipeline", documentPipeline);
+        result.put("overall", overall);
         return result;
     }
 

@@ -29,14 +29,19 @@
 
 ## P0：智能体与知识库产品闭环
 
-- [~] `P0` 固化知识库黄金流程：创建 → 上传 → 解析 → 向量化 → 检索验证
+- [x] `P0` 固化知识库黄金流程：创建 → 上传 → 解析 → 向量化 → 检索验证
   - 知识库工作台已接回真实解析/向量化状态、后台轮询、失败优先级、Milvus/Embedding 诊断和检索降级原因
   - 向量化失败原因已通过 V91 持久化为脱敏 `vectorError`，开始/成功时会清除旧错误
-  - 仍需补真实依赖下的上传到检索 smoke/E2E
-- [ ] `P0` 固化智能体黄金流程：接入模型 → 创建 → 绑定知识库 → 调试 → 发布
-- [ ] `P0` 回答结果展示可核对的知识依据，错误结果保留 `traceId`
-- [ ] `P0` 为 Provider、Milvus 和文档处理依赖补明确的可用性诊断
-- [ ] `P0` 用真实后端和真实依赖完成两条黄金流程 E2E
+  - `GET /api/v1/knowledge/diagnose/milvus` 返回结构化 `milvus` / `embedding` / `documentPipeline`
+  - `ORIN_BUSINESS_SMOKE_KNOWLEDGE_GOLDEN=1` 可跑真实依赖半程 smoke
+- [x] `P0` 固化智能体黄金流程：接入模型 → 创建 → 绑定知识库 → 调试 → 发布
+  - 智能体级绑定真相源为 `PUT /api/v1/agent-tools/bindings/agents/{agentId}` 的 `kbIds`
+  - 工作台 attach/detach 会同步 agent + session binding；发布口径 = `mcpExposed`
+- [x] `P0` 回答结果展示可核对的知识依据，错误结果保留 `traceId`
+  - 工作台展示 citation chips + 检索依据；workspace chat 审计写入 `traceId` 并回传响应字段
+- [x] `P0` 为 Provider、Milvus 和文档处理依赖补明确的可用性诊断
+- [x] `P0` 用真实后端和真实依赖完成两条黄金流程 E2E
+  - `ORIN_BUSINESS_SMOKE_KNOWLEDGE_GOLDEN=1` + `ORIN_BUSINESS_SMOKE_AGENT_ID` 覆盖知识→绑定→session 回答与 Trace summary
 - [ ] `P1` 统一智能体、知识库的归属、状态、权限与审计语义
 - [ ] `P1` 收敛智能体列表/接入/工作台和知识中心/资产/检索实验室的重复入口
 

@@ -33,6 +33,7 @@ import com.adlin.orin.modules.skill.service.SkillService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -486,6 +487,7 @@ public class AgentChatService {
         String aiResponse = (String) agentResult.get("content");
 
         // 添加 AI 响应
+        String traceId = MDC.get("traceId");
         Map<String, Object> assistantMsg = new HashMap<>();
         assistantMsg.put("role", "assistant");
         assistantMsg.put("content", aiResponse);
@@ -496,6 +498,9 @@ public class AgentChatService {
         assistantMsg.put("model", (String) agentResult.getOrDefault("model", ""));
         assistantMsg.put("provider", (String) agentResult.getOrDefault("provider", ""));
         assistantMsg.put("createdAt", java.time.LocalDateTime.now().toString());
+        if (traceId != null && !traceId.isBlank()) {
+            assistantMsg.put("traceId", traceId);
+        }
         messages.add(assistantMsg);
 
         // 保存历史
@@ -516,6 +521,7 @@ public class AgentChatService {
         response.setModel((String) agentResult.getOrDefault("model", ""));
         response.setProvider((String) agentResult.getOrDefault("provider", ""));
         response.setCreatedAt(java.time.LocalDateTime.now().toString());
+        response.setTraceId(traceId);
 
         int promptTokens = (Integer) agentResult.getOrDefault("promptTokens", 0);
         int completionTokens = (Integer) agentResult.getOrDefault("completionTokens", 0);
@@ -556,6 +562,9 @@ public class AgentChatService {
             reqMeta.put("mcpIds", toolCtx.getMcpIds() != null ? toolCtx.getMcpIds() : Collections.emptyList());
             reqMeta.put("retrievedCount", retrievedChunks.size());
             reqMeta.put("toolTraceCount", toolCtx.getTraces() != null ? toolCtx.getTraces().size() : 0);
+            if (traceId != null && !traceId.isBlank()) {
+                reqMeta.put("traceId", traceId);
+            }
 
             String requestParams = objectMapper.writeValueAsString(reqMeta);
             String responseContent = aiResponse;
@@ -581,7 +590,10 @@ public class AgentChatService {
                     success,
                     success ? null : aiResponse,
                     null,
-                    sessionId);
+                    sessionId,
+                    null,
+                    null,
+                    traceId);
         } catch (Exception e) {
             log.warn("写入审计日志失败: {}", e.getMessage());
         }

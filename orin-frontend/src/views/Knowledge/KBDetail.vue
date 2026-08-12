@@ -445,7 +445,7 @@ import OrinDataTable from '@/components/orin/OrinDataTable.vue';
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue';
 import OrinPageShell from '@/components/orin/OrinPageShell.vue';
 import { toKnowledgeDocumentListViewModel, toRetrievalResultViewModel } from '@/viewmodels';
-import { getDocumentProcessingState, getRetrievalDiagnostics } from '@/utils/knowledgeProcessing';
+import { getDependencyDiagnostics, getDocumentProcessingState, getRetrievalDiagnostics } from '@/utils/knowledgeProcessing';
 
 const route = useRoute();
 const router = useRouter();
@@ -620,23 +620,9 @@ const readinessState = computed(() => {
     return { type: 'info', title: '正在检查', description: '正在验证 Milvus 与 Embedding 服务。' };
   }
   if (readinessError.value || !readiness.value) {
-    return { type: 'warning', title: '诊断不可用', description: '暂时无法获取向量依赖状态，上传仍可继续，检索前请重新诊断。' };
+    return getDependencyDiagnostics(null);
   }
-
-  const vectorHealthy = readiness.value.vectorServiceHealthy === true;
-  const embeddingHealthy = readiness.value.embedding?.status === 'ok';
-  const dimensionMismatch = readiness.value.dimensionMismatch === true;
-  if (vectorHealthy && embeddingHealthy && !dimensionMismatch) {
-    const provider = readiness.value.embedding?.provider || 'Embedding';
-    const model = readiness.value.embedding?.model || '默认模型';
-    return { type: 'success', title: '可以向量化', description: `Milvus 已连接，${provider} / ${model} 可用。` };
-  }
-
-  const issues = [];
-  if (!vectorHealthy) issues.push('Milvus 未连接');
-  if (!embeddingHealthy) issues.push('Embedding 不可用');
-  if (dimensionMismatch) issues.push('向量维度不匹配');
-  return { type: 'warning', title: '向量链路需要处理', description: `${issues.join('；')}。文档可能无法向量化，检索可能降级。` };
+  return getDependencyDiagnostics(readiness.value);
 });
 
 const toPercent = (score) => `${(Number(score || 0) * 100).toFixed(1)}%`;

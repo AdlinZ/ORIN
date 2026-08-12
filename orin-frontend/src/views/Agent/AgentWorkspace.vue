@@ -244,15 +244,18 @@
                 />
               </div>
               <div class="config-row">
-                <span>MCP 暴露</span>
+                <span>发布（MCP）</span>
                 <el-switch
                   v-model="mcpExposureEnabled"
                   :disabled="!canManageMcpExposure || savingMcpExposure"
-                  active-text="开"
-                  inactive-text="关"
+                  active-text="已发布"
+                  inactive-text="未发布"
                   @change="saveMcpExposure"
                 />
               </div>
+              <p class="config-hint">
+                发布 = 打开 MCP 暴露后，可用 API Key 经 `/v1/mcp` 调用。版本快照仅用于配置回滚，不作发布门禁。
+              </p>
             </section>
 
             <section class="config-card">
@@ -995,6 +998,18 @@
                   </div>
                 </div>
 
+                <div v-if="msg.retrievedChunks?.length" class="message-citations">
+                  <button
+                    v-for="(chunk, chunkIndex) in msg.retrievedChunks"
+                    :key="`cite-${index}-${chunkIndex}`"
+                    type="button"
+                    class="citation-item"
+                    @click="openCitation(chunk)"
+                  >
+                    [{{ chunkIndex + 1 }}] {{ getChunkSourceLabel(chunk) }}
+                  </button>
+                </div>
+
                 <div v-if="msg.retrievedChunks?.length" class="retrieved-context">
                   <div class="context-header context-toggle" @click="toggleRetrievedContext(msg, index)">
                     <div class="context-header-left">
@@ -1019,6 +1034,10 @@
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div v-if="msg.traceId" class="message-trace-id">
+                  Trace ID：{{ msg.traceId }}
                 </div>
               </div>
             </div>
@@ -1186,6 +1205,7 @@ import {
   listAgents,
   listChatSessions,
   listKnowledgeBases,
+  saveAgentToolBinding,
   saveChatSessionMessages,
   saveSessionToolBinding,
   sendChatMessage,
@@ -1200,6 +1220,7 @@ import { useInteractionShell } from '@/composables/useInteractionShell';
 import { runQuickChipAction } from '@/composables/useInteractionQuickChips';
 import { buildWorkspaceChipSets } from '@/composables/useInteractionChipRegistry';
 import { useUserStore } from '@/stores/user';
+import { buildAgentKbBindingPayload } from '@/utils/agentToolBinding';
 import {
   createWorkflow,
   fetchWorkflows as fetchPlaygroundWorkflows,
@@ -1897,13 +1918,20 @@ const saveMcpExposure = async (enabled) => {
     agents.value = agents.value.map((agent) => (
       agent.id === currentAgentId.value ? { ...agent, mcpExposed: enabled } : agent
     ));
-    ElMessage.success('MCP 暴露设置已保存');
+    ElMessage.success(enabled ? '已发布：可通过 API Key 调用' : '已取消发布（MCP 暴露已关闭）');
   } catch (error) {
     mcpExposureEnabled.value = !enabled;
-    ElMessage.error('MCP 暴露设置保存失败');
+    ElMessage.error('发布设置保存失败');
   } finally {
     savingMcpExposure.value = false;
   }
+};
+
+const syncAgentKbBinding = async (kbId, attached) => {
+  if (!currentAgentId.value) return;
+  const agentBinding = await getAgentToolBinding(currentAgentId.value);
+  const payload = buildAgentKbBindingPayload(agentBinding, kbId, attached);
+  await saveAgentToolBinding(currentAgentId.value, payload);
 };
 
 const saveCurrentConfig = async () => {
@@ -1916,16 +1944,21 @@ const saveCurrentConfig = async () => {
     return;
   }
 
+  const bindingPayload = {
+    toolIds: currentConfig.toolIds || [],
+    kbIds: currentConfig.kbIds || [],
+    skillIds: currentConfig.skillIds || [],
+    mcpIds: currentConfig.mcpIds || [],
+    enableSuggestions: currentConfig.enableSuggestions,
+    showRetrievedContext: currentConfig.showRetrievedContext,
+    autoRenameSession: currentConfig.autoRenameSession
+  };
+  await saveAgentToolBinding(currentAgentId.value, bindingPayload);
   if (currentSessionId.value) {
-    await saveSessionToolBinding(currentSessionId.value, {
-      toolIds: currentConfig.toolIds || [],
-      kbIds: currentConfig.kbIds || [],
-      skillIds: currentConfig.skillIds || [],
-      mcpIds: currentConfig.mcpIds || []
-    });
+    await saveSessionToolBinding(currentSessionId.value, bindingPayload);
   }
   localStorage.setItem(getConfigStorageKey(currentAgentId.value), JSON.stringify({ ...currentConfig }));
-  ElMessage.success('当前配置已保存');
+  ElMessage.success('当前配置已保存（含智能体知识库绑定）');
 };
 
 const formatSessionTime = (time) => {
@@ -3247,7 +3280,16 @@ const attachKb = async (kbId) => {
     await attachKnowledgeBase(currentSessionId.value, targetKbId);
     attachedKbIds.value = [...new Set([...attachedKbIds.value, targetKbId])];
     currentConfig.kbIds = [...new Set([...attachedKbIds.value])];
-    ElMessage.success('已附加知识库');
+    await syncAgentKbBinding(targetKbId, true);
+    if (currentSessionId.value) {
+      await saveSessionToolBinding(currentSessionId.value, {
+        toolIds: currentConfig.toolIds || [],
+        kbIds: currentConfig.kbIds || [],
+        skillIds: currentConfig.skillIds || [],
+        mcpIds: currentConfig.mcpIds || []
+      });
+    }
+    ElMessage.success('已附加知识库（已同步到智能体绑定）');
   } catch (error) {
     ElMessage.error('附加知识库失败');
   }
@@ -3262,7 +3304,16 @@ const detachKb = async (kbId) => {
     if (kbDocFilters[targetKbId]) {
       delete kbDocFilters[targetKbId];
     }
-    ElMessage.success('已移除知识库');
+    await syncAgentKbBinding(targetKbId, false);
+    if (currentSessionId.value) {
+      await saveSessionToolBinding(currentSessionId.value, {
+        toolIds: currentConfig.toolIds || [],
+        kbIds: currentConfig.kbIds || [],
+        skillIds: currentConfig.skillIds || [],
+        mcpIds: currentConfig.mcpIds || []
+      });
+    }
+    ElMessage.success('已移除知识库（已同步到智能体绑定）');
   } catch (error) {
     ElMessage.error('移除知识库失败');
   }
@@ -3415,13 +3466,16 @@ const normalizeTtsVoice = (voice, modelName) => {
 };
 
 const formatRequestError = (error) => {
-  const backendMessage = error?.response?.data?.message || error?.response?.data?.error || '';
+  const data = error?.response?.data || {};
+  const backendMessage = data.message || data.error || '';
   const base = String(backendMessage || error?.message || '');
+  const traceId = data.traceId || data.trace_id || error?.response?.headers?.['x-trace-id'] || '';
   if (base.includes('20052') || base.includes('Voice or reference audio should be set')) {
     return '语音生成失败：当前模型需要有效音色或参考音频，请在“模型参数”里重新选择音色。';
   }
-  if (!base) return '请求失败，请稍后重试';
-  return base.replace(/^SiliconFlow API Error:\s*/i, '');
+  if (!base) return traceId ? `请求失败，请稍后重试（Trace ID: ${traceId}）` : '请求失败，请稍后重试';
+  const cleaned = base.replace(/^SiliconFlow API Error:\s*/i, '');
+  return traceId && !cleaned.includes(traceId) ? `${cleaned}（Trace ID: ${traceId}）` : cleaned;
 };
 
 const appendAssistantResult = (payload, dataType = '') => {
@@ -3603,7 +3657,10 @@ const sendMessage = async () => {
       const chatPayload = {
         message: outboundMessage,
         toolIds: currentConfig.toolIds || [],
-        kbIds: attachedKbIds.value.map(normalizeId),
+        kbIds: [...new Set([
+          ...(currentConfig.kbIds || []),
+          ...attachedKbIds.value
+        ].map(normalizeId).filter(Boolean))],
         skillIds: currentConfig.skillIds || [],
         mcpIds: currentConfig.mcpIds || [],
         kbDocFilters: normalizeKbDocFilters(kbDocFilters),
@@ -3674,6 +3731,7 @@ const sendMessage = async () => {
           error: (payload) => {
             const message = payload?.message || '流式请求异常';
             assistantMessage.content = `（请求失败：${message}）`;
+            assistantMessage.traceId = payload?.traceId || payload?.trace_id || assistantMessage.traceId || '';
             loadingHint.value = '思考失败';
             runtimeStatusLevel.value = 'error';
             runtimeStatusHint.value = `流式异常：${message}`;
@@ -3711,6 +3769,7 @@ const sendMessage = async () => {
       assistantMessage.promptTokens = data.promptTokens || 0;
       assistantMessage.completionTokens = data.completionTokens || 0;
       assistantMessage.createdAt = data.createdAt || assistantMessage.createdAt || new Date().toISOString();
+      assistantMessage.traceId = data.traceId || assistantMessage.traceId || '';
       assistantMessage.responseMs = Number(data.responseMs || data.durationMs || 0) || Math.max(0, Date.now() - requestStartedAt);
       if (runtimeStatusLevel.value !== 'error') {
         runtimeStatusLevel.value = 'idle';
@@ -3739,7 +3798,8 @@ const sendMessage = async () => {
       provider: '',
       promptTokens: 0,
       completionTokens: 0,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      traceId: error?.response?.data?.traceId || error?.response?.data?.trace_id || ''
     }));
     setCachedSessionMessages(currentSessionId.value, messages.value);
     await persistCurrentSessionMessages();
@@ -6326,6 +6386,22 @@ html.dark .prompt-add-btn {
   border: 1px solid #99f6e4;
   border-radius: 999px;
   padding: 2px 10px;
+}
+
+.config-hint {
+  margin: 0 0 8px;
+  padding: 0 2px;
+  color: var(--neutral-gray-500, #64748b);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.message-trace-id {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  word-break: break-all;
 }
 
 .config-description, .config-card-desc {
