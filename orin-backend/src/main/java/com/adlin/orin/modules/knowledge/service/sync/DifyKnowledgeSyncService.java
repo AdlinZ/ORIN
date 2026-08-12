@@ -1,5 +1,6 @@
 package com.adlin.orin.modules.knowledge.service.sync;
 
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.SyncRecord;
@@ -37,6 +38,7 @@ public class DifyKnowledgeSyncService {
     private final SyncRecordRepository syncRecordRepository;
     private final SyncChangeLogRepository changeLogRepository;
     private final SystemDifyConfigProvider difyConfigProvider;
+    private final AgentOwnershipResolver ownershipResolver;
 
     private String generateContentHash(String content) {
         try {
@@ -174,6 +176,7 @@ public class DifyKnowledgeSyncService {
                     .docCount(difyKb.getDocumentCount())
                     .totalSizeMb(0.0)
                     .status("ENABLED")
+                    .ownerUserId(ownershipResolver.resolveForSystemSeed())
                     .createdAt(LocalDateTime.now())
                     .syncTime(LocalDateTime.now())
                     .build();

@@ -1,7 +1,9 @@
 package com.adlin.orin.modules.knowledge.service;
 
+import com.adlin.orin.common.exception.BusinessException;
 import com.adlin.orin.modules.agent.entity.AgentAccessProfile;
 import com.adlin.orin.modules.agent.repository.AgentAccessProfileRepository;
+import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeBase;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocument;
 import com.adlin.orin.modules.knowledge.entity.KnowledgeDocumentChunk;
@@ -36,6 +38,7 @@ public class KnowledgeManageService {
 
         private final AgentAccessProfileRepository profileRepository;
         private final KnowledgeBaseRepository knowledgeBaseRepository;
+        private final AgentOwnershipResolver ownershipResolver;
         private final KnowledgeGraphService knowledgeGraphService;
         private final RestTemplate restTemplate;
         private final DifyKnowledgeSyncService difyKnowledgeSyncService;
@@ -322,6 +325,9 @@ public class KnowledgeManageService {
                 if (kb.getStatus() == null) {
                         kb.setStatus("ENABLED");
                 }
+                if (kb.getOwnerUserId() == null) {
+                        kb.setOwnerUserId(resolveOwnerUserId());
+                }
                 KnowledgeBase saved = knowledgeBaseRepository.save(kb);
                 try {
                         KnowledgeGraph graph = new KnowledgeGraph();
@@ -515,9 +521,18 @@ public class KnowledgeManageService {
                                 .description(kb.getDescription())
                                 .type(kb.getType())
                                 .status(kb.getStatus())
+                                .ownerUserId(kb.getOwnerUserId())
                                 .vectorStats(vectorStats)
                                 .stats(stats)
                                 .build();
+        }
+
+        private Long resolveOwnerUserId() {
+                try {
+                        return ownershipResolver.resolveFromCurrentRequest();
+                } catch (BusinessException ex) {
+                        return ownershipResolver.resolveForSystemSeed();
+                }
         }
 
         /**

@@ -470,7 +470,18 @@ public class AgentManageServiceImpl implements AgentManageService {
             }
             if (request.getMcpExposed() != null) {
                 ownershipResolver.assertCanManageMcpExposure(metadata);
-                metadata.setMcpExposed(request.getMcpExposed());
+                boolean previousExposed = metadata.isMcpExposed();
+                boolean nextExposed = request.getMcpExposed();
+                metadata.setMcpExposed(nextExposed);
+                if (previousExposed != nextExposed) {
+                    auditHelper.log(
+                            String.valueOf(ownershipResolver.resolveFromCurrentRequest()),
+                            "AGENT_MCP_EXPOSED",
+                            "/api/v1/agents/" + agentId,
+                            "agentId=" + agentId + ", mcpExposed=" + previousExposed + "->" + nextExposed,
+                            true,
+                            null);
+                }
             }
 
             // Update TTS & Image Parameters in the parameters JSON field

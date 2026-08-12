@@ -401,7 +401,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await authenticate(page, ['ROLE_OPERATOR'])
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
 
-    await expect(page).toHaveURL(/\/dashboard\/applications\/agents/)
+    await expect(page).toHaveURL(/\/dashboard\/applications\/home/)
     const operatorNav = page.locator('.navbar-menu')
     await expect(operatorNav.getByText('智能体', { exact: true })).toBeVisible()
     await expect(operatorNav.getByText('知识库', { exact: true })).toBeVisible()
@@ -410,7 +410,7 @@ test.describe('CollaborationDashboardV2 browser acceptance', () => {
     await expect(operatorNav.getByText('系统设置')).toHaveCount(0)
 
     await page.goto('/dashboard/control/users', { waitUntil: 'domcontentloaded' })
-    await expect(page).toHaveURL(/\/dashboard\/applications\/agents/)
+    await expect(page).toHaveURL(/\/dashboard\/applications\/home/)
   })
 
   test('keeps regular users on the service portal instead of dashboard modules', async ({ page }) => {

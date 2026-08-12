@@ -2,7 +2,7 @@
   <div class="page-container">
     <OrinPageShell
       title="智能体列表"
-      description="统一管理已接入智能体，查看状态并进入控制台"
+      description="统一管理已接入智能体，查看运行状态、发布口径与归属，并进入调试工作台"
       icon="UserFilled"
       domain="智能体中枢"
       maturity="available"
@@ -105,7 +105,7 @@
             <el-icon><component :is="getAgentIcon(featuredAgent.viewType)" /></el-icon>
           </div>
           <el-button type="primary" @click="openConsole(featuredAgent)">
-            进入控制台
+            进入工作台
           </el-button>
         </div>
       </el-card>
@@ -204,7 +204,7 @@
             </button>
           </div>
           <div v-else class="empty-recent">
-            打开任意智能体控制台后，这里会保留快速入口。
+            打开任意智能体工作台后，这里会保留快速入口。
           </div>
         </el-card>
       </div>
@@ -215,7 +215,7 @@
         <div class="table-heading">
           <div>
             <strong>智能体目录</strong>
-            <span>按服务商、模型、状态与最近活跃情况管理企业 AI 服务</span>
+            <span>按服务商、模型、运行状态、发布口径与归属管理企业 AI 服务</span>
           </div>
           <span class="table-count">{{ viewRows.length }} / {{ rows.length }}</span>
         </div>
@@ -229,7 +229,7 @@
           table-layout="auto"
           @row-click="goConsole"
         >
-          <el-table-column prop="agentName" label="智能体名称" min-width="280" show-overflow-tooltip />
+          <el-table-column prop="agentName" label="智能体名称" min-width="220" show-overflow-tooltip />
           <el-table-column prop="providerType" label="服务商" width="120" />
           <el-table-column prop="viewType" label="类型" width="110" show-overflow-tooltip>
             <template #default="{ row }">
@@ -238,11 +238,11 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="modelName" label="核心模型" min-width="260" show-overflow-tooltip />
+          <el-table-column prop="modelName" label="核心模型" min-width="200" show-overflow-tooltip />
           <el-table-column
             prop="status"
-            label="状态 / 活跃"
-            width="160"
+            label="运行状态"
+            width="140"
             align="center"
           >
             <template #default="{ row }">
@@ -254,10 +254,20 @@
               </div>
             </template>
           </el-table-column>
+          <el-table-column label="发布 / 归属" width="150" align="center">
+            <template #default="{ row }">
+              <div class="status-cell">
+                <el-tag size="small" :type="row.mcpExposed ? 'success' : 'info'" effect="plain">
+                  {{ row.mcpExposed ? '已发布' : '未发布' }}
+                </el-tag>
+                <span v-if="row.ownerUserId">归属 {{ row.ownerUserId }}</span>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="140" align="center">
             <template #default="{ row }">
               <el-button link type="primary" @click.stop="openConsole(row)">
-                控制台
+                工作台
               </el-button>
               <el-button link type="danger" @click.stop="handleDelete(row)">
                 删除
@@ -288,8 +298,8 @@ import {
 } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { ROUTES } from '@/router/routes'
-import { getAgentList } from '@/api/monitor'
-import { deleteAgent } from '@/api/agent'
+import { getAgentList as getMonitorAgentList } from '@/api/monitor'
+import { deleteAgent, getAgentList as getManagedAgentList } from '@/api/agent'
 import OrinPageShell from '@/components/orin/OrinPageShell.vue'
 import OrinFilterBar from '@/components/orin/OrinFilterBar.vue'
 import OrinAsyncState from '@/components/orin/OrinAsyncState.vue'
@@ -396,8 +406,27 @@ const typeBreakdown = computed(() => {
 const loadData = async () => {
   markLoading(state)
   try {
-    const response = await getAgentList()
-    rows.value = toAgentListViewModel(response)
+    const [monitorResponse, managedResponse] = await Promise.all([
+      getMonitorAgentList(),
+      getManagedAgentList().catch(() => [])
+    ])
+    const ownershipById = new Map(
+      (Array.isArray(managedResponse) ? managedResponse : []).map((item) => [
+        String(item.id || item.agentId || ''),
+        {
+          mcpExposed: Boolean(item.mcpExposed),
+          ownerUserId: item.ownerUserId ?? null
+        }
+      ])
+    )
+    rows.value = toAgentListViewModel(monitorResponse).map((row) => {
+      const ownership = ownershipById.get(String(row.id || '')) || {}
+      return {
+        ...row,
+        mcpExposed: ownership.mcpExposed === true,
+        ownerUserId: ownership.ownerUserId ?? null
+      }
+    })
     loadRecentAgents()
     if (rows.value.length === 0) {
       markEmpty(state)
