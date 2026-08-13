@@ -152,8 +152,7 @@ public class WorkflowService {
     public WorkflowResponse updateWorkflow(Long id, WorkflowRequest request) {
         log.info("Updating workflow: {}", id);
 
-        WorkflowEntity entity = workflowRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        WorkflowEntity entity = requireAccessibleWorkflow(id);
 
         // Update fields
         if (request.getWorkflowName() != null) {
@@ -195,8 +194,7 @@ public class WorkflowService {
     @Transactional
     public WorkflowResponse publishWorkflow(Long id) {
         log.info("Publishing workflow: {}", id);
-        WorkflowEntity entity = workflowRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        WorkflowEntity entity = requireAccessibleWorkflow(id);
         ensureWorkflowCanPublish(entity);
         entity.setStatus(WorkflowEntity.WorkflowStatus.ACTIVE);
         return toResponse(workflowRepository.save(entity));
@@ -205,8 +203,7 @@ public class WorkflowService {
     @Transactional
     public WorkflowResponse archiveWorkflow(Long id) {
         log.info("Archiving workflow: {}", id);
-        WorkflowEntity entity = workflowRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        WorkflowEntity entity = requireAccessibleWorkflow(id);
         entity.setStatus(WorkflowEntity.WorkflowStatus.ARCHIVED);
         return toResponse(workflowRepository.save(entity));
     }
@@ -226,20 +223,21 @@ public class WorkflowService {
         }
     }
 
+    private WorkflowEntity requireAccessibleWorkflow(Long id) {
+        WorkflowEntity entity = workflowRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN, "工作流不存在或无权限"));
+        ownershipResolver.assertCanAccessOwnedResource(entity.getOwnerUserId(), "工作流");
+        return entity;
+    }
+
     private void assertCanManageWorkflowMcpExposure(WorkflowEntity entity) {
-        Long currentUserId = ownershipResolver.resolveFromCurrentRequest();
-        if (!ownershipResolver.isCurrentUserAdmin() && !currentUserId.equals(entity.getOwnerUserId())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权修改该工作流的 MCP 暴露设置");
-        }
+        ownershipResolver.assertCanAccessOwnedResource(entity.getOwnerUserId(), "工作流");
     }
 
     @Transactional
     public void addStep(Long workflowId, WorkflowStepRequest request) {
         log.info("Adding step to workflow: {}", workflowId);
-
-        if (!workflowRepository.existsById(workflowId)) {
-            throw new IllegalArgumentException("Workflow not found: " + workflowId);
-        }
+        requireAccessibleWorkflow(workflowId);
 
         WorkflowStepEntity.StepType type = WorkflowStepEntity.StepType.SKILL;
         if (request.getStepType() != null) {
@@ -325,6 +323,8 @@ public class WorkflowService {
     public WorkflowExecutionSubmissionResponse submitWorkflowExecution(Long workflowId, Map<String, Object> inputs,
                                                                        TaskPriority priority, String triggeredBy,
                                                                        String triggerSource, String traceId) {
+        // Execution may be invoked by JWT users or internal workers (e.g. collaboration MQ).
+        // Keep ownership ACL on management APIs; do not require request user context here.
         WorkflowEntity workflow = workflowRepository.findById(workflowId)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowId));
         if (workflow.getStatus() == WorkflowEntity.WorkflowStatus.ARCHIVED) {
@@ -427,15 +427,19 @@ public class WorkflowService {
     }
 
     public List<WorkflowResponse> getAllWorkflows() {
-        return workflowRepository.findAll().stream()
+        List<WorkflowEntity> workflows;
+        if (ownershipResolver.isCurrentUserAdmin()) {
+            workflows = workflowRepository.findAll();
+        } else {
+            workflows = workflowRepository.findByOwnerUserId(ownershipResolver.resolveFromCurrentRequest());
+        }
+        return workflows.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     public WorkflowResponse getWorkflowById(Long id) {
-        WorkflowEntity entity = workflowRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
-        return toResponse(entity);
+        return toResponse(requireAccessibleWorkflow(id));
     }
 
     public WorkflowInstanceEntity getInstance(Long instanceId) {
@@ -444,15 +448,14 @@ public class WorkflowService {
     }
 
     public List<WorkflowInstanceEntity> getWorkflowInstances(Long workflowId) {
+        requireAccessibleWorkflow(workflowId);
         return instanceRepository.findByWorkflowIdOrderByStartedAtDesc(workflowId);
     }
 
     @Transactional
     public void deleteWorkflow(Long id) {
         log.info("Deleting workflow: {}", id);
-        if (!workflowRepository.existsById(id)) {
-            throw new IllegalArgumentException("Workflow not found: " + id);
-        }
+        requireAccessibleWorkflow(id);
 
         // Delete associated steps and instances
         stepRepository.deleteByWorkflowId(id);
@@ -464,10 +467,7 @@ public class WorkflowService {
     }
 
     public com.adlin.orin.modules.workflow.dto.WorkflowAccessResponse getWorkflowAccessInfo(Long id) {
-        // Validate existence
-        if (!workflowRepository.existsById(id)) {
-            throw new IllegalArgumentException("Workflow not found: " + id);
-        }
+        requireAccessibleWorkflow(id);
 
         // For now, construct simplified access info
         // In a production environment, this should fetch dynamic config (hosts, ports)
@@ -483,8 +483,7 @@ public class WorkflowService {
     public String exportDifyWorkflow(Long id) {
         log.info("Exporting workflow {} as Dify DSL", id);
 
-        WorkflowEntity entity = workflowRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + id));
+        WorkflowEntity entity = requireAccessibleWorkflow(id);
 
         Map<String, Object> definition = workflowDslNormalizer.normalize(entity.getWorkflowDefinition(), "ORIN");
         return difyDslConverter.export(

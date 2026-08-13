@@ -1,5 +1,7 @@
 package com.adlin.orin.modules.workflow.service;
 
+import com.adlin.orin.common.exception.BusinessException;
+import com.adlin.orin.common.exception.ErrorCode;
 import com.adlin.orin.modules.agent.service.AgentOwnershipResolver;
 import com.adlin.orin.modules.workflow.dto.WorkflowRequest;
 import com.adlin.orin.modules.workflow.dto.WorkflowStepRequest;
@@ -31,7 +33,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class WorkflowServiceTest {
@@ -62,6 +66,7 @@ class WorkflowServiceTest {
         @BeforeEach
         void setUp() {
                 MockitoAnnotations.openMocks(this);
+                lenient().doNothing().when(ownershipResolver).assertCanAccessOwnedResource(any(), anyString());
         }
 
         @Test
@@ -98,12 +103,13 @@ class WorkflowServiceTest {
                 WorkflowEntity savedWorkflow = WorkflowEntity.builder()
                                 .id(1L)
                                 .workflowName("Research & Write Workflow")
+                                .ownerUserId(1L)
                                 .build();
 
                 when(workflowRepository.existsByWorkflowName(anyString())).thenReturn(false);
                 when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(1L);
                 when(workflowRepository.save(any(WorkflowEntity.class))).thenReturn(savedWorkflow);
-                when(workflowRepository.existsById(1L)).thenReturn(true);
+                when(workflowRepository.findById(1L)).thenReturn(Optional.of(savedWorkflow));
 
                 // Act
                 workflowService.createWorkflow(request);
@@ -141,12 +147,13 @@ class WorkflowServiceTest {
                 WorkflowEntity savedWorkflow = WorkflowEntity.builder()
                                 .id(2L)
                                 .workflowName("Mixed Workflow")
+                                .ownerUserId(1L)
                                 .build();
 
                 when(workflowRepository.existsByWorkflowName(anyString())).thenReturn(false);
                 when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(1L);
                 when(workflowRepository.save(any(WorkflowEntity.class))).thenReturn(savedWorkflow);
-                when(workflowRepository.existsById(2L)).thenReturn(true);
+                when(workflowRepository.findById(2L)).thenReturn(Optional.of(savedWorkflow));
 
                 // Act
                 workflowService.createWorkflow(request);
@@ -347,6 +354,7 @@ class WorkflowServiceTest {
                 WorkflowEntity workflow = WorkflowEntity.builder()
                                 .id(workflowId)
                                 .workflowName("Ready Workflow")
+                                .ownerUserId(42L)
                                 .status(WorkflowEntity.WorkflowStatus.DRAFT)
                                 .build();
 
@@ -358,5 +366,70 @@ class WorkflowServiceTest {
 
                 assertThat(status).isEqualTo(WorkflowEntity.WorkflowStatus.ACTIVE);
                 verify(workflowEngine).validateWorkflow(workflowId);
+        }
+
+        @Test
+        void getAllWorkflows_FiltersByOwnerForNonAdmin() {
+                when(ownershipResolver.isCurrentUserAdmin()).thenReturn(false);
+                when(ownershipResolver.resolveFromCurrentRequest()).thenReturn(42L);
+                when(workflowRepository.findByOwnerUserId(42L)).thenReturn(List.of(
+                                WorkflowEntity.builder().id(1L).workflowName("mine").ownerUserId(42L).build()));
+
+                assertThat(workflowService.getAllWorkflows()).hasSize(1);
+                verify(workflowRepository).findByOwnerUserId(42L);
+                verify(workflowRepository, never()).findAll();
+        }
+
+        @Test
+        void getAllWorkflows_ReturnsAllForAdmin() {
+                when(ownershipResolver.isCurrentUserAdmin()).thenReturn(true);
+                when(workflowRepository.findAll()).thenReturn(List.of(
+                                WorkflowEntity.builder().id(1L).workflowName("a").ownerUserId(1L).build(),
+                                WorkflowEntity.builder().id(2L).workflowName("b").ownerUserId(2L).build()));
+
+                assertThat(workflowService.getAllWorkflows()).hasSize(2);
+                verify(workflowRepository).findAll();
+        }
+
+        @Test
+        void getWorkflowById_ForbiddenForForeignOwner() {
+                WorkflowEntity foreign = WorkflowEntity.builder()
+                                .id(5L)
+                                .workflowName("foreign")
+                                .ownerUserId(99L)
+                                .build();
+                when(workflowRepository.findById(5L)).thenReturn(Optional.of(foreign));
+                doThrow(new BusinessException(ErrorCode.FORBIDDEN, "工作流不存在或无权限"))
+                                .when(ownershipResolver).assertCanAccessOwnedResource(eq(99L), eq("工作流"));
+
+                assertThatThrownBy(() -> workflowService.getWorkflowById(5L))
+                                .isInstanceOf(BusinessException.class)
+                                .hasMessageContaining("工作流不存在或无权限");
+        }
+
+        @Test
+        void getWorkflowById_MissingUsesForbiddenMessage() {
+                when(workflowRepository.findById(404L)).thenReturn(Optional.empty());
+
+                assertThatThrownBy(() -> workflowService.getWorkflowById(404L))
+                                .isInstanceOf(BusinessException.class)
+                                .hasMessageContaining("工作流不存在或无权限");
+        }
+
+        @Test
+        void deleteWorkflow_ForbiddenDoesNotDelete() {
+                WorkflowEntity foreign = WorkflowEntity.builder()
+                                .id(6L)
+                                .workflowName("foreign")
+                                .ownerUserId(99L)
+                                .build();
+                when(workflowRepository.findById(6L)).thenReturn(Optional.of(foreign));
+                doThrow(new BusinessException(ErrorCode.FORBIDDEN, "工作流不存在或无权限"))
+                                .when(ownershipResolver).assertCanAccessOwnedResource(eq(99L), eq("工作流"));
+
+                assertThatThrownBy(() -> workflowService.deleteWorkflow(6L))
+                                .isInstanceOf(BusinessException.class)
+                                .hasMessageContaining("工作流不存在或无权限");
+                verify(workflowRepository, never()).deleteById(anyLong());
         }
 }
