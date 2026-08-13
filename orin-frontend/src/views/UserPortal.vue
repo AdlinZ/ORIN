@@ -92,6 +92,10 @@
       </section>
 
       <div class="sidebar-bottom">
+        <button class="portal-key-strip" type="button" @click="router.push(ROUTES.PORTAL_API_KEYS)">
+          <span class="portal-key-strip-label">我的 API Key</span>
+          <strong class="portal-key-strip-count">{{ ownedApiKeyCount }}</strong>
+        </button>
         <el-dropdown trigger="click" placement="top-start" @command="handleUserCommand">
           <div class="portal-user-wrapper">
             <el-avatar :size="40" :src="userAvatar" class="portal-user-avatar">
@@ -507,9 +511,11 @@ import {
   sendChatMessage
 } from '@/api/agent-chat';
 import { chatAgent } from '@/api/agent';
+import { getDashboardSummary } from '@/api/dashboard';
 import { uploadMultimodalFile } from '@/api/multimodal';
 import { useUserStore } from '@/stores/user';
 import { ROUTES } from '@/router/routes';
+import { toDashboardSummaryViewModel } from '@/viewmodels/adapters/dashboard';
 import ImageGenerator from '@/views/Agent/components/ImageGenerator.vue';
 import VideoGenerator from '@/views/Agent/components/VideoGenerator.vue';
 import AudioGenerator from '@/views/Agent/components/AudioGenerator.vue';
@@ -529,6 +535,7 @@ const selectedUploadFileName = ref('');
 const inputMessage = ref('');
 const activeWorkspace = ref('chat');
 const showServicePanel = ref(false);
+const ownedApiKeyCount = ref(0);
 const creatorPrompt = ref('');
 const creatorMode = ref('image');
 const generatingCreation = ref(false);
@@ -756,20 +763,26 @@ const creationServiceHint = computed(() => {
   if (creatorMode.value === 'video') {
     return {
       title: '当前没有可用的视频生成服务',
-      description: '请在管理端接入一个 TEXT_TO_VIDEO 智能体；如果没有视频模型，先到模型管理添加或导入视频生成模型。',
+      description: userStore.isAdmin
+        ? '请在管理端接入一个 TEXT_TO_VIDEO 智能体；如果没有视频模型，先到模型管理添加或导入视频生成模型。'
+        : '当前账号暂无视频生成服务，请联系管理员开通后再试。',
       primaryAction: '接入视频智能体'
     };
   }
   if (creatorMode.value === 'audio') {
     return {
       title: '当前没有可用的语音合成服务',
-      description: '请在管理端接入一个 TEXT_TO_SPEECH 智能体；如果没有语音模型，先到模型管理添加或导入语音合成模型。',
+      description: userStore.isAdmin
+        ? '请在管理端接入一个 TEXT_TO_SPEECH 智能体；如果没有语音模型，先到模型管理添加或导入语音合成模型。'
+        : '当前账号暂无语音合成服务，请联系管理员开通后再试。',
       primaryAction: '接入语音智能体'
     };
   }
   return {
     title: '当前没有可用的图像生成服务',
-    description: '请在管理端接入一个 TEXT_TO_IMAGE 智能体；如果没有图像模型，先到模型管理添加或导入图像生成模型。',
+    description: userStore.isAdmin
+      ? '请在管理端接入一个 TEXT_TO_IMAGE 智能体；如果没有图像模型，先到模型管理添加或导入图像生成模型。'
+      : '当前账号暂无图像生成服务，请联系管理员开通后再试。',
     primaryAction: '接入图像智能体'
   };
 });
@@ -1314,8 +1327,17 @@ const sendMessage = async () => {
   }
 };
 
+const loadPortalSummary = async () => {
+  try {
+    const summary = toDashboardSummaryViewModel(await getDashboardSummary({ silentError: true }));
+    ownedApiKeyCount.value = Number(summary.metrics?.apiKeys || 0);
+  } catch {
+    ownedApiKeyCount.value = 0;
+  }
+};
+
 const refreshPortal = async () => {
-  await Promise.all([loadAgents(), loadKnowledgeBases()]);
+  await Promise.all([loadAgents(), loadKnowledgeBases(), loadPortalSummary()]);
   if (currentAgentId.value) {
     await loadSessions();
   }
@@ -1775,6 +1797,35 @@ onMounted(async () => {
   padding: 10px 4px 4px;
   border-top: 1px solid var(--portal-line);
   background: transparent;
+}
+
+.portal-key-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--portal-line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.portal-key-strip:hover {
+  border-color: #94a3b8;
+}
+
+.portal-key-strip-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.portal-key-strip-count {
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .portal-main {

@@ -7,7 +7,12 @@ const DEFAULT_METRICS = {
   pendingDocuments: 0,
   tasks: {},
   openTasks: 0,
-  failedTasks: 0
+  failedTasks: 0,
+  scope: 'owned',
+  totalUsers: 0,
+  apiKeyCount: 0,
+  auditFrequency24h: 0,
+  apiKeys: 0
 }
 
 const normalizeNumber = (value) => {
@@ -49,7 +54,12 @@ export function toDashboardSummaryViewModel(payload = {}) {
       pendingDocuments: normalizeNumber(metrics.pendingDocuments),
       tasks: metrics.tasks || {},
       openTasks: normalizeNumber(metrics.openTasks),
-      failedTasks: normalizeNumber(metrics.failedTasks)
+      failedTasks: normalizeNumber(metrics.failedTasks),
+      scope: metrics.scope === 'platform' ? 'platform' : 'owned',
+      totalUsers: normalizeNumber(metrics.totalUsers),
+      apiKeyCount: normalizeNumber(metrics.apiKeyCount),
+      auditFrequency24h: normalizeNumber(metrics.auditFrequency24h),
+      apiKeys: normalizeNumber(metrics.apiKeys)
     },
     recentActivity: Array.isArray(payload.recentActivity)
       ? payload.recentActivity.map((item) => ({

@@ -21,4 +21,8 @@ public interface GatewaySecretRepository extends JpaRepository<GatewaySecret, St
             GatewaySecret.SecretType secretType,
             String provider,
             GatewaySecret.SecretStatus status);
+
+    long countBySecretType(GatewaySecret.SecretType secretType);
+
+    long countBySecretTypeAndUserId(GatewaySecret.SecretType secretType, String userId);
 }
